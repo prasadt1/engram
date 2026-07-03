@@ -1846,6 +1846,8 @@ git add -A && git commit -m "Show genre chip on critique results"
 
 ### Task 20: Library — genre filter and milestone badges
 
+**Carried from Task 13b's contract review — two frontend contract members have NO backend route:** (1) `deletePortfolioEntry(ies)` (used by `MyWorkTab.tsx` — a real library feature): either add a small `DELETE /api/v1/portfolio/{entry_id}` (+ batch) route mirroring Iris's, or gate the delete UI; deleting from the library during judge click-testing must not 404. (2) `fetchPortfolioByShoots` (used by `AssignmentCompare.tsx` — assignments are deferred): gate that component. Decide when touching the library; don't leave dead buttons.
+
 **Files:**
 - Modify: the library grid component (likely `frontend/src/components/HomeTab.tsx` region or a dedicated library component — locate via `grep -rl "portfolio" frontend/src/components | grep -i librar\|work`)
 
