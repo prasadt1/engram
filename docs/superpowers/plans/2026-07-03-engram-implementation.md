@@ -337,6 +337,8 @@ git commit -m "Add genre field to CoachAnalysisOutput"
 - Create: `app/coach.py`
 - Test: `tests/test_coach.py`
 
+**Carried note from Task 3's quality review:** `ground_principles()` silently drops a citation if a corpus file is missing (list-comprehension swallow). While wiring it in here, add one `warning` log when fewer citations return than `SCENE_TO_DOCS[scene]` lists — a silently-thinned principles block feeding the Coach prompt would be hard to notice in a demo.
+
 This ports `iris-photography-mentor/app/sub_agents/coach_pipeline.py`. Original flow: ground → call Gemini vision with `response_schema` → upload to GCS → embed (Vertex) → write Mongo → build API payload. New flow: ground (Task 3) → call Qwen-VL via `qwen_client.chat_vision` with `parse_json_with_repair` → upload via `storage.get_storage()` → **skip embeddings for MVP** (memory_engine's salience recall doesn't need vectors; note this as a documented, deliberate scope cut, not an oversight) → write Mongo → build API payload.
 
 - [ ] **Step 1: Write the failing test** (mocks `qwen_client.chat_vision` and storage; no real network/DB calls)
