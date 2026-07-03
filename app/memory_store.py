@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from app.memory_engine import (
-    GRADUATION_THRESHOLD, MemoryItem, Skill, SkillStatus, recall_scored as _recall_scored,
+    MemoryItem, Skill, SkillStatus, recall_scored as _recall_scored,
 )
 
 
