@@ -9,9 +9,12 @@ metadata (importance, recency, scope, genre), not vector similarity.
 from __future__ import annotations
 
 import base64
+import json
 import logging
 from pathlib import Path
 from typing import Any
+
+from pydantic import ValidationError
 
 from app import qwen_client
 from app.grounding import SCENE_TO_DOCS, detect_scene_type_hint, ground_principles
@@ -41,7 +44,23 @@ def _run_coach_model(image_bytes: bytes, mime_type: str, citations) -> CoachAnal
         return qwen_client.chat_fast(fix_prompt, json_mode=True).content
 
     parsed = qwen_client.parse_json_with_repair(result.content, _repair)
-    return CoachAnalysisOutput.model_validate(parsed)
+    try:
+        return CoachAnalysisOutput.model_validate(parsed)
+    except ValidationError as first_err:
+        logger.warning("coach output failed shape validation (%d errors); attempting one shape-repair", len(first_err.errors()))
+        skeleton_prompt = (
+            "The following JSON does not match the required shape. Errors:\n"
+            + "\n".join(f"- {'.'.join(str(p) for p in e['loc'])}: {e['msg']}" for e in first_err.errors())
+            + "\n\nRewrite the JSON to fix ONLY these shape problems, preserving all content/meaning. "
+            + "Rules: scores has exactly composition/lighting/technique/creativity/subject_impact (move any 'overall' score value out or drop it); "
+            + "critique must be an object with keys composition/lighting/technique/overall (if it was a string, put that text in 'overall' and write brief per-dimension lines for the others from the content available); "
+            + "glassBox must include observations, reasoning_steps, priority_fixes (empty list if none); "
+            + "secondary_subjects must be a list ([] if none); genre must be one of landscape/portrait/still_life/street/wildlife/macro/architecture/other (lowercase). "
+            + "Return ONLY the corrected JSON.\n\n" + json.dumps(parsed)
+        )
+        repaired = qwen_client.chat_text(skeleton_prompt, json_mode=True).content
+        reparsed = qwen_client.parse_json_with_repair(repaired, _repair)
+        return CoachAnalysisOutput.model_validate(reparsed)  # raises with full context if still wrong
 
 
 def analyze_photo(

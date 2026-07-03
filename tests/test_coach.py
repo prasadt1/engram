@@ -16,6 +16,24 @@ VALID_COACH_JSON = """{
   "genre": "landscape"
 }"""
 
+MALFORMED_COACH_JSON = """{
+  "sceneDescription": "A lone tree on a hill at sunset.",
+  "colourNotes": "Warm oranges against a cool blue sky.",
+  "scores": {"composition": 7, "lighting": 8, "technique": 6, "overall": 7},
+  "critique": "just a string",
+  "strengths": ["good light"],
+  "improvements": ["tighten crop"],
+  "learningPath": [],
+  "settingsEstimate": {},
+  "aestheticTags": ["golden-hour"],
+  "glassBox": {"observations": ["a"]},
+  "spatialMetadata": {"subject_relationships": {"primary_subject_position": "center", "secondary_subjects": "none"}},
+  "boundingBoxes": [],
+  "genre": "still_life"
+}"""
+
+CORRECTED_COACH_JSON = VALID_COACH_JSON.replace('"genre": "landscape"', '"genre": "still_life"')
+
 
 def test_analyze_photo_returns_payload_with_genre_and_writes_to_storage():
     from app.coach import analyze_photo
@@ -45,3 +63,34 @@ def test_analyze_photo_returns_payload_with_genre_and_writes_to_storage():
     mock_storage.save.assert_called_once_with(
         b"fake-jpeg-bytes", filename="sunset.jpg", content_type="image/jpeg"
     )
+
+
+def test_analyze_photo_repairs_shape_drift_on_validation_error():
+    from app.coach import analyze_photo
+
+    malformed_call_result = MagicMock(
+        content=MALFORMED_COACH_JSON, model="qwen-vl-max", latency_ms=500, input_tokens=100, output_tokens=200
+    )
+    repaired_call_result = MagicMock(
+        content=CORRECTED_COACH_JSON, model="qwen-max", latency_ms=300, input_tokens=150, output_tokens=180
+    )
+
+    with patch("app.coach.qwen_client.chat_vision", return_value=malformed_call_result), \
+         patch("app.coach.qwen_client.chat_text", return_value=repaired_call_result) as mock_chat_text, \
+         patch("app.coach.get_storage") as mock_get_storage:
+        mock_storage = MagicMock()
+        mock_storage.save.return_value = "photos/fake.jpg"
+        mock_storage.signed_url.return_value = "https://example.com/fake.jpg"
+        mock_get_storage.return_value = mock_storage
+
+        result = analyze_photo(
+            image_bytes=b"fake-jpeg-bytes",
+            content_type="image/jpeg",
+            filename="fruit-bowl.jpg",
+        )
+
+    assert result["genre"] == "still_life"
+    mock_chat_text.assert_called_once()
+    assert set(result["scores"].keys()) == {
+        "composition", "lighting", "technique", "creativity", "subject_impact"
+    }
