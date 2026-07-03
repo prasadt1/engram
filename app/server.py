@@ -15,10 +15,12 @@ import uuid
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Form, Header, UploadFile
+from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, ConfigDict, Field
+from openai import APIStatusError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 load_dotenv()
 
@@ -30,6 +32,8 @@ from app.reflection import summarize_progress  # noqa: E402
 from app.storage import get_storage  # noqa: E402
 
 logger = logging.getLogger(__name__)
+
+MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 
 
 @asynccontextmanager
@@ -51,6 +55,21 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Engram API", version="0.1.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
+
+@app.exception_handler(APIStatusError)
+async def _model_unavailable(request, exc):
+    logger.warning("upstream model error: %s", exc)
+    return JSONResponse(status_code=502, content={"detail": "The photography model is temporarily unavailable. Your photo was saved — please try again."})
+
+
+@app.exception_handler(ValidationError)
+@app.exception_handler(ValueError)
+async def _bad_model_output(request, exc):
+    # current sources of these are model-OUTPUT failures (unrepairable JSON /
+    # shape mismatch) — if a future task adds input validation, revisit this mapping
+    logger.warning("model output unusable: %s", exc)
+    return JSONResponse(status_code=502, content={"detail": "We couldn't read the analysis this time. Your photo was saved — please try again."})
+
 # Local dev/test storage serves photo bytes back out at /media (see
 # storage.LocalDiskStorage.signed_url). OSS is a private bucket with
 # presigned URLs, so nothing to mount in that case.
@@ -69,7 +88,7 @@ def health() -> dict:
 
 
 @app.post("/api/v1/analyze-photo")
-async def analyze_photo_endpoint(
+def analyze_photo_endpoint(
     image: UploadFile = File(...),
     user_id: str | None = Form(None),
     shoot_id: str | None = Form(None),
@@ -78,13 +97,22 @@ async def analyze_photo_endpoint(
 ):
     # Field name `image` matches Iris agentClient.ts's form.append('image', ...).
     # shoot_id/assignment_id are accepted for wire compatibility but currently
-    # unused. Save BEFORE analyze so a model failure never loses the upload
-    # (spec §12) — analyze_photo's stored_key skips its own internal save.
-    data = await image.read()
+    # unused. Plain `def` (not async): the model call inside analyze_photo is
+    # slow and blocking, so let Starlette run this route in its threadpool
+    # alongside the sibling sync routes.
+    if image.content_type and not image.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+    data = image.file.read()
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="Image too large (max 20MB)")
+    filename = image.filename or "photo.jpg"
+    content_type = image.content_type or "image/jpeg"
+    # Save BEFORE analyze so a model failure never loses the upload (spec §12)
+    # — analyze_photo's stored_key skips its own internal save.
     storage = get_storage()
-    key = storage.save(data, filename=image.filename or "photo.jpg", content_type=image.content_type or "image/jpeg")
+    key = storage.save(data, filename=filename, content_type=content_type)
     payload = analyze_photo(
-        data, image.content_type or "image/jpeg", image.filename or "photo.jpg",
+        data, content_type, filename,
         user_id=user_id or x_user_id, memory_store=_store(), stored_key=key,
     )
     return payload

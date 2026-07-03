@@ -58,6 +58,43 @@ def test_chat_endpoint_generates_session_id_when_absent():
     assert resp.json()["sessionId"]  # non-empty, generated
 
 
+def test_analyze_photo_endpoint_rejects_oversized_upload_with_413():
+    with patch("app.server.analyze_photo") as mock_analyze, \
+         patch("app.server.get_storage") as mock_gs, \
+         patch("app.server._store"):
+        resp = _client().post(
+            "/api/v1/analyze-photo",
+            files={"image": ("big.jpg", b"x" * (20 * 1024 * 1024 + 1), "image/jpeg")},
+            headers={"X-User-Id": "u1"},
+        )
+    assert resp.status_code == 413
+    mock_gs.return_value.save.assert_not_called()  # rejected before touching storage
+    mock_analyze.assert_not_called()
+
+
+def test_analyze_photo_endpoint_maps_model_failure_to_friendly_502():
+    import httpx
+    from openai import APIStatusError
+
+    err = APIStatusError(
+        "boom",
+        response=httpx.Response(500, request=httpx.Request("POST", "http://x")),
+        body=None,
+    )
+    with patch("app.server.analyze_photo", side_effect=err), \
+         patch("app.server.get_storage") as mock_gs, \
+         patch("app.server._store"):
+        mock_gs.return_value.save.return_value = "photos/pre-saved.jpg"
+        resp = _client().post(
+            "/api/v1/analyze-photo",
+            files={"image": ("test.jpg", b"fake-bytes", "image/jpeg")},
+            headers={"X-User-Id": "u1"},
+        )
+    assert resp.status_code == 502
+    assert "temporarily unavailable" in resp.json()["detail"]
+    mock_gs.return_value.save.assert_called_once()  # photo persisted BEFORE the model blew up
+
+
 def test_journey_endpoint_shape():
     from app.memory_engine import Skill, SkillStatus
     with patch("app.server._store") as mock_store, \
