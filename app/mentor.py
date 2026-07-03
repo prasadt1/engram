@@ -41,7 +41,7 @@ def chat(
 
     # Hand the builder the full candidate pool (incl. archived); IT does the
     # live-filtering, scoring, and packing so the receipt reflects reality.
-    items = memory_store.recall(user_id=user_id, scope=photo_id, k=50, query=None, include_archived=True)
+    items = memory_store.recall(user_id=user_id, scope=photo_id, k=200, query=None, include_archived=True)
     ctx = build_memory_context(items, query=message, scope=photo_id, k=8)
 
     skills = memory_store.list_skills(user_id=user_id)

@@ -27,7 +27,7 @@ def test_chat_scopes_recall_to_photo_id_and_returns_reply_with_receipt():
     kw = store.recall.call_args.kwargs
     assert kw["scope"] == "p123"
     assert kw["include_archived"] is True
-    assert kw["k"] == 50
+    assert kw["k"] == 200
 
 
 def test_chat_uses_global_scope_when_no_photo_id():

@@ -127,6 +127,9 @@ def test_analyze_photo_records_skill_sessions_and_persists_portfolio_entry():
     assert wm["user_id"] == "u1"
     assert wm["genre"] == "landscape"
     assert wm["scope"] == "photos/fake.jpg"
+    assert "working on" in wm["content"]
+    assert "technique" in wm["content"]
+    assert wm["importance"] == 0.75
 
     mock_store.db.portfolio_entries.insert_one.assert_called_once()
     entry_doc = mock_store.db.portfolio_entries.insert_one.call_args.args[0]
