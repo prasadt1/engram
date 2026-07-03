@@ -11,6 +11,7 @@ from __future__ import annotations
 import base64
 import json
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -67,6 +68,10 @@ def analyze_photo(
     image_bytes: bytes,
     content_type: str,
     filename: str = "photo.jpg",
+    *,
+    user_id: str | None = None,
+    memory_store=None,
+    weakness_bar: float = 7.0,
 ) -> dict[str, Any]:
     """Full Coach pipeline → API payload dict.
 
@@ -116,5 +121,37 @@ def analyze_photo(
     }
     # NOTE: the frontend AnalysisResult type (copied in a later task) will
     # require portfolioEntryId and spatialMetadata — spatialMetadata is set
-    # above; portfolioEntryId is added by the persistence wiring in Task 9.
+    # above; portfolioEntryId is added by the persistence wiring below.
+    if memory_store is not None and user_id is not None:
+        evidence_id = key  # the storage key doubles as the evidence reference
+        for dim, score in payload["scores"].items():
+            memory_store.record_skill_session(
+                user_id=user_id, skill=dim, bar=weakness_bar, score=score, evidence_id=evidence_id,
+            )
+        weak = [d for d, s in payload["scores"].items() if s < weakness_bar]
+        focus = f" — working on {', '.join(weak)}" if weak else ""
+        summary = f"{output.genre} photo: {output.scene_description[:120]}{focus}"
+        memory_store.write_memory(
+            user_id=user_id, content=summary,
+            importance=0.75 if weak else 0.55,  # weak-dimension photos are more consequential to recall
+            scope=evidence_id, genre=output.genre,
+        )
+        # Persist the portfolio entry the frontend contract requires:
+        # AnalysisResult.portfolioEntryId is REQUIRED in the frontend types, and
+        # the Library/Home read routes (Task 13b) list these documents.
+        entry = memory_store.db.portfolio_entries.insert_one({
+            "user_id": user_id,
+            "storage_key": key,
+            "image_url": image_url,
+            "scores": payload["scores"],
+            "genre": output.genre,
+            "aesthetic_tags": output.aesthetic_tags,
+            "scene_description": output.scene_description,
+            "colour_notes": output.colour_notes,
+            "glass_box": payload["glassBox"],
+            "spatial_metadata": payload["spatialMetadata"],
+            "created_at": datetime.now(timezone.utc),
+        })
+        payload["portfolioEntryId"] = str(entry.inserted_id)
+
     return payload

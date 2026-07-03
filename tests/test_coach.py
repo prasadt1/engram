@@ -94,3 +94,59 @@ def test_analyze_photo_repairs_shape_drift_on_validation_error():
     assert set(result["scores"].keys()) == {
         "composition", "lighting", "technique", "creativity", "subject_impact"
     }
+
+
+def test_analyze_photo_records_skill_sessions_and_persists_portfolio_entry():
+    from app.coach import analyze_photo
+
+    fake_call_result = MagicMock(content=VALID_COACH_JSON, model="qwen-vl-max", latency_ms=500, input_tokens=100, output_tokens=200)
+    mock_store = MagicMock()
+
+    with patch("app.coach.qwen_client.chat_vision", return_value=fake_call_result), \
+         patch("app.coach.get_storage") as mock_get_storage:
+        mock_get_storage.return_value.save.return_value = "photos/fake.jpg"
+        mock_get_storage.return_value.signed_url.return_value = "https://x/fake.jpg"
+
+        result = analyze_photo(
+            image_bytes=b"fake", content_type="image/jpeg", filename="x.jpg",
+            user_id="u1", memory_store=mock_store, weakness_bar=7.5,
+        )
+
+    # technique scored 6 in VALID_COACH_JSON -> tracked below the 7.5 bar;
+    # ALL five dimensions get a session recorded (streak logic lives in the engine)
+    assert mock_store.record_skill_session.call_count == 5
+    recorded_skills = {c.kwargs["skill"] for c in mock_store.record_skill_session.call_args_list}
+    assert recorded_skills == {"composition", "lighting", "technique", "creativity", "subject_impact"}
+    for c in mock_store.record_skill_session.call_args_list:
+        assert c.kwargs["user_id"] == "u1"
+        assert c.kwargs["bar"] == 7.5
+        assert c.kwargs["evidence_id"] == "photos/fake.jpg"
+
+    mock_store.write_memory.assert_called_once()
+    wm = mock_store.write_memory.call_args.kwargs
+    assert wm["user_id"] == "u1"
+    assert wm["genre"] == "landscape"
+    assert wm["scope"] == "photos/fake.jpg"
+    assert "working on" in wm["content"]
+    assert "technique" in wm["content"]
+    assert wm["importance"] == 0.75
+
+    mock_store.db.portfolio_entries.insert_one.assert_called_once()
+    entry_doc = mock_store.db.portfolio_entries.insert_one.call_args.args[0]
+    assert entry_doc["user_id"] == "u1"
+    assert entry_doc["genre"] == "landscape"
+    assert entry_doc["storage_key"] == "photos/fake.jpg"
+    assert "portfolioEntryId" in result
+
+
+def test_analyze_photo_without_store_still_returns_payload():
+    from app.coach import analyze_photo
+
+    fake_call_result = MagicMock(content=VALID_COACH_JSON, model="qwen-vl-max", latency_ms=500, input_tokens=100, output_tokens=200)
+    with patch("app.coach.qwen_client.chat_vision", return_value=fake_call_result), \
+         patch("app.coach.get_storage") as mock_get_storage:
+        mock_get_storage.return_value.save.return_value = "photos/fake.jpg"
+        mock_get_storage.return_value.signed_url.return_value = "https://x/fake.jpg"
+        result = analyze_photo(image_bytes=b"fake", content_type="image/jpeg", filename="x.jpg")
+    assert "portfolioEntryId" not in result  # no store -> no persistence, payload otherwise intact
+    assert result["genre"] == "landscape"
