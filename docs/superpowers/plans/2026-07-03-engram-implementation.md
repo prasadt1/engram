@@ -685,14 +685,19 @@ class MemoryStore:
         result = self.db.memory_items.insert_one(doc)
         return str(result.inserted_id)
 
-    def supersede_memory(self, *, old_id: str, new_content: str, importance: float, genre: str | None = None) -> str:
+    def supersede_memory(self, *, old_id: str, user_id: str, new_content: str, importance: float, genre: str | None = None) -> str:
+        # (as-built, per Task 8 quality review) user_id is REQUIRED and scopes both
+        # queries — an old_id belonging to another user raises ValueError instead of
+        # silently cross-linking memories across users.
         from bson import ObjectId
-        old = self.db.memory_items.find_one({"_id": ObjectId(old_id)})
+        old = self.db.memory_items.find_one({"_id": ObjectId(old_id), "user_id": user_id})
+        if old is None:
+            raise ValueError(f"memory {old_id} not found for user {user_id}")
         new_id = self.write_memory(
             user_id=old["user_id"], content=new_content, importance=importance,
             scope=old.get("scope"), genre=genre or old.get("genre"),
         )
-        self.db.memory_items.update_one({"_id": ObjectId(old_id)}, {"$set": {"superseded_by": new_id}})
+        self.db.memory_items.update_one({"_id": ObjectId(old_id), "user_id": user_id}, {"$set": {"superseded_by": new_id}})
         return new_id
 
     def recall(
@@ -1280,7 +1285,7 @@ Routes needed for the five/six surfaces in spec §5: upload+critique, chat (glob
 
 **Carried note from Task 6's quality review (spec §12 conflict — resolve HERE):** spec §12 says the photo must be stored BEFORE analysis so a model failure never loses the upload; `analyze_photo` currently analyzes first. Fix at this layer: the route saves via `get_storage()` first, then calls `analyze_photo` with a new optional `stored_key` parameter (skip the internal save when provided) — no double write, and a `chat_vision` failure leaves the photo safe.
 
-**Carried notes from Task 2's quality review:** (a) `get_db()` raises `RuntimeError` if `MONGODB_URI` is unset — once wired into routes, add a startup check (fail fast at boot with a clear message) rather than letting it surface as a raw 500 per-request; (b) `db.py`'s `serverSelectionTimeoutMS=15000` is fine for smoke tests but long for request paths — do the connectivity check once at startup so requests don't carry a 15s tail-latency risk.
+**Carried notes from Task 2's quality review:** (a) `get_db()` raises `RuntimeError` if `MONGODB_URI` is unset — once wired into routes, add a startup check (fail fast at boot with a clear message) rather than letting it surface as a raw 500 per-request; (b) `db.py`'s `serverSelectionTimeoutMS=15000` is fine for smoke tests but long for request paths — do the connectivity check once at startup so requests don't carry a 15s tail-latency risk. (c) From Task 8's quality review: at the same startup point, create the two cheap indexes — `db.memory_items.create_index([("user_id", 1)])` and `db.skills.create_index([("user_id", 1)])` (idempotent; recall_scored fetches by user_id on every chat turn).
 
 **Wire-compatibility note (added after plan review):** the chat route's request/response shape must match Iris's real `mentorClient.ts` exactly — `{message, sessionId, persona}` in, `{reply, persona, sessionId, userId}` out (camelCase on the wire; FastAPI's Pydantic `alias` handles the snake_case↔camelCase translation) — so the existing frontend needs zero breaking changes when Task 22 wires it up. `photo_id` is the one genuinely new field, purely additive.
 
