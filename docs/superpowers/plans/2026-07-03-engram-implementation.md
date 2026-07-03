@@ -608,8 +608,11 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from app.memory_engine import (
-    GRADUATION_THRESHOLD, MemoryItem, Skill, SkillStatus, recall_scored as _recall_scored,
+    MemoryItem, Skill, SkillStatus, recall_scored as _recall_scored,
 )
+# NOTE (as-built): Mongo/BSON strips tzinfo on read — the store re-attaches UTC
+# via a small _as_utc() helper when reconstructing MemoryItem (engine expects
+# tz-aware datetimes for recency math). Persistence-adapter concern, not engine logic.
 
 
 class MemoryStore:
