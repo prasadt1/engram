@@ -13,26 +13,35 @@ from app.memory_engine import MemoryItem, recall_scored
 
 
 def _estimate_tokens(item: MemoryItem) -> int:
+    # chars/4 heuristic — same documented estimate the /eval harness uses (calibrated there); keep them consistent
     return max(1, len(item.content) // 4)
 
 
 @dataclass
 class MemoryContext:
-    packed: list[MemoryItem]
-    packed_scores: list[dict]
+    packed_pairs: list[tuple[MemoryItem, dict]]
     dropped_by_budget: list[MemoryItem]
     retired_excluded: list[MemoryItem]
     token_budget: int
     query: str | None
 
+    @property
+    def packed(self) -> list[MemoryItem]:
+        return [m for m, _ in self.packed_pairs]
+
+    @property
+    def packed_scores(self) -> list[dict]:
+        return [s for _, s in self.packed_pairs]
+
     def context_block(self) -> str:
         return "\n".join(f"- {m.content}" for m in self.packed) or "(no relevant memories yet)"
 
     def receipt(self) -> dict:
+        # re-reads state live — a second call reflects any mutation of packed_pairs in between
         return {
             "recalled": [
                 {"id": m.id, "content": m.content, "genre": m.genre, "scores": s}
-                for m, s in zip(self.packed, self.packed_scores)
+                for m, s in self.packed_pairs
             ],
             "retired_excluded": [
                 {"id": m.id, "content": m.content} for m in self.retired_excluded
@@ -51,23 +60,22 @@ def build_memory_context(
     k: int = 8, token_budget: int = 1200, now: datetime | None = None,
 ) -> MemoryContext:
     now = now or datetime.now(timezone.utc)
-    retired = [i for i in items if not i.is_live()]
+    retired_candidates = recall_scored(items, now=now, query=query, scope=scope, genre=genre, k=k, include_archived=True)
+    retired = [i for i, _ in retired_candidates if not i.is_live()]
     scored = recall_scored(items, now=now, query=query, scope=scope, genre=genre, k=k)
 
-    packed: list[MemoryItem] = []
-    packed_scores: list[dict] = []
+    packed_pairs: list[tuple[MemoryItem, dict]] = []
     dropped: list[MemoryItem] = []
     used = 0
     for item, scores in scored:
         cost = _estimate_tokens(item)
         if used + cost <= token_budget:
-            packed.append(item)
-            packed_scores.append(scores)
+            packed_pairs.append((item, scores))
             used += cost
         else:
             dropped.append(item)
 
     return MemoryContext(
-        packed=packed, packed_scores=packed_scores, dropped_by_budget=dropped,
+        packed_pairs=packed_pairs, dropped_by_budget=dropped,
         retired_excluded=retired, token_budget=token_budget, query=query,
     )

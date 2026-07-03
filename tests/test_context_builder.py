@@ -47,3 +47,29 @@ def test_build_context_on_empty_items_yields_empty_receipt_and_placeholder_block
         "token_budget": 100,
         "query": "anything",
     }
+
+
+def test_retired_excluded_is_scoped_to_relevant_items_not_the_whole_archive():
+    # The receipt narrates forgetting relevant to THIS query — it is not an
+    # archive dump. A retired item only appears if it would have ranked
+    # alongside the recalled items had it still been live.
+    from app.context_builder import build_memory_context
+
+    live_a = MemoryItem(id="live_a", content="working on night exposure",
+                        importance=0.9, created_at=NOW - timedelta(days=1))
+    live_b = MemoryItem(id="live_b", content="prefers golden hour light",
+                        importance=0.7, created_at=NOW - timedelta(days=2))
+    retired_relevant = MemoryItem(id="retired_relevant", content="old approach to night exposure",
+                                  importance=0.9, created_at=NOW - timedelta(days=2),
+                                  superseded_by="live_a")
+    retired_ancient = MemoryItem(id="retired_ancient", content="used to shoot film",
+                                 importance=0.1, created_at=NOW - timedelta(days=300),
+                                 superseded_by="x")
+
+    ctx = build_memory_context([live_a, live_b, retired_relevant, retired_ancient],
+                               query="night exposure", k=2, now=NOW)
+
+    assert [i.id for i in ctx.packed] == ["live_a", "live_b"]  # live path undisturbed
+    retired_ids = [r["id"] for r in ctx.receipt()["retired_excluded"]]
+    assert "retired_relevant" in retired_ids
+    assert "retired_ancient" not in retired_ids
