@@ -527,7 +527,7 @@ EOF
 ```
 
 - [ ] **Step 3: Eyeball the output.** Confirm: `genre` is populated and plausible, `scores` are 0-10 floats, `glassBox.observations` reads like real photo commentary (not hallucinated boilerplate), `imageUrl` points to a real local file under `data/media/`. If the critique quality feels weak, this is the moment to try `qwen3.7-max` or `qwen3-vl-plus` as `ENGRAM_MODEL_VISION` overrides in `.env` and re-run — don't block on perfect parity with Gemini, per the spec's risk mitigation (§15.3): acceptable critique + a great memory engine beats the reverse.
-- [ ] **Step 3b (carried from Task 6's quality review — two live-only landmines to check):** (1) Does Qwen capitalize enum values anywhere (`genre: "Landscape"`, `severity: "Moderate"`, nested `spatialMetadata` literals)? If yes → add a `field_validator(mode="before")` that lowercases enum fields in `schema.py`, rather than chasing each occurrence. (2) Does Qwen populate `spatialMetadata.annotations` directly, or emit a flat `boundingBoxes` list instead? Iris had a `_annotations_from_boxes` mapping the port dropped — if the live output uses flat boxes, the spatial-overlay UI would be silently empty; restore that small mapping in coach.py if needed.
+- [ ] **Step 3b (carried from Task 6's quality review — two live-only landmines to check):** (1) Does Qwen capitalize enum values anywhere (`genre: "Landscape"`, `severity: "Moderate"`, nested `spatialMetadata` literals)? If yes → add a `field_validator(mode="before")` that lowercases enum fields in `schema.py`, rather than chasing each occurrence. (2) Does Qwen populate `spatialMetadata.annotations` directly, or emit a flat `boundingBoxes` list instead? Iris had a `_annotations_from_boxes` mapping the port dropped — if the live output uses flat boxes, the spatial-overlay UI would be silently empty; restore that small mapping in coach.py if needed. Related (shape-review advisory): the prompt skeleton's `"boundingBoxes": []` example may bias the model toward empty arrays — if flawed seed photos come back box-less, change the skeleton example to a one-element array teaching the element shape, at the same time as the mapping fix. (First live run: clean photo, 0 annotations — inconclusive.)
 - [ ] **Step 4: Note the result** in `docs/DEVPOST-DRAFT.md`'s "Accomplishments" or "Challenges" section if anything surprised you (good or bad) — capture it now while fresh, per the running war-story pattern from the smoke test.
 
 ---
@@ -608,8 +608,11 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from app.memory_engine import (
-    GRADUATION_THRESHOLD, MemoryItem, Skill, SkillStatus, recall_scored as _recall_scored,
+    MemoryItem, Skill, SkillStatus, recall_scored as _recall_scored,
 )
+# NOTE (as-built): Mongo/BSON strips tzinfo on read — the store re-attaches UTC
+# via a small _as_utc() helper when reconstructing MemoryItem (engine expects
+# tz-aware datetimes for recency math). Persistence-adapter concern, not engine logic.
 
 
 class MemoryStore:
@@ -682,14 +685,19 @@ class MemoryStore:
         result = self.db.memory_items.insert_one(doc)
         return str(result.inserted_id)
 
-    def supersede_memory(self, *, old_id: str, new_content: str, importance: float, genre: str | None = None) -> str:
+    def supersede_memory(self, *, old_id: str, user_id: str, new_content: str, importance: float, genre: str | None = None) -> str:
+        # (as-built, per Task 8 quality review) user_id is REQUIRED and scopes both
+        # queries — an old_id belonging to another user raises ValueError instead of
+        # silently cross-linking memories across users.
         from bson import ObjectId
-        old = self.db.memory_items.find_one({"_id": ObjectId(old_id)})
+        old = self.db.memory_items.find_one({"_id": ObjectId(old_id), "user_id": user_id})
+        if old is None:
+            raise ValueError(f"memory {old_id} not found for user {user_id}")
         new_id = self.write_memory(
             user_id=old["user_id"], content=new_content, importance=importance,
             scope=old.get("scope"), genre=genre or old.get("genre"),
         )
-        self.db.memory_items.update_one({"_id": ObjectId(old_id)}, {"$set": {"superseded_by": new_id}})
+        self.db.memory_items.update_one({"_id": ObjectId(old_id), "user_id": user_id}, {"$set": {"superseded_by": new_id}})
         return new_id
 
     def recall(
@@ -1277,7 +1285,7 @@ Routes needed for the five/six surfaces in spec §5: upload+critique, chat (glob
 
 **Carried note from Task 6's quality review (spec §12 conflict — resolve HERE):** spec §12 says the photo must be stored BEFORE analysis so a model failure never loses the upload; `analyze_photo` currently analyzes first. Fix at this layer: the route saves via `get_storage()` first, then calls `analyze_photo` with a new optional `stored_key` parameter (skip the internal save when provided) — no double write, and a `chat_vision` failure leaves the photo safe.
 
-**Carried notes from Task 2's quality review:** (a) `get_db()` raises `RuntimeError` if `MONGODB_URI` is unset — once wired into routes, add a startup check (fail fast at boot with a clear message) rather than letting it surface as a raw 500 per-request; (b) `db.py`'s `serverSelectionTimeoutMS=15000` is fine for smoke tests but long for request paths — do the connectivity check once at startup so requests don't carry a 15s tail-latency risk.
+**Carried notes from Task 2's quality review:** (a) `get_db()` raises `RuntimeError` if `MONGODB_URI` is unset — once wired into routes, add a startup check (fail fast at boot with a clear message) rather than letting it surface as a raw 500 per-request; (b) `db.py`'s `serverSelectionTimeoutMS=15000` is fine for smoke tests but long for request paths — do the connectivity check once at startup so requests don't carry a 15s tail-latency risk. (c) From Task 8's quality review: at the same startup point, create the two cheap indexes — `db.memory_items.create_index([("user_id", 1)])` and `db.skills.create_index([("user_id", 1)])` (idempotent; recall_scored fetches by user_id on every chat turn).
 
 **Wire-compatibility note (added after plan review):** the chat route's request/response shape must match Iris's real `mentorClient.ts` exactly — `{message, sessionId, persona}` in, `{reply, persona, sessionId, userId}` out (camelCase on the wire; FastAPI's Pydantic `alias` handles the snake_case↔camelCase translation) — so the existing frontend needs zero breaking changes when Task 22 wires it up. `photo_id` is the one genuinely new field, purely additive.
 

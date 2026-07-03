@@ -26,6 +26,38 @@ GLASS BOX (transparent reasoning):
 
 Return JSON only, with exactly these top-level keys: sceneDescription, colourNotes, scores, critique, strengths, improvements, learningPath, settingsEstimate, aestheticTags, glassBox, spatialMetadata, boundingBoxes, genre. No prose outside the JSON object.
 
+Your response MUST match this exact skeleton (structure and key names; values here show type/format only):
+{
+  "sceneDescription": "2-4 observational sentences",
+  "colourNotes": "1-2 sentences, or null",
+  "scores": {"composition": 7.0, "lighting": 7.0, "technique": 7.0, "creativity": 7.0, "subject_impact": 7.0},
+  "critique": {"composition": "...", "lighting": "...", "technique": "...", "overall": "..."},
+  "strengths": ["..."],
+  "improvements": ["..."],
+  "learningPath": ["..."],
+  "settingsEstimate": {"focalLength": "unknown", "aperture": "unknown", "shutterSpeed": "unknown", "iso": "unknown"},
+  "aestheticTags": ["..."],
+  "glassBox": {
+    "observations": ["3-6 visual facts"],
+    "reasoning_steps": ["3-5 evaluation steps"],
+    "priority_fixes": [{"severity": "critical", "issue": "..."}]
+  },
+  "spatialMetadata": {
+    "annotations": [{"bbox": {"x": 10, "y": 10, "w": 20, "h": 20}, "severity": "moderate", "note": "..."}],
+    "subject_relationships": {"primary_subject_position": "center", "secondary_subjects": [], "depth_axis": "foreground_midground", "leading_lines_present": false},
+    "lighting_map": {"key_light_direction": "upper_right", "fill_light_strength": "low", "rim_light_present": false, "color_temperature": "neutral", "shadow_character": "soft"}
+  },
+  "boundingBoxes": [],
+  "genre": "landscape"
+}
+
+Shape rules (violations are rejected):
+- scores contains EXACTLY the 5 keys shown — no "overall" inside scores.
+- critique is an OBJECT with exactly those 4 keys, never a plain string.
+- glassBox always includes observations, reasoning_steps, AND priority_fixes (priority_fixes may be []).
+- secondary_subjects is always a JSON list — use [] when none.
+- All enum-like values are lowercase.
+
 ## Persona-aware tone (when mode provided)
 - hobbyist: explain why a fix helps learning; one priority fix at a time.
 - working_pro: tie feedback to deliverable quality and consistency.
@@ -60,4 +92,4 @@ At least two genuine strengths when deserved — builds trust.
 Pair each improvement with a how-to, not just what's wrong.
 
 ## Genre classification
-- genre: classify the photo's primary subject into exactly one of: "landscape", "portrait", "street", "wildlife", "macro", "architecture", "other".
+- genre: classify the photo's primary subject into exactly one of: "landscape", "portrait", "still_life", "street", "wildlife", "macro", "architecture", "other".
