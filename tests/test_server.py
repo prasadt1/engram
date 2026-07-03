@@ -1,8 +1,13 @@
+import os
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import mongomock
+import pytest
+from dotenv import load_dotenv
 from fastapi.testclient import TestClient
+
+load_dotenv()  # so the MONGODB_URI skipif below sees .env, matching tests/test_db.py's convention
 
 
 def _client():
@@ -185,6 +190,29 @@ def test_journey_endpoint_shape():
     assert body["summary"] == "Nice progress."
     assert body["skills"][0] == {"name": "exposure", "status": "watching", "consecutive": 1}
     assert body["stats"]["total_memories"] == 3
+
+
+@pytest.mark.skipif(not os.environ.get("MONGODB_URI"), reason="requires a real MongoDB (MONGODB_URI) for the live MCP subprocess round trip")
+def test_memory_stats_via_mcp_round_trips_through_real_stdio_server():
+    # Real subprocess round trip (scripts/run_mcp_server.py), not a mocked
+    # MCP client — this is the strongest available evidence that ?via=mcp
+    # actually reaches the protocol layer rather than just calling
+    # MemoryStore in-process with an extra key slapped on.
+    resp = _client().get("/api/v1/memory-stats", params={"via": "mcp"}, headers={"X-User-Id": "e2e-prasad"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["served_via"] == "engram-mcp"
+    assert "total_memories" in body  # real get_memory_stats shape, unmocked
+
+
+def test_memory_stats_default_path_is_unchanged_direct_call():
+    with patch("app.server._store") as mock_store:
+        mock_store.return_value.get_memory_stats.return_value = {"total_memories": 7}
+        resp = _client().get("/api/v1/memory-stats", headers={"X-User-Id": "u1"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body == {"total_memories": 7}  # unchanged: no served_via key, no MCP round trip
+    mock_store.return_value.get_memory_stats.assert_called_once_with(user_id="u1")
 
 
 # --- Portfolio read routes (Task 13b) -----------------------------------

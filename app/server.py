@@ -9,8 +9,11 @@ and a response shape that's additive-only over what Iris already expects
 
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
 import os
+import sys
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -364,6 +367,44 @@ def journey(x_user_id: str = Header(default="demo-user")) -> dict:
     }
 
 
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+async def _get_memory_stats_via_mcp(user_id: str) -> dict:
+    """Round-trip get_memory_stats through the real engram-mcp stdio server
+    (scripts/run_mcp_server.py) rather than calling MemoryStore in-process —
+    this is the production path any Qwen agent actually takes when it mounts
+    engram over MCP, so this route can serve as a live protocol health check.
+
+    cwd=_REPO_ROOT (not env=) so the spawned process's own load_dotenv() finds
+    the same .env this server loaded — stdio_client's default child
+    environment is a hardcoded safe allowlist (HOME/PATH/etc.), not a copy of
+    this process's os.environ, so MONGODB_URI would otherwise be invisible to
+    the child."""
+    from mcp import ClientSession
+    from mcp.client.stdio import StdioServerParameters, stdio_client
+
+    params = StdioServerParameters(
+        command=sys.executable,
+        args=[os.path.join("scripts", "run_mcp_server.py")],
+        cwd=_REPO_ROOT,
+    )
+    async with stdio_client(params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            result = await session.call_tool("get_memory_stats", {"user_id": user_id})
+            if result.isError:
+                raise RuntimeError(f"engram-mcp get_memory_stats failed: {result.content}")
+            return json.loads(result.content[0].text)
+
+
 @app.get("/api/v1/memory-stats")
-def memory_stats(x_user_id: str = Header(default="demo-user")) -> dict:
+def memory_stats(x_user_id: str = Header(default="demo-user"), via: str | None = None) -> dict:
+    if via == "mcp":
+        # Sync route + asyncio.run(...): acceptable for this demo path per
+        # spec — the default (non-mcp) path below stays the plain in-process
+        # call, which is the reliability fallback if the MCP subprocess path
+        # ever has trouble.
+        stats = asyncio.run(_get_memory_stats_via_mcp(x_user_id))
+        return {**stats, "served_via": "engram-mcp"}
     return _store().get_memory_stats(user_id=x_user_id)
