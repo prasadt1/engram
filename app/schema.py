@@ -113,6 +113,7 @@ class CoachAnalysisOutput(BaseModel):
         default_factory=SettingsEstimate, alias="settingsEstimate"
     )
     aesthetic_tags: list[str] = Field(default_factory=list, alias="aestheticTags")
+    genre: Literal["landscape", "portrait", "street", "wildlife", "macro", "architecture", "other"] = "other"
     glass_box: GlassBox = Field(alias="glassBox")
     spatial_metadata: SpatialMetadata = Field(alias="spatialMetadata")
     bounding_boxes: list[dict] = Field(default_factory=list, alias="boundingBoxes")
