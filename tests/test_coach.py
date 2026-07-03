@@ -150,3 +150,25 @@ def test_analyze_photo_without_store_still_returns_payload():
         result = analyze_photo(image_bytes=b"fake", content_type="image/jpeg", filename="x.jpg")
     assert "portfolioEntryId" not in result  # no store -> no persistence, payload otherwise intact
     assert result["genre"] == "landscape"
+
+
+def test_analyze_photo_with_stored_key_skips_internal_save():
+    from app.coach import analyze_photo
+
+    fake_call_result = MagicMock(content=VALID_COACH_JSON, model="qwen-vl-max", latency_ms=500, input_tokens=100, output_tokens=200)
+    with patch("app.coach.qwen_client.chat_vision", return_value=fake_call_result), \
+         patch("app.coach.get_storage") as mock_get_storage:
+        mock_storage = MagicMock()
+        mock_storage.signed_url.return_value = "https://x/given.jpg"
+        mock_get_storage.return_value = mock_storage
+
+        result = analyze_photo(
+            image_bytes=b"fake", content_type="image/jpeg", filename="x.jpg",
+            stored_key="photos/given.jpg",
+        )
+
+    # route (Task 13) already saved the bytes before calling analyze_photo —
+    # a model failure must never lose the upload, so no redundant save here
+    mock_storage.save.assert_not_called()
+    assert result["storageKey"] == "photos/given.jpg"
+    mock_storage.signed_url.assert_called_once_with("photos/given.jpg")
