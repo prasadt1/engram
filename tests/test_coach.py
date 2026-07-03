@@ -40,4 +40,8 @@ def test_analyze_photo_returns_payload_with_genre_and_writes_to_storage():
     assert result["imageUrl"] == "https://example.com/fake.jpg"
     assert "spatialMetadata" in result  # required by frontend AnalysisResult type
     mock_vision.assert_called_once()
-    mock_storage.save.assert_called_once()
+    sent_uri = mock_vision.call_args.args[0]
+    assert sent_uri.startswith("data:image/jpeg;base64,")
+    mock_storage.save.assert_called_once_with(
+        b"fake-jpeg-bytes", filename="sunset.jpg", content_type="image/jpeg"
+    )

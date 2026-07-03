@@ -49,6 +49,13 @@ def analyze_photo(
     content_type: str,
     filename: str = "photo.jpg",
 ) -> dict[str, Any]:
+    """Full Coach pipeline → API payload dict.
+
+    Raises: openai.APIStatusError (Qwen unreachable after retries),
+    ValueError (JSON unparseable after one repair), pydantic.ValidationError
+    (model output fails CoachAnalysisOutput shape). The Task 13 route maps
+    these to HTTP status codes.
+    """
     scene = detect_scene_type_hint(filename, content_type)
     citations = ground_principles(scene)
     expected = len(SCENE_TO_DOCS.get(scene, SCENE_TO_DOCS["general"]))
@@ -88,7 +95,7 @@ def analyze_photo(
         "imageUrl": image_url,
         "storageKey": key,
     }
-    # NOTE: frontend/src/types/index.ts declares AnalysisResult.portfolioEntryId
-    # and spatialMetadata as REQUIRED — spatialMetadata is set above;
-    # portfolioEntryId is added by the persistence wiring in Task 9.
+    # NOTE: the frontend AnalysisResult type (copied in a later task) will
+    # require portfolioEntryId and spatialMetadata — spatialMetadata is set
+    # above; portfolioEntryId is added by the persistence wiring in Task 9.
     return payload
