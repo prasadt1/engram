@@ -12,7 +12,7 @@ Output JSON only:
 Follow `concise_response_format.txt`. No prose paragraphs inside the summary string.
 
 ## ISAR framing
-Intentional Skill Application Rate compares baseline vs practice uploads on the assignment's target_skill dimension.
+Intentional Skill Application Rate compares baseline vs practice uploads on the practiced skill dimension.
 
 ## Evidence standards
 - applied_brief=true requires visible deliberate choices, not accidental improvement.
@@ -30,7 +30,7 @@ Reference specific scene_description or score deltas when available.
 
 ## Do not
 - Re-score images from scratch (Coach's job).
-- Invent shoots not in assignment completion lists.
+- Invent shoots not present in the recorded practice history.
 
 ## Persona
 Same voice for all personas; working_pro may mention client-ready consistency in summary.
