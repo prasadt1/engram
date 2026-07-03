@@ -309,7 +309,7 @@ def test_coach_analysis_output_accepts_genre_field():
 - [ ] **Step 2: Run to verify it fails**
 
 Run: `python -m pytest tests/test_schema.py -v`
-Expected: `FAIL` — `genre` is an unexpected field (or `AttributeError` on access, depending on Pydantic's extra-field policy).
+Expected: `FAIL` — Pydantic v2 silently ignores the unrecognized `genre` key by default (it does not reject extra fields), so the failure is specifically `AttributeError: 'CoachAnalysisOutput' object has no attribute 'genre'` on the assertion line, not a validation error.
 
 - [ ] **Step 3: Add the field** in `app/schema.py`, inside `CoachAnalysisOutput`:
 
@@ -841,11 +841,13 @@ git commit -m "Port Mentor prompt with the standard recall->retire->focus respon
 
 ---
 
-### Task 11: `app/mentor.py` — chat with scoped recall
+### Task 11: `app/mentor.py` — chat with scoped recall, session continuity, and persona
 
 **Files:**
 - Create: `app/mentor.py`
 - Test: `tests/test_mentor.py`
+
+**Wire-compatibility note (added after plan review):** Iris's real `mentorClient.ts`/`MentorTab.tsx` send `{message, sessionId, persona}` and expect back `{reply, persona, sessionId, userId}` — `session_id` and `persona` are functionally used today (Iris's ADK orchestrator uses them for conversation continuity and tone). Our new backend has no ADK session concept, but we still honor the wire format so the existing frontend needs zero breaking changes: `session_id` becomes a lightweight rolling-turn-history key (last 6 turns, stored directly via `memory_store.db.chat_turns` — a small addition scoped to this task, not touching `MemoryStore`'s already-tested interface from Task 8) so follow-up questions in the same chat session read naturally; `persona` is passed through to the prompt for tone only. This is a deliberate, documented scope choice: we are not reimplementing ADK-style session state, just enough to make multi-turn chat feel coherent and keep the frontend contract intact.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -860,11 +862,16 @@ def test_chat_scopes_recall_to_photo_id_when_provided():
     mock_store = MagicMock()
     mock_store.recall.return_value = []
     mock_store.list_skills.return_value = []
+    mock_store.db.chat_turns.find.return_value.sort.return_value.limit.return_value = []
     fake_result = MagicMock(content="Great question about your night shots!")
 
     with patch("app.mentor.qwen_client.chat_text", return_value=fake_result):
-        chat(message="How's my night photography?", user_id="u1", memory_store=mock_store, photo_id="p123")
+        reply = chat(
+            message="How's my night photography?", user_id="u1", memory_store=mock_store,
+            photo_id="p123", session_id="s1", persona="hobbyist",
+        )
 
+    assert reply == "Great question about your night shots!"
     mock_store.recall.assert_called_once()
     _, kwargs = mock_store.recall.call_args
     assert kwargs["scope"] == "p123"
@@ -876,13 +883,29 @@ def test_chat_uses_global_scope_when_no_photo_id():
     mock_store = MagicMock()
     mock_store.recall.return_value = []
     mock_store.list_skills.return_value = []
+    mock_store.db.chat_turns.find.return_value.sort.return_value.limit.return_value = []
     fake_result = MagicMock(content="Here's your overall progress.")
 
     with patch("app.mentor.qwen_client.chat_text", return_value=fake_result):
-        chat(message="How am I doing overall?", user_id="u1", memory_store=mock_store, photo_id=None)
+        chat(message="How am I doing overall?", user_id="u1", memory_store=mock_store, photo_id=None, session_id="s1", persona="hobbyist")
 
     _, kwargs = mock_store.recall.call_args
     assert kwargs["scope"] is None
+
+
+def test_chat_persists_the_turn_for_session_continuity():
+    from app.mentor import chat
+
+    mock_store = MagicMock()
+    mock_store.recall.return_value = []
+    mock_store.list_skills.return_value = []
+    mock_store.db.chat_turns.find.return_value.sort.return_value.limit.return_value = []
+    fake_result = MagicMock(content="Sure thing!")
+
+    with patch("app.mentor.qwen_client.chat_text", return_value=fake_result):
+        chat(message="Follow-up question", user_id="u1", memory_store=mock_store, photo_id=None, session_id="s1", persona="hobbyist")
+
+    assert mock_store.db.chat_turns.insert_one.call_count == 2  # user turn + assistant turn
 ```
 
 - [ ] **Step 2: Run to verify it fails**
@@ -893,28 +916,54 @@ Expected: `ModuleNotFoundError: No module named 'app.mentor'`
 - [ ] **Step 3: Implement `app/mentor.py`**
 
 ```python
-"""Mentor: memory-aware chat, global or scoped to a single photo."""
+"""Mentor: memory-aware chat, global or scoped to a single photo.
+
+session_id drives a small rolling window of recent turns (see module
+docstring in the plan task) so multi-turn chat feels coherent without
+reimplementing ADK-style session state.
+"""
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
 
 from app import qwen_client
 from app.memory_engine import SkillStatus
 
 PROMPT_PATH = Path(__file__).parent / "prompts" / "mentor.txt"
+RECENT_TURNS_LIMIT = 6
 
 
-def chat(*, message: str, user_id: str, memory_store, photo_id: str | None = None) -> str:
+def _recent_turns(memory_store, session_id: str) -> list[dict]:
+    docs = memory_store.db.chat_turns.find({"session_id": session_id}).sort("created_at", -1).limit(RECENT_TURNS_LIMIT)
+    return list(reversed(list(docs)))
+
+
+def _persist_turn(memory_store, session_id: str, role: str, content: str) -> None:
+    memory_store.db.chat_turns.insert_one({
+        "session_id": session_id, "role": role, "content": content,
+        "created_at": datetime.now(timezone.utc),
+    })
+
+
+def chat(
+    *, message: str, user_id: str, memory_store,
+    photo_id: str | None = None, session_id: str, persona: str = "hobbyist",
+) -> str:
     system = PROMPT_PATH.read_text(encoding="utf-8")
     memories = memory_store.recall(user_id=user_id, scope=photo_id, k=8)
     skills = memory_store.list_skills(user_id=user_id)
+    recent = _recent_turns(memory_store, session_id)
 
     memory_block = "\n".join(f"- {m.content}" for m in memories) or "(no relevant memories yet)"
     cleared = [s.name for s in skills if s.status == SkillStatus.CLEARED]
     watching = [s.name for s in skills if s.status == SkillStatus.WATCHING]
+    turns_block = "\n".join(f"{t['role']}: {t['content']}" for t in recent) or "(start of conversation)"
 
     context = (
+        f"## Persona\n{persona}\n\n"
+        f"## Recent turns in this conversation\n{turns_block}\n\n"
         f"## Relevant memories\n{memory_block}\n\n"
         f"## Cleared skills (mention if relevant)\n{', '.join(cleared) or 'none yet'}\n\n"
         f"## Currently watching\n{', '.join(watching) or 'none yet'}\n\n"
@@ -922,19 +971,23 @@ def chat(*, message: str, user_id: str, memory_store, photo_id: str | None = Non
     )
 
     result = qwen_client.chat_text(context, system=system)
+
+    _persist_turn(memory_store, session_id, "user", message)
+    _persist_turn(memory_store, session_id, "assistant", result.content)
+
     return result.content
 ```
 
 - [ ] **Step 4: Run to verify it passes**
 
 Run: `python -m pytest tests/test_mentor.py -v`
-Expected: `2 passed`
+Expected: `3 passed`
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add app/mentor.py tests/test_mentor.py
-git commit -m "Add Mentor chat with photo-scoped recall
+git commit -m "Add Mentor chat: photo-scoped recall, persona, session-based turn continuity
 
 Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ```
@@ -1031,6 +1084,8 @@ git commit -m "Add Reflection progress summary specialist"
 
 Routes needed for the five/six surfaces in spec §5: upload+critique, chat (global + scoped), portfolio list (for the Library), journey summary, memory stats (glass box), health. This intentionally does not port Iris's Planner/Triage/PrintSales/VisualDescriber routes (deferred per spec §14).
 
+**Wire-compatibility note (added after plan review):** the chat route's request/response shape must match Iris's real `mentorClient.ts` exactly — `{message, sessionId, persona}` in, `{reply, persona, sessionId, userId}` out (camelCase on the wire; FastAPI's Pydantic `alias` handles the snake_case↔camelCase translation) — so the existing frontend needs zero breaking changes when Task 22 wires it up. `photo_id` is the one genuinely new field, purely additive.
+
 - [ ] **Step 1: Write the failing integration test**
 
 ```python
@@ -1062,15 +1117,31 @@ def test_analyze_photo_endpoint_returns_critique(tmp_path):
     assert resp.json()["genre"] == "landscape"
 
 
-def test_chat_endpoint_accepts_optional_photo_id():
-    with patch("app.server.mentor_chat", return_value="Here's how you're doing."):
+def test_chat_endpoint_matches_iris_wire_format():
+    with patch("app.server.mentor_chat", return_value="Here's how you're doing.") as mock_chat:
         resp = _client().post(
             "/api/v1/agent/chat",
-            json={"message": "How am I doing?", "photo_id": "p1"},
+            json={"message": "How am I doing?", "sessionId": "s1", "persona": "hobbyist", "photo_id": "p1"},
             headers={"X-User-Id": "u1"},
         )
     assert resp.status_code == 200
-    assert "reply" in resp.json()
+    body = resp.json()
+    assert body == {"reply": "Here's how you're doing.", "persona": "hobbyist", "sessionId": "s1", "userId": "u1"}
+    mock_chat.assert_called_once_with(
+        message="How am I doing?", user_id="u1", memory_store=mock_chat.call_args.kwargs["memory_store"],
+        photo_id="p1", session_id="s1", persona="hobbyist",
+    )
+
+
+def test_chat_endpoint_generates_a_session_id_when_none_provided():
+    with patch("app.server.mentor_chat", return_value="Hi there."):
+        resp = _client().post(
+            "/api/v1/agent/chat",
+            json={"message": "Hello"},
+            headers={"X-User-Id": "u1"},
+        )
+    assert resp.status_code == 200
+    assert resp.json()["sessionId"]  # non-empty, generated
 ```
 
 - [ ] **Step 2: Run to verify it fails**
@@ -1086,12 +1157,13 @@ Expected: `ModuleNotFoundError: No module named 'app.server'`
 from __future__ import annotations
 
 import os
+import uuid
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 load_dotenv()
 
@@ -1129,14 +1201,21 @@ async def analyze_photo_endpoint(file: UploadFile, x_user_id: str = Header(defau
 
 
 class ChatRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
     message: str
+    session_id: str | None = Field(default=None, alias="sessionId")
+    persona: str = "hobbyist"
     photo_id: str | None = None
 
 
 @app.post("/api/v1/agent/chat")
 def agent_chat(body: ChatRequest, x_user_id: str = Header(default="demo-user")) -> dict:
-    reply = mentor_chat(message=body.message, user_id=x_user_id, memory_store=_store(), photo_id=body.photo_id)
-    return {"reply": reply}
+    session_id = body.session_id or str(uuid.uuid4())
+    reply = mentor_chat(
+        message=body.message, user_id=x_user_id, memory_store=_store(),
+        photo_id=body.photo_id, session_id=session_id, persona=body.persona,
+    )
+    return {"reply": reply, "persona": body.persona, "sessionId": session_id, "userId": x_user_id}
 
 
 @app.get("/api/v1/journey")
@@ -1161,12 +1240,12 @@ def memory_stats(x_user_id: str = Header(default="demo-user")) -> dict:
 - [ ] **Step 4: Run to verify it passes**
 
 Run: `python -m pytest tests/test_server.py -v`
-Expected: `3 passed`
+Expected: `4 passed`
 
 - [ ] **Step 5: Run the whole suite to confirm nothing regressed**
 
 Run: `python -m pytest -q`
-Expected: all tests pass (memory_engine 10 + storage 3 + db 1(skipped or passed) + grounding 3 + schema 1 + coach 2 + memory_store 3 + mentor 2 + reflection 1 + server 3 = ~29)
+Expected: all tests pass (memory_engine 10 + storage 3 + db 1(skipped or passed) + grounding 3 + schema 1 + coach 2 + memory_store 3 + mentor 3 + reflection 1 + server 4 = ~31)
 
 - [ ] **Step 6: Commit**
 
@@ -1587,74 +1666,114 @@ git commit -m "Add photo detail split view (replaces lightbox for library click-
 ### Task 22: Extract `MentorChat` as one reusable component (global + scoped)
 
 **Files:**
-- Create: `frontend/src/components/MentorChat.tsx` (extracted from `MentorTab.tsx` + `MentorChatTurn.tsx`)
+- Create: `frontend/src/components/MentorChat.tsx` (extracted from `MentorTab.tsx`, reusing `MentorChatTurn.tsx` + `lib/mentorChatTurns.ts` as-is)
 - Modify: `frontend/src/components/MentorTab.tsx` (use the new component in global mode)
 - Modify: `frontend/src/components/PhotoDetailView.tsx` (use it in scoped mode)
-- Modify: `frontend/src/services/mentorClient.ts` (accept optional `photoId`)
+- Modify: `frontend/src/services/mentorClient.ts` (add optional `photoId` — additive only, no breaking change)
 
-- [ ] **Step 1: Read the existing chat send logic** in `MentorTab.tsx` and `mentorClient.ts` to identify exactly what to extract (message list state, send handler, loading state, `MentorChatTurn` rendering).
-- [ ] **Step 2: Update `mentorClient.ts`** to pass `photo_id` through to the backend:
+**Important — this task was corrected after plan review found the original draft would have broken the real chat.** The real `mentorClient.ts::sendMentorMessage(message, persona, options?)` sends `{message, sessionId, persona}` and returns `ChatResponse {reply, persona, sessionId, userId}`; it manages persona/session via `sessionStorage` helpers (`loadSessionId`, `saveSessionId`, `rememberPersonaForSession`). `MentorChatTurn` renders a `turn: ChatTurn` object (from `lib/mentorChatTurns.ts` — `{id, user: ChatMessage, assistant?: ChatMessage}`), not raw `role`/`content` props, and supports accordion expand/collapse, a loading state with a cancel-after-8-seconds affordance, and markdown rendering. `MentorTab.tsx` (865 lines) already implements all of this correctly — **the extraction must preserve that behavior exactly**, not replace it with a simplified rebuild. Task 13's backend now matches this wire format precisely, so the only backend-side change needed here is threading an optional `photoId`.
+
+- [ ] **Step 1: Read `MentorTab.tsx`'s full send/session logic** (the `send()` function, its `AbortController` usage via `abortRef`, `hasSession`/`loadSessionId` checks, and how it turns its raw message list into `ChatTurn[]` via `groupMessagesIntoTurns`) and `mentorClient.ts` in full (already read during plan review — see the exact source above). Confirm nothing else in `MentorTab.tsx` depends on the chat state that would be lost by extracting it (e.g. suggested-questions handling via `fetchMentorSuggestedQuestions` stays in `MentorTab.tsx`, it is not part of the reusable chat widget).
+
+- [ ] **Step 2: Add `photoId` to `sendMentorMessage`** in `mentorClient.ts` — additive parameter, existing call sites in `MentorTab.tsx` keep working unmodified:
 
 ```typescript
-export async function sendMentorMessage(message: string, photoId?: string): Promise<string> {
-  const resp = await apiFetch('/api/v1/agent/chat', {
+export async function sendMentorMessage(
+  message: string,
+  persona: 'hobbyist' | 'working_pro',
+  options?: { signal?: AbortSignal; photoId?: string },
+): Promise<ChatResponse> {
+  rememberPersonaForSession(persona);
+  const sessionId = loadSessionId();
+  const res = await apiFetch('/api/v1/agent/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message, photo_id: photoId ?? null }),
+    body: JSON.stringify({
+      message,
+      sessionId: sessionId ?? undefined,
+      persona,
+      photo_id: options?.photoId ?? null,
+    }),
+    signal: options?.signal,
   });
-  if (!resp.ok) throw new Error('Chat failed');
-  const data = await resp.json();
-  return data.reply;
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(detail || `Chat failed (${res.status})`);
+  }
+  const data = (await res.json()) as ChatResponse;
+  saveSessionId(data.sessionId);
+  return data;
 }
 ```
 
-- [ ] **Step 3: Create `MentorChat.tsx`** with a `scope` prop:
+- [ ] **Step 3: Create `MentorChat.tsx`** as a real extraction of `MentorTab.tsx`'s message/turn/loading state machine — reusing `ChatMessage`, `groupMessagesIntoTurns`, and `MentorChatTurn` rather than inventing a simplified renderer:
 
 ```tsx
 // frontend/src/components/MentorChat.tsx
-import React, { useState } from 'react';
-import { sendMentorMessage } from '../services/mentorClient';
+import React, { useRef, useState } from 'react';
+import { sendMentorMessage, type ChatMessage } from '../services/mentorClient';
 import { MentorChatTurn } from './MentorChatTurn';
-
-type Scope = { type: 'global' } | { type: 'photo'; photoId: string };
+import { groupMessagesIntoTurns } from '../lib/mentorChatTurns';
 
 interface Props {
-  scope: Scope;
+  persona: 'hobbyist' | 'working_pro';
+  photoId?: string; // present -> scoped chat under a single photo; absent -> global Mentor
+  placeholder?: string;
 }
 
-export const MentorChat: React.FC<Props> = ({ scope }) => {
-  const [turns, setTurns] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
-  const [input, setInput] = useState('');
+export const MentorChat: React.FC<Props> = ({ persona, photoId, placeholder }) => {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [input, setInput] = useState('');
+  const abortRef = useRef<AbortController | null>(null);
+
+  const turns = groupMessagesIntoTurns(messages);
 
   const send = async () => {
-    if (!input.trim()) return;
-    const message = input;
-    setTurns((t) => [...t, { role: 'user', content: message }]);
+    const trimmed = input.trim();
+    if (!trimmed || loading) return;
+    const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: trimmed };
+    setMessages((m) => [...m, userMsg]);
     setInput('');
     setLoading(true);
+    setExpandedId(userMsg.id);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
-      const photoId = scope.type === 'photo' ? scope.photoId : undefined;
-      const reply = await sendMentorMessage(message, photoId);
-      setTurns((t) => [...t, { role: 'assistant', content: reply }]);
+      const res = await sendMentorMessage(trimmed, persona, { signal: controller.signal, photoId });
+      setMessages((m) => [...m, { id: crypto.randomUUID(), role: 'assistant', content: res.reply }]);
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        setMessages((m) => [...m, { id: crypto.randomUUID(), role: 'assistant', content: 'Something went wrong — try again.' }]);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full gap-3">
       <div className="flex-1 overflow-y-auto space-y-3">
         {turns.map((turn, i) => (
-          <MentorChatTurn key={i} role={turn.role} content={turn.content} />
+          <MentorChatTurn
+            key={turn.id}
+            turn={turn}
+            expanded={expandedId === turn.id}
+            onToggle={() => setExpandedId(expandedId === turn.id ? null : turn.id)}
+            loading={loading && i === turns.length - 1}
+            onCancel={() => abortRef.current?.abort()}
+            isLatest={i === turns.length - 1}
+          />
         ))}
       </div>
-      <div className="flex gap-2 mt-2">
+      <div className="flex gap-2">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && send()}
-          placeholder={scope.type === 'photo' ? 'Ask about this photo...' : 'Ask your mentor...'}
+          placeholder={placeholder ?? (photoId ? 'Ask about this photo…' : 'Ask your mentor…')}
           className="flex-1 rounded-md px-3 py-2 bg-stone-800 text-stone-100"
         />
         <button onClick={send} disabled={loading} className="px-4 py-2 rounded-md bg-amber-500">
@@ -1666,11 +1785,11 @@ export const MentorChat: React.FC<Props> = ({ scope }) => {
 };
 ```
 
-(Check `MentorChatTurn`'s actual prop names via `Read` before wiring — the sketch above assumes `role`/`content`; adjust to match its real interface rather than changing that component.)
+Note this deliberately drops `MentorTab.tsx`'s `waitSec`/`loadingStage` display polish for the first pass (they're cosmetic, not structural) — if time allows, port those two pieces of state in as a follow-up; they are not required for the component to work correctly.
 
-- [ ] **Step 4: Wire into `MentorTab.tsx`** — replace its inline chat UI with `<MentorChat scope={{ type: 'global' }} />`.
-- [ ] **Step 5: Wire into `PhotoDetailView.tsx`** — replace the Task 21 placeholder with `<MentorChat scope={{ type: 'photo', photoId: photo.id }} />`.
-- [ ] **Step 6: Verify in Preview** — (a) global Mentor tab still works exactly as before, (b) open a photo's split view, ask "tell me about this photo," confirm the reply differs from a generic global answer (backend Task 11 already scopes recall — this step just confirms the wiring reaches it).
+- [ ] **Step 4: Wire into `MentorTab.tsx`** — replace its inline chat rendering (message list, turn grouping, send handler) with `<MentorChat persona={mode} />`, keeping the suggested-questions UI and persona-switcher chrome that lives around it in `MentorTab.tsx` untouched.
+- [ ] **Step 5: Wire into `PhotoDetailView.tsx`** — replace the Task 21 placeholder with `<MentorChat persona="hobbyist" photoId={photo.id} placeholder="Ask about this photo…" />` (persona can be threaded from app-level user state once that's plumbed through; hardcoding "hobbyist" for now is a fine placeholder — note it as a follow-up, don't block on it).
+- [ ] **Step 6: Verify in Preview** — (a) global Mentor tab still works exactly as before: send a message, expand/collapse the turn, confirm persona switching still clears the session as it did pre-extraction; (b) open a photo's split view, ask "tell me about this photo," confirm the reply differs from a generic global answer (backend Task 11 already scopes recall — this step just confirms the wiring reaches it); (c) ask a follow-up in the same chat session and confirm the reply shows awareness of the prior turn (proves Task 11's session-continuity addition is actually wired through, not just unit-tested).
 - [ ] **Step 7: Commit**
 
 ```bash
