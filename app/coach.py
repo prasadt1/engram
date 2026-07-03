@@ -72,8 +72,14 @@ def analyze_photo(
     user_id: str | None = None,
     memory_store=None,
     weakness_bar: float = 7.0,
+    stored_key: str | None = None,
 ) -> dict[str, Any]:
     """Full Coach pipeline → API payload dict.
+
+    stored_key: when the caller (the Task 13 route) has already saved the
+    upload via get_storage() before calling in, pass the resulting key here
+    to skip the redundant internal save — so a model failure never loses the
+    upload (spec §12).
 
     Raises: openai.APIStatusError (Qwen unreachable after retries),
     ValueError (JSON unparseable after one repair), pydantic.ValidationError
@@ -90,7 +96,7 @@ def analyze_photo(
     output = _run_coach_model(image_bytes, content_type, citations)
 
     storage = get_storage()
-    key = storage.save(image_bytes, filename=filename, content_type=content_type)
+    key = stored_key if stored_key is not None else storage.save(image_bytes, filename=filename, content_type=content_type)
     image_url = storage.signed_url(key)
 
     payload: dict[str, Any] = {
