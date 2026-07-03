@@ -13,6 +13,8 @@ import logging
 import os
 import uuid
 from contextlib import asynccontextmanager
+from datetime import datetime
+from typing import Any
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
@@ -27,6 +29,7 @@ load_dotenv()
 from app.coach import analyze_photo  # noqa: E402
 from app.db import get_db  # noqa: E402
 from app.mentor import chat as mentor_chat  # noqa: E402
+from app.memory_engine import compute_delta  # noqa: E402
 from app.memory_store import MemoryStore  # noqa: E402
 from app.reflection import summarize_progress  # noqa: E402
 from app.storage import get_storage  # noqa: E402
@@ -85,6 +88,214 @@ def _store() -> MemoryStore:
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
+
+
+# --- Portfolio read routes (Task 13b) ------------------------------------
+# Mirrors the wire contract of Iris's app/memory/portfolio.py + trends.py
+# (see frontend/src/services/memoryClient.ts and types/memory.ts).
+# HomeTab.tsx calls fetchPortfolioStats() and fetchPortfolio(...) in a
+# Promise.all with NO .catch, so these two must never 404/500 for a valid user.
+
+_SCORE_DIMS = ("composition", "lighting", "technique", "creativity", "subject_impact")
+
+# Frontend SortField values (memoryClient.ts) -> the doc field(s) they sort on.
+_SORT_FIELDS = {
+    "date": "created_at",
+    "composition": "scores.composition",
+    "lighting": "scores.lighting",
+    "technique": "scores.technique",
+    "creativity": "scores.creativity",
+    "subject_impact": "scores.subject_impact",
+    # "score" is handled specially below (computed average, not a stored field)
+}
+
+
+def _avg_score(scores: dict[str, Any]) -> float:
+    vals = [float(scores[k]) for k in _SCORE_DIMS if scores.get(k) is not None]
+    return sum(vals) / len(vals) if vals else 0.0
+
+
+def _serialize_portfolio_entry(doc: dict[str, Any]) -> dict[str, Any]:
+    """doc (as written by app.coach.analyze_photo) -> PortfolioListItem
+    (frontend/src/types/memory.ts). imageUrl is computed HERE via
+    get_storage().signed_url() rather than trusted from the stored
+    image_url field, since OSS-signed URLs expire."""
+    scores = doc.get("scores") or {}
+    created = doc.get("created_at")
+    created_iso = created.isoformat() if isinstance(created, datetime) else (str(created) if created else "")
+
+    storage_key = doc.get("storage_key")
+    image_url = get_storage().signed_url(storage_key) if storage_key else (doc.get("image_url") or "")
+
+    return {
+        "id": str(doc["_id"]),
+        "userId": str(doc.get("user_id", "")),
+        "shootId": str(doc.get("shoot_id", "")),
+        "imageUrl": image_url,
+        "createdAt": created_iso,
+        "scores": scores,
+        "overallAverage": round(_avg_score(scores), 1),
+        "aestheticTags": doc.get("aesthetic_tags") or [],
+        "userTags": doc.get("user_tags") or [],
+        "sceneDescription": doc.get("scene_description"),
+        "colourNotes": doc.get("colour_notes"),
+        "glassBoxSummary": (doc.get("glass_box") or {}).get("observations", [])[:2],
+    }
+
+
+@app.get("/api/v1/portfolio")
+def portfolio_list(
+    limit: int = 48,
+    sort_by: str = "date",
+    sort_order: str = "desc",
+    user_tag: str | None = None,
+    x_user_id: str = Header(default="demo-user"),
+) -> dict:
+    """PortfolioListResponse { entries, total } — matches memoryClient.ts's
+    fetchPortfolio(), which sends query params sort_by/sort_order (snake_case
+    on the wire, even though the TS-side option keys are sortBy/sortOrder)
+    plus limit and user_tag. See FetchPortfolioOptions in memoryClient.ts."""
+    query: dict[str, Any] = {"user_id": x_user_id}
+    if user_tag:
+        query["user_tags"] = user_tag
+
+    coll = _store().db.portfolio_entries
+    capped_limit = max(1, min(limit, 100))
+    direction = 1 if sort_order.lower() == "asc" else -1
+
+    if sort_by == "score":
+        # overallAverage is computed, not a stored field — sort in Python
+        # (demo scale; an aggregation $avg pipeline is the Mongo-native
+        # equivalent Iris uses, but this collection is small per user).
+        docs = list(coll.find(query))
+        docs.sort(key=lambda d: _avg_score(d.get("scores") or {}), reverse=(direction == -1))
+        docs = docs[:capped_limit]
+    else:
+        sort_field = _SORT_FIELDS.get(sort_by, "created_at")
+        docs = list(coll.find(query).sort(sort_field, direction).limit(capped_limit))
+
+    entries = [_serialize_portfolio_entry(d) for d in docs]
+    total = coll.count_documents(query)
+    return {"entries": entries, "total": total}
+
+
+@app.get("/api/v1/portfolio/stats")
+def portfolio_stats(x_user_id: str = Header(default="demo-user")) -> dict:
+    """PortfolioStats { total, firstUpload, strongest } (types/memory.ts)."""
+    query = {"user_id": x_user_id}
+    coll = _store().db.portfolio_entries
+
+    total = coll.count_documents(query)
+
+    first_upload = None
+    first_doc = coll.find_one(query, sort=[("created_at", 1)])
+    if first_doc and isinstance(first_doc.get("created_at"), datetime):
+        first_upload = first_doc["created_at"].strftime("%b %Y")
+
+    strongest = None
+    docs = list(coll.find(query))
+    if docs:
+        best = max(docs, key=lambda d: _avg_score(d.get("scores") or {}))
+        strongest = _serialize_portfolio_entry(best)
+
+    return {"total": total, "firstUpload": first_upload, "strongest": strongest}
+
+
+@app.get("/api/v1/portfolio/trends")
+def portfolio_trends(limit: int = 12, x_user_id: str = Header(default="demo-user")) -> dict:
+    """PortfolioTrendsResponse { photoCount, points, dimensions, insufficientData }
+    (types/memory.ts) — chronological score series + compute_delta per
+    dimension, shaped like Iris's app/memory/trends.py::compute_portfolio_trends.
+    compute_delta (app/memory_engine.py) is the same newer-half-vs-older-half
+    formula as Iris's _delta_recent_vs_older, so historical trend data agrees."""
+    capped_limit = max(4, min(limit, 24))
+    query = {"user_id": x_user_id}
+    coll = _store().db.portfolio_entries
+    docs = list(coll.find(query).sort("created_at", 1).limit(capped_limit))
+
+    if not docs:
+        return {"photoCount": 0, "points": [], "dimensions": [], "insufficientData": True}
+
+    points: list[dict[str, Any]] = []
+    for doc in docs:
+        scores = doc.get("scores") or {}
+        created = doc.get("created_at")
+        created_iso = created.isoformat() if isinstance(created, datetime) else (str(created) if created else "")
+        row: dict[str, Any] = {"createdAt": created_iso}
+        for k in _SCORE_DIMS:
+            row[k] = round(float(scores.get(k, 0)), 1)
+        row["overall"] = round(_avg_score(scores), 1)
+        points.append(row)
+
+    dimension_labels = {
+        "composition": "Composition", "lighting": "Lighting", "technique": "Technique",
+        "creativity": "Creativity", "subject_impact": "Subject", "overall": "Overall",
+    }
+    dimensions: list[dict[str, Any]] = []
+    for key in (*_SCORE_DIMS, "overall"):
+        values = [float(p[key]) for p in points]
+        delta = compute_delta(values)
+        dimensions.append({
+            "key": key,
+            "label": dimension_labels[key],
+            "values": values,
+            "latest": values[-1] if values else None,
+            "delta": delta,
+            "trend": "up" if delta is not None and delta > 0.15
+                else "down" if delta is not None and delta < -0.15
+                else "flat",
+        })
+
+    return {
+        "photoCount": len(points),
+        "points": points,
+        "dimensions": dimensions,
+        "insufficientData": len(points) < 4,
+    }
+
+
+@app.get("/api/v1/aesthetic-profile")
+def aesthetic_profile(x_user_id: str = Header(default="demo-user")) -> dict:
+    """AestheticProfileSummary { photoCount, dominantTags, averageScores,
+    stylisticConsistencyScore, computedAt? } (types/memory.ts). The frontend
+    calls this via fetchAestheticProfile().catch(() => null), so this is the
+    documented-fallback-tolerant minimal shape rather than Iris's full
+    embedding-derived profile (Engram doesn't track embeddings)."""
+    query = {"user_id": x_user_id}
+    coll = _store().db.portfolio_entries
+    docs = list(coll.find(query).sort("created_at", -1).limit(20))
+
+    if not docs:
+        return {
+            "photoCount": 0,
+            "dominantTags": [],
+            "averageScores": {},
+            "stylisticConsistencyScore": None,
+        }
+
+    tag_counts: dict[str, int] = {}
+    sums = {k: 0.0 for k in _SCORE_DIMS}
+    for doc in docs:
+        for tag in doc.get("aesthetic_tags") or []:
+            tag_counts[tag] = tag_counts.get(tag, 0) + 1
+        scores = doc.get("scores") or {}
+        for k in _SCORE_DIMS:
+            sums[k] += float(scores.get(k, 0))
+
+    n = len(docs)
+    avg_scores = {k: round(sums[k] / n, 1) for k in _SCORE_DIMS}
+    mean = sum(avg_scores.values()) / len(avg_scores)
+    variance = sum((x - mean) ** 2 for x in avg_scores.values()) / len(avg_scores)
+    consistency = max(0.0, min(1.0, 1.0 - (variance / 25.0)))
+
+    dominant = sorted(tag_counts.items(), key=lambda x: -x[1])[:8]
+
+    return {
+        "photoCount": coll.count_documents(query),
+        "dominantTags": [t for t, _ in dominant],
+        "averageScores": avg_scores,
+        "stylisticConsistencyScore": round(consistency, 2),
+    }
 
 
 @app.post("/api/v1/analyze-photo")
