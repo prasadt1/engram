@@ -887,6 +887,133 @@ git commit -m "Port Mentor prompt with the standard recall->retire->focus respon
 
 ---
 
+### Task 10b: `app/context_builder.py` — one shared memory-context path + the Memory Receipt (added after post-fix review)
+
+**Files:**
+- Create: `app/context_builder.py`
+- Test: `tests/test_context_builder.py`
+
+**Why:** the Memory Receipt (shown after every critique/chat reply: what was *recalled*, what was *retired/excluded*, what was *dropped by token budget*, and *why* — per-item scores) is only honest if it reports what the prompt **actually contained**. So context construction gets one narrow module used by Mentor (Task 11), the receipt, and later eval — built around the existing `recall_scored()` and `pack()`, NOT a broad refactor.
+
+- [ ] **Step 1: Write the failing test**
+
+```python
+# tests/test_context_builder.py
+from datetime import datetime, timedelta, timezone
+from app.memory_engine import MemoryItem
+
+NOW = datetime(2026, 7, 3, tzinfo=timezone.utc)
+
+
+def _items():
+    live_big = MemoryItem(id="live_big", content="working on night exposure " + "x " * 200,
+                          importance=0.9, created_at=NOW - timedelta(days=1))
+    live_small = MemoryItem(id="live_small", content="prefers golden hour light",
+                            importance=0.8, created_at=NOW - timedelta(days=2))
+    retired = MemoryItem(id="retired", content="used to shoot Canon",
+                         importance=0.8, created_at=NOW - timedelta(days=3), superseded_by="new")
+    return [live_big, live_small, retired]
+
+
+def test_build_context_returns_packed_items_and_full_receipt():
+    from app.context_builder import build_memory_context
+
+    ctx = build_memory_context(_items(), query="what light do I like?", token_budget=30, now=NOW)
+
+    packed_ids = [i.id for i in ctx.packed]
+    assert "live_small" in packed_ids            # fits budget
+    assert "live_big" not in packed_ids          # too big for budget
+    receipt = ctx.receipt()
+    assert receipt["recalled"][0]["scores"]["salience"] > 0
+    assert "retired" in [r["id"] for r in receipt["retired_excluded"]]
+    assert "live_big" in [d["id"] for d in receipt["dropped_by_budget"]]
+    assert receipt["token_budget"] == 30
+```
+
+- [ ] **Step 2: Run to verify it fails** (`ModuleNotFoundError`)
+- [ ] **Step 3: Implement `app/context_builder.py`**
+
+```python
+"""One shared path from memory items -> packed prompt context + Memory Receipt.
+
+The receipt is the product-facing face of the engine: recall, forgetting,
+and context-budget mechanics visible in the main flow, not just a judge page.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import datetime, timezone
+
+from app.memory_engine import MemoryItem, recall_scored, salience_breakdown
+
+
+def _estimate_tokens(item: MemoryItem) -> int:
+    return max(1, len(item.content) // 4)
+
+
+@dataclass
+class MemoryContext:
+    packed: list[MemoryItem]
+    packed_scores: list[dict]
+    dropped_by_budget: list[MemoryItem]
+    retired_excluded: list[MemoryItem]
+    token_budget: int
+    query: str | None
+
+    def context_block(self) -> str:
+        return "\n".join(f"- {m.content}" for m in self.packed) or "(no relevant memories yet)"
+
+    def receipt(self) -> dict:
+        return {
+            "recalled": [
+                {"id": m.id, "content": m.content, "genre": m.genre, "scores": s}
+                for m, s in zip(self.packed, self.packed_scores)
+            ],
+            "retired_excluded": [
+                {"id": m.id, "content": m.content} for m in self.retired_excluded
+            ],
+            "dropped_by_budget": [
+                {"id": m.id, "content": m.content} for m in self.dropped_by_budget
+            ],
+            "token_budget": self.token_budget,
+            "query": self.query,
+        }
+
+
+def build_memory_context(
+    items: list[MemoryItem], *, query: str | None = None,
+    scope: str | None = None, genre: str | None = None,
+    k: int = 8, token_budget: int = 1200, now: datetime | None = None,
+) -> MemoryContext:
+    now = now or datetime.now(timezone.utc)
+    retired = [i for i in items if not i.is_live()]
+    scored = recall_scored(items, now=now, query=query, scope=scope, genre=genre, k=k)
+
+    packed: list[MemoryItem] = []
+    packed_scores: list[dict] = []
+    dropped: list[MemoryItem] = []
+    used = 0
+    for item, scores in scored:
+        cost = _estimate_tokens(item)
+        if used + cost <= token_budget:
+            packed.append(item)
+            packed_scores.append(scores)
+            used += cost
+        else:
+            dropped.append(item)
+
+    return MemoryContext(
+        packed=packed, packed_scores=packed_scores, dropped_by_budget=dropped,
+        retired_excluded=retired, token_budget=token_budget, query=query,
+    )
+```
+
+- [ ] **Step 4: Run to verify green, then the whole suite.**
+- [ ] **Step 5: Commit** (`git add app/context_builder.py tests/test_context_builder.py && git commit -m "Add shared memory-context builder + Memory Receipt"`)
+
+---
+
 ### Task 11: `app/mentor.py` — chat with scoped recall, session continuity, and persona
 
 **Files:**
@@ -1031,11 +1158,24 @@ def chat(
 Run: `python -m pytest tests/test_mentor.py -v`
 Expected: `3 passed`
 
+**Memory Receipt addendum (post-fix review, P0 — apply while implementing, exact contract):** `chat()` returns `dict`, not `str`: `{"reply": <text>, "receipt": <MemoryContext.receipt()>}`. Implementation delta: replace the direct `memory_store.recall(...)` + `memory_block` lines with:
+
+```python
+    items = memory_store.recall(user_id=user_id, scope=photo_id, k=50, query=None, include_archived=True)
+    # k=50/include_archived: hand the builder the candidate pool; IT does the
+    # live-filtering, scoring, and packing so the receipt reflects reality.
+    from app.context_builder import build_memory_context
+    ctx = build_memory_context(items, query=message, scope=photo_id, k=8)
+    memory_block = ctx.context_block()
+```
+
+and return `{"reply": result.content, "receipt": ctx.receipt()}`. Update the three tests accordingly (`reply = chat(...)["reply"]`). Task 13's route then returns `{"reply": ..., "memoryReceipt": receipt, "persona": ..., "sessionId": ..., "userId": ...}` — additive key, no frontend break; update Task 13's wire-format test to assert `"memoryReceipt" in body`.
+
 - [ ] **Step 5: Commit**
 
 ```bash
 git add app/mentor.py tests/test_mentor.py
-git commit -m "Add Mentor chat: photo-scoped recall, persona, session-based turn continuity
+git commit -m "Add Mentor chat: photo-scoped recall, persona, session continuity, Memory Receipt
 
 Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ```
@@ -1652,7 +1792,7 @@ export async function fetchJourney(): Promise<JourneyResponse> {
 
 - [ ] **Step 2: In `HomeTab.tsx`, add a data fetch and three new sections** above/alongside the existing content:
   - A "since last time" summary line (from `journey.summary`).
-  - A "cleared" list — skills with `status === 'cleared'` rendered as a small badge row (this is the graduation moment made visible — per spec §4 Act 3).
+  - A "cleared" list — each cleared skill rendered as a **Graduation evidence card** (post-fix review, P1), not a bare status badge: *raised on <date>* → *three passing sessions* (link the `evidence_ids` photos) → *old advice retired* → *new focus promoted*. All fields already exist on the `Skill` docs (`raised_on`, `cleared_on`, `consecutive_above_bar`, `evidence_ids`). This card is the emotional center of the demo — forgetting as promotion, with receipts.
   - A "watching" list — skills with `status === 'watching'`, the "next step" focus.
   Use existing `DimensionBar`/`FocusAreas` components where they fit rather than inventing new visual primitives.
 - [ ] **Step 3: Verify in Preview** — upload a few test photos via the Upload tab first (so there's real data), then check the Journey/Home tab shows real skill state.
@@ -1677,7 +1817,8 @@ cd "/Users/prasadt1/qwen hackathon/engram/frontend" && grep -rl "sceneDescriptio
 ```
 
 - [ ] **Step 2: Add a genre chip** near the score display, reading `result.genre` (already returned by the backend from Task 6/13).
-- [ ] **Step 3: Add a small "why this advice" strip** — the backend doesn't yet return which memories informed a *critique* (only chat does, via Mentor); for now render a simple static line "Based on your photography fundamentals" and leave the fuller memory-citation version for Task 9's `memory_store.write_memory` calls to surface later if time allows. Don't over-build this — the inline chat (Task 22) carries the real "why this advice" glass-box requirement.
+- [ ] **Step 3: Build the `MemoryReceipt` component (upgraded from a static strip after post-fix review — P0).** One compact, collapsible React component rendered after BOTH critique results and Mentor replies, showing four rows from the backend's `memoryReceipt` payload: **Recalled** (items used, each expandable to its importance/recency/relevance/salience scores), **Retired** (superseded/cleared items intentionally excluded — the visible face of forgetting), **Ignored (budget)** (items dropped by context packing), and the token budget line. Keep it visually quiet (small text, collapsed by default, one-line summary like "4 memories recalled · 2 retired · 1 over budget") — present in the main flow without shouting. Backend side: the analyze-photo response gains a `memoryReceipt` too — in Task 9's wiring, build it from the profile memories used for the critique context (or, if the Coach context is profile-only at that point, a receipt with recalled=[profile summary items], retired/dropped from the same builder — use `build_memory_context` either way so the receipt is truthful).
+- [ ] **Step 3b: Narrated Qwen call states (post-fix review, UI guidance).** Replace generic spinners in the upload/critique and chat flows with staged, honest status lines fed to the existing loading UI (`AnalyzingOverlay`, `MentorChatTurn`'s `loadingStage`): "Qwen-VL is reading composition and lighting…" → "Packing memory context…" → "Checking retired memories…". These strings map to real pipeline stages — don't display a stage the code isn't actually in.
 - [ ] **Step 4: Verify in Preview** — upload a photo, confirm the genre chip renders.
 - [ ] **Step 5: Commit**
 
@@ -1887,6 +2028,7 @@ export const MentorChat: React.FC<Props> = ({ persona, photoId, placeholder }) =
 Note this deliberately drops `MentorTab.tsx`'s `waitSec`/`loadingStage` display polish for the first pass (they're cosmetic, not structural) — if time allows, port those two pieces of state in as a follow-up; they are not required for the component to work correctly.
 
 - [ ] **Step 4: Wire into `MentorTab.tsx`** — replace its inline chat rendering (message list, turn grouping, send handler) with `<MentorChat persona={mode} />`, keeping the suggested-questions UI and persona-switcher chrome that lives around it in `MentorTab.tsx` untouched.
+- [ ] **Step 4b: Render the Memory Receipt under assistant replies (post-fix review, P0).** Extend `ChatResponse` in `mentorClient.ts` with an additive optional `memoryReceipt` field (backend already returns it per Task 13's addendum); `MentorChat` keeps the last receipt in state and renders the shared `MemoryReceipt` component (Task 19) beneath the latest assistant turn, collapsed by default. This replaces the spec's earlier "collapsible glass-box panel" phrasing — same intent, one shared component everywhere.
 - [ ] **Step 5: Wire into `PhotoDetailView.tsx`** — replace the Task 21 placeholder with `<MentorChat persona="hobbyist" photoId={photo.id} placeholder="Ask about this photo…" />` (persona can be threaded from app-level user state once that's plumbed through; hardcoding "hobbyist" for now is a fine placeholder — note it as a follow-up, don't block on it).
 - [ ] **Step 6: Verify in Preview** — (a) global Mentor tab still works exactly as before: send a message, expand/collapse the turn, confirm persona switching still clears the session as it did pre-extraction; (b) open a photo's split view, ask "tell me about this photo," confirm the reply differs from a generic global answer (backend Task 11 already scopes recall — this step just confirms the wiring reaches it); (c) ask a follow-up in the same chat session and confirm the reply shows awareness of the prior turn (proves Task 11's session-continuity addition is actually wired through, not just unit-tested).
 - [ ] **Step 7: Commit**
@@ -2254,6 +2396,8 @@ Expected: the `no-forgetting` run shows lower FAMA (obsolete facts leak through)
 
 Also commit BOTH raw JSON outputs (`eval/results-default.json`, `eval/results-no-forgetting.json` — add an `--out` flag or rename after each run), and render the README results table with default and no-forgetting as side-by-side columns rather than two separate blocks — judges should see the comparison in one glance without running anything.
 
+- [ ] **Step 5: One human-readable worked example (post-fix review, P0).** Alongside the metric tables, render one concrete forgetting win — trace_1 already is it: *Q: "What camera gear do I use?" · Full-history baseline: mentions Canon AND Sony · Engram: Sony only · Why: the Canon fact was superseded in session 3.* Put this box in the eval output, the README results section, and the demo video script. This is what makes FAMA legible to a non-research judge in five seconds.
+
 - [ ] **Step 4: Commit**
 
 ```bash
@@ -2278,7 +2422,8 @@ git commit -m "Add no-forgetting ablation; commit comparison results"
 python scripts/seed_demo_user.py
 ```
 
-- [ ] **Step 4: Verify in the browser** — log in (or just use the default `demo-user` header scope), check the Journey page shows a cleared skill and the Library has photos across genres with varied scores.
+- [ ] **Step 3b: Judge/demo mode (post-fix review, P0).** Add a zero-friction judge entry: visiting `/?judge=1` (or `/demo`) calls `setApiUserScope('demo-user')` (the scoping hook already exists in `frontend/src/lib/apiFetch.ts`), lands on the **Journey** page with the seeded memory state, shows a slim dismissible banner ("Demo mode — viewing a seeded photographer's journey") with links to the graduation card and the Glass Box/benchmark page. Judges must never need to upload multiple photos before understanding the submission. Put this URL in the Devpost "Try it out" link and testing instructions.
+- [ ] **Step 4: Verify in the browser** — open `/?judge=1`, check the Journey page shows a cleared skill (the graduation evidence card) and the Library has photos across genres with varied scores.
 - [ ] **Step 5: Commit**
 
 ```bash
@@ -2397,7 +2542,8 @@ git commit -m "Add Alibaba Cloud deployment proof (screenshot + code permalinks)
 ### Task 32: `WHATS_NEW.md` and README
 
 - [ ] Write `WHATS_NEW.md` using the lineage-disclosure paragraph already drafted in `docs/DEVPOST-DRAFT.md`'s Additional Info section, with real dated commit links (`git log --oneline --all` to pull actual hashes once Phases A-I are committed).
-- [ ] Update the root `README.md` with: what Engram is, the results table from `eval/results.json`, quickstart (`docker compose up`), and links to the architecture diagram and the design spec.
+- [ ] Update the root `README.md` with: what Engram is, the results table from `eval/results.json` (side-by-side default vs no-forgetting + the Canon/Sony worked example), quickstart (`docker compose up`), the judge-mode URL, and links to the architecture diagram and the design spec.
+- [ ] Add a **"Why this is a MemoryAgent"** section (post-fix review, P1) mapping each Track 1 brief phrase to code, one line each with file links: *efficient retrieval* → query-relevant salience (`app/memory_engine.py::recall_scored`); *timely forgetting* → supersession + graduation state machine (`app/memory_engine.py::Skill`, `supersede`); *recall within limited context* → token-budget packing + measured savings (`app/context_builder.py`, `eval/`); *Qwen API sophistication* → model routing (`app/config.py`), the live MCP path (`app/engram_mcp.py`, `docs/mcp-transcript.md`), and the eval harness. Judges scoring against the rubric should be able to check boxes without hunting.
 
 ### Task 33: Fill in the remaining Devpost draft sections
 

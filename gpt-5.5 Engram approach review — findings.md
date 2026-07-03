@@ -27,3 +27,62 @@ Proceed-with-changes. The thesis is well aimed at Track 1, but the current plan 
 6. Port fidelity: biggest missed coupling is upload field/response shape plus portfolio routes/types.
 7. UI/UX: Journey homepage and graduation moment are right for video. Keep the demo focused: upload → recall → graduate → benchmark.
 8. Compliance: license exists; lineage disclosure is strong. Remaining risks are Alibaba proof, visible `WHATS_NEW.md`, public working access through judging, and exact video/public-link requirements.
+
+
+## Post-Fix Follow-Up Suggestions
+
+After Claude Code incorporated the initial GPT-5.5 feedback, the highest-leverage remaining work is not adding more product breadth. It is making the memory engine visible, judge-friendly, and obviously mapped to Track 1.
+
+### P0 — Memory Receipt In Main Flows
+Add a compact “Memory Receipt” after each critique and Mentor reply:
+- `Recalled`: memories used.
+- `Retired`: cleared or superseded memories intentionally excluded.
+- `Ignored due to budget`: memories dropped by context packing.
+- `Why`: score breakdown, ideally importance / recency / relevance.
+
+This should appear in the main product flow, not only the Glass Box page. Judges should see recall, forgetting, and context-budget mechanics without hunting for them.
+
+### P0 — Judge / Demo Mode
+Add a low-friction judge path such as `/demo` or `?judge=1`.
+
+It should use the seeded demo user, show Journey with populated memory state, make the graduation moment visible, and link clearly to Glass Box / benchmark. Do not rely on judges uploading multiple photos before they understand the submission.
+
+### P0 — Human-Readable Benchmark Example
+Alongside FAMA and token-savings tables, include one concrete forgetting win:
+- Question: “What camera do I use?”
+- Full-history / no-forgetting baseline: “Canon + Sony”
+- Engram: “Sony only”
+- Why: Canon was superseded by the later Sony memory.
+
+This makes forgetting accuracy obvious to non-research judges.
+
+### P1 — Shared Memory Context Builder
+If it fits without derailing execution, centralize context construction behind one narrow module used by Coach, Mentor, MCP, and eval.
+
+It should return selected memory items, score breakdowns, packed context, excluded archived/superseded items, and token estimates. Keep it small around existing `recall_scored()` and `pack()`, not a broad refactor.
+
+### P1 — Graduation Evidence Card
+The Journey graduation moment should show evidence, not just a status label:
+- first weak evidence
+- three passing sessions
+- old advice retired
+- next focus promoted
+
+This is the emotional center of the demo: forgetting as promotion.
+
+### P1 — README: “Why This Is A MemoryAgent”
+Add a concise README section mapping directly to the Track 1 brief:
+- Efficient retrieval: query-relevant salience + typed storage.
+- Timely forgetting: supersession + graduation state machine.
+- Limited-context recall: token-budget packing + benchmarked savings.
+- Qwen sophistication: model routing, MCP path, eval.
+
+Link each claim to code.
+
+### UI / UX Guidance
+Keep the recorded path narrow: Journey → Upload / Critique → Photo-scoped Mentor chat → Journey graduation → Eval / Glass Box.
+
+Avoid overbuilding Library genre filters, onboarding, real auth, or extra specialists. Use visible Qwen call states instead of generic spinners, for example “Qwen-VL is reading composition and lighting,” “Packing memory context,” and “Checking retired memories.”
+
+### Execution Guardrails
+Use subagent-driven execution with parent verification between tasks. Preserve the cut order: Library filter chips first, split-view polish second, Reflection summary third, consolidation pass fourth. Never cut Journey, the graduation demo, the MCP live path, eval/ablations, or Alibaba proof.
