@@ -2511,11 +2511,11 @@ curl http://<sas-public-ip>:8080/health
 
 - [ ] **Step 1: Create an OSS bucket** in the same Singapore region, private access.
 - [ ] **Step 2: Create a RAM user with OSS read/write scoped to that bucket only** (not the root account key).
-- [ ] **Step 3: Set the env vars on the SAS box**
+- [ ] **Step 3: Set the env vars on the SAS box** — in a server-only `.env` (never in git; `chmod 600 .env`; loaded via docker compose `env_file`). This mirrors the Iris pattern (local `.env` for dev, secret injection in prod — Iris used GCP Secret Manager on Cloud Run):
 
 ```
 STORAGE_BACKEND=oss
-OSS_ACCESS_KEY_ID=...
+OSS_ACCESS_KEY_ID=...        # RAM user scoped to this bucket only, never the root key
 OSS_ACCESS_KEY_SECRET=...
 OSS_BUCKET=engram-photos
 OSS_ENDPOINT=https://oss-ap-southeast-1.aliyuncs.com
@@ -2529,6 +2529,23 @@ OSS_ENDPOINT=https://oss-ap-southeast-1.aliyuncs.com
 git add docs/ALIBABA_CLOUD_PROOF.md
 git commit -m "Add Alibaba Cloud deployment proof (screenshot + code permalinks)"
 ```
+
+---
+
+### Task 30b (STRETCH, cuttable): Alibaba KMS Secrets Manager
+
+**Files:**
+- Create: `app/secrets.py`
+- Modify: `app/config.py`, `app/db.py` (read via the helper)
+
+Only if the deploy lands early and the memory engine + eval are done. Value: (a) production-grade secrets story for the architecture doc ("KMS-first with env fallback", the Alibaba equivalent of Iris's GCP Secret Manager), (b) a **second Alibaba Cloud service used in code** for the deployment-proof breadth (OSS is primary).
+
+- [ ] Small helper (~40 lines): `get_secret(name)` tries Alibaba KMS Secrets Manager (`alibabacloud_kms20160120` SDK, RAM role/AccessKey auth) and falls back to `os.environ` — env vars keep working everywhere, KMS is an upgrade not a rewire. Wire `DASHSCOPE_API_KEY`, `MONGODB_URI`, OSS keys through it.
+- [ ] Store the secrets in KMS via console, grant the instance's RAM role `kms:GetSecretValue` on those secrets only.
+- [ ] Add the KMS usage permalink to `docs/ALIBABA_CLOUD_PROOF.md` as a secondary proof file.
+- [ ] Add "Secrets: KMS-first, env fallback" one-liner to the architecture doc/README.
+
+**Cut rule:** this is below everything in the never-cut list and below all P0/P1 receipt work — cut it without hesitation if July 7-8 is tight.
 
 ---
 
