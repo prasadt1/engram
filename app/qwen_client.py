@@ -106,4 +106,10 @@ def parse_json_with_repair(raw: str, retry_prompt_fn) -> dict:
         return json.loads(raw)
     except json.JSONDecodeError:
         repaired = retry_prompt_fn(raw)
-        return json.loads(repaired)
+        try:
+            return json.loads(repaired)
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"JSON repair failed. Original (first 500 chars): {raw[:500]!r} | "
+                f"Repaired (first 500 chars): {repaired[:500]!r}"
+            ) from e

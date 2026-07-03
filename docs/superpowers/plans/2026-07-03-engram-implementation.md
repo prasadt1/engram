@@ -337,6 +337,8 @@ git commit -m "Add genre field to CoachAnalysisOutput"
 - Create: `app/coach.py`
 - Test: `tests/test_coach.py`
 
+**Carried note from Task 3's quality review:** `ground_principles()` silently drops a citation if a corpus file is missing (list-comprehension swallow). While wiring it in here, add one `warning` log when fewer citations return than `SCENE_TO_DOCS[scene]` lists — a silently-thinned principles block feeding the Coach prompt would be hard to notice in a demo.
+
 This ports `iris-photography-mentor/app/sub_agents/coach_pipeline.py`. Original flow: ground → call Gemini vision with `response_schema` → upload to GCS → embed (Vertex) → write Mongo → build API payload. New flow: ground (Task 3) → call Qwen-VL via `qwen_client.chat_vision` with `parse_json_with_repair` → upload via `storage.get_storage()` → **skip embeddings for MVP** (memory_engine's salience recall doesn't need vectors; note this as a documented, deliberate scope cut, not an oversight) → write Mongo → build API payload.
 
 - [ ] **Step 1: Write the failing test** (mocks `qwen_client.chat_vision` and storage; no real network/DB calls)
@@ -525,6 +527,7 @@ EOF
 ```
 
 - [ ] **Step 3: Eyeball the output.** Confirm: `genre` is populated and plausible, `scores` are 0-10 floats, `glassBox.observations` reads like real photo commentary (not hallucinated boilerplate), `imageUrl` points to a real local file under `data/media/`. If the critique quality feels weak, this is the moment to try `qwen3.7-max` or `qwen3-vl-plus` as `ENGRAM_MODEL_VISION` overrides in `.env` and re-run — don't block on perfect parity with Gemini, per the spec's risk mitigation (§15.3): acceptable critique + a great memory engine beats the reverse.
+- [ ] **Step 3b (carried from Task 6's quality review — two live-only landmines to check):** (1) Does Qwen capitalize enum values anywhere (`genre: "Landscape"`, `severity: "Moderate"`, nested `spatialMetadata` literals)? If yes → add a `field_validator(mode="before")` that lowercases enum fields in `schema.py`, rather than chasing each occurrence. (2) Does Qwen populate `spatialMetadata.annotations` directly, or emit a flat `boundingBoxes` list instead? Iris had a `_annotations_from_boxes` mapping the port dropped — if the live output uses flat boxes, the spatial-overlay UI would be silently empty; restore that small mapping in coach.py if needed.
 - [ ] **Step 4: Note the result** in `docs/DEVPOST-DRAFT.md`'s "Accomplishments" or "Challenges" section if anything surprised you (good or bad) — capture it now while fresh, per the running war-story pattern from the smoke test.
 
 ---
@@ -1271,6 +1274,10 @@ git commit -m "Add Reflection progress summary specialist"
 - Test: `tests/test_server.py`
 
 Routes needed for the five/six surfaces in spec §5: upload+critique, chat (global + scoped), portfolio list (for the Library), journey summary, memory stats (glass box), health. This intentionally does not port Iris's Planner/Triage/PrintSales/VisualDescriber routes (deferred per spec §14).
+
+**Carried note from Task 6's quality review (spec §12 conflict — resolve HERE):** spec §12 says the photo must be stored BEFORE analysis so a model failure never loses the upload; `analyze_photo` currently analyzes first. Fix at this layer: the route saves via `get_storage()` first, then calls `analyze_photo` with a new optional `stored_key` parameter (skip the internal save when provided) — no double write, and a `chat_vision` failure leaves the photo safe.
+
+**Carried notes from Task 2's quality review:** (a) `get_db()` raises `RuntimeError` if `MONGODB_URI` is unset — once wired into routes, add a startup check (fail fast at boot with a clear message) rather than letting it surface as a raw 500 per-request; (b) `db.py`'s `serverSelectionTimeoutMS=15000` is fine for smoke tests but long for request paths — do the connectivity check once at startup so requests don't carry a 15s tail-latency risk.
 
 **Wire-compatibility note (added after plan review):** the chat route's request/response shape must match Iris's real `mentorClient.ts` exactly — `{message, sessionId, persona}` in, `{reply, persona, sessionId, userId}` out (camelCase on the wire; FastAPI's Pydantic `alias` handles the snake_case↔camelCase translation) — so the existing frontend needs zero breaking changes when Task 22 wires it up. `photo_id` is the one genuinely new field, purely additive.
 
