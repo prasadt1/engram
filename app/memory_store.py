@@ -14,12 +14,16 @@ from app.memory_engine import (
 )
 
 
-def _as_utc(dt: datetime) -> datetime:
+def _as_utc(dt: datetime | None) -> datetime | None:
     """Mongo/BSON has no timezone-offset type: datetimes always round-trip
     naive (UTC-implied), even though we always write them tz-aware. Without
     this, memory_engine's `now - item.created_at` raises TypeError on any
-    item loaded from the store. Re-attach UTC here at the read boundary
-    rather than loosening memory_engine's tz-aware assumption."""
+    item loaded from the store. Re-attach UTC here at the read boundary —
+    for MemoryItem.created_at and Skill.raised_on/cleared_on — rather than
+    loosening memory_engine's tz-aware assumption. None passes through
+    (Skill datetimes are optional)."""
+    if dt is None:
+        return None
     if dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
     return dt
@@ -40,8 +44,8 @@ class MemoryStore:
             bar=doc["bar"],
             status=SkillStatus(doc["status"]),
             consecutive_above_bar=doc["consecutive_above_bar"],
-            raised_on=doc.get("raised_on"),
-            cleared_on=doc.get("cleared_on"),
+            raised_on=_as_utc(doc.get("raised_on")),
+            cleared_on=_as_utc(doc.get("cleared_on")),
             evidence_ids=doc.get("evidence_ids", []),
         )
 
@@ -49,6 +53,10 @@ class MemoryStore:
         self, *, user_id: str, skill: str, bar: float, score: float, evidence_id: str,
         at: datetime | None = None,
     ) -> Skill:
+        # NOTE: read-modify-write, not atomic. Two concurrent sessions for the
+        # same user+skill can race and lose one evidence_id / streak increment.
+        # Acceptable for current single-user sequential-upload usage; revisit
+        # with findOneAndUpdate + $inc if concurrent writers are ever introduced.
         at = at or datetime.now(timezone.utc)
         current = self.get_skill(user_id=user_id, skill=skill) or Skill(name=skill, bar=bar)
         current.record_session(score, at=at, evidence_id=evidence_id)
@@ -75,7 +83,7 @@ class MemoryStore:
             Skill(
                 name=d["name"], bar=d["bar"], status=SkillStatus(d["status"]),
                 consecutive_above_bar=d["consecutive_above_bar"],
-                raised_on=d.get("raised_on"), cleared_on=d.get("cleared_on"),
+                raised_on=_as_utc(d.get("raised_on")), cleared_on=_as_utc(d.get("cleared_on")),
                 evidence_ids=d.get("evidence_ids", []),
             )
             for d in docs
@@ -95,14 +103,16 @@ class MemoryStore:
         result = self.db.memory_items.insert_one(doc)
         return str(result.inserted_id)
 
-    def supersede_memory(self, *, old_id: str, new_content: str, importance: float, genre: str | None = None) -> str:
+    def supersede_memory(self, *, old_id: str, user_id: str, new_content: str, importance: float, genre: str | None = None) -> str:
         from bson import ObjectId
-        old = self.db.memory_items.find_one({"_id": ObjectId(old_id)})
+        old = self.db.memory_items.find_one({"_id": ObjectId(old_id), "user_id": user_id})
+        if old is None:
+            raise ValueError(f"memory {old_id} not found for user {user_id}")
         new_id = self.write_memory(
             user_id=old["user_id"], content=new_content, importance=importance,
             scope=old.get("scope"), genre=genre or old.get("genre"),
         )
-        self.db.memory_items.update_one({"_id": ObjectId(old_id)}, {"$set": {"superseded_by": new_id}})
+        self.db.memory_items.update_one({"_id": ObjectId(old_id), "user_id": user_id}, {"$set": {"superseded_by": new_id}})
         return new_id
 
     def recall(
