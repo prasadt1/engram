@@ -90,31 +90,95 @@ def _recency_weight(item: MemoryItem, *, now: datetime, half_life_days: float = 
     return 0.5 ** (age_days / half_life_days)
 
 
-def _salience(item: MemoryItem, *, now: datetime) -> float:
-    return item.importance * _recency_weight(item, now=now)
+_WORD_RE = None
+
+
+def _tokens(text: str) -> set[str]:
+    global _WORD_RE
+    if _WORD_RE is None:
+        import re
+
+        _WORD_RE = re.compile(r"[a-z0-9]+")
+    return set(_WORD_RE.findall(text.lower()))
+
+
+# Relevance floor: an unrelated-but-important memory can still surface (a
+# coach should volunteer "you cleared horizon tilt" even if you asked about
+# lighting), but a query-matching memory always outranks it at equal
+# importance and recency.
+RELEVANCE_FLOOR = 0.25
+
+
+def _relevance(item: MemoryItem, query: str | None) -> float:
+    if not query:
+        return 1.0
+    q = _tokens(query)
+    if not q:
+        return 1.0
+    content = _tokens(item.content) | (_tokens(item.genre) if item.genre else set())
+    overlap = len(q & content) / len(q)
+    return RELEVANCE_FLOOR + (1.0 - RELEVANCE_FLOOR) * overlap
+
+
+def salience_breakdown(item: MemoryItem, *, now: datetime, query: str | None = None) -> dict:
+    """Per-component score explanation — surfaced in the glass-box UI and
+    the engram-mcp recall tool so retrieval is inspectable, not a black box.
+    """
+    importance = item.importance
+    recency = _recency_weight(item, now=now)
+    relevance = _relevance(item, query)
+    return {
+        "importance": round(importance, 4),
+        "recency": round(recency, 4),
+        "relevance": round(relevance, 4),
+        "salience": round(importance * recency * relevance, 4),
+    }
+
+
+def _salience(item: MemoryItem, *, now: datetime, query: str | None = None) -> float:
+    return item.importance * _recency_weight(item, now=now) * _relevance(item, query)
 
 
 def recall(
     items: list[MemoryItem],
     *,
     now: datetime | None = None,
+    query: str | None = None,
     scope: str | None = None,
     genre: str | None = None,
     k: int = 5,
     include_archived: bool = False,
 ) -> list[MemoryItem]:
-    """Salience-scored retrieval. Excludes superseded/archived items unless
-    include_archived is set — this is what makes forgetting *effective*
-    rather than merely recorded: a forgotten item stops being recalled.
+    """Salience-scored retrieval: importance × recency × query-relevance.
+    Excludes superseded/archived items unless include_archived is set —
+    this is what makes forgetting *effective* rather than merely recorded:
+    a forgotten item stops being recalled.
     """
+    return [item for item, _ in recall_scored(
+        items, now=now, query=query, scope=scope, genre=genre, k=k, include_archived=include_archived,
+    )]
+
+
+def recall_scored(
+    items: list[MemoryItem],
+    *,
+    now: datetime | None = None,
+    query: str | None = None,
+    scope: str | None = None,
+    genre: str | None = None,
+    k: int = 5,
+    include_archived: bool = False,
+) -> list[tuple[MemoryItem, dict]]:
+    """recall() plus the per-item score breakdown (importance/recency/relevance)."""
     now = now or datetime.now(timezone.utc)
     candidates = items if include_archived else [i for i in items if i.is_live()]
     if scope is not None:
         candidates = [i for i in candidates if i.scope == scope]
     if genre is not None:
         candidates = [i for i in candidates if i.genre == genre]
-    ranked = sorted(candidates, key=lambda i: _salience(i, now=now), reverse=True)
-    return ranked[:k]
+    scored = [(i, salience_breakdown(i, now=now, query=query)) for i in candidates]
+    scored.sort(key=lambda pair: pair[1]["salience"], reverse=True)
+    return scored[:k]
 
 
 def supersede(items: list[MemoryItem], old_id: str, new_item: MemoryItem) -> list[MemoryItem]:

@@ -16,9 +16,10 @@ DASHSCOPE_API_KEY = os.environ.get("DASHSCOPE_API_KEY", "")
 
 # Pay-as-you-go keys (prefix "sk-") use dashscope-intl.
 # Token-plan keys (prefix "sk-sp-") use the maas token-plan host instead.
-# Workspace-scoped keys (prefix "sk-ws-", seen on the newer Qwen Cloud
-# front-end) have not been confirmed against either host yet — the smoke
-# test in scripts/smoke_test_qwen.py tries both and reports which works.
+# Workspace-scoped keys (prefix "sk-ws-", issued by the newer Qwen Cloud
+# front-end) are CONFIRMED (live test, 2026-07-03) to route via the standard
+# dashscope-intl pay-as-you-go endpoint. scripts/smoke_test_qwen.py verifies
+# any key/endpoint pairing empirically if yours differs.
 QWEN_BASE_URL = os.environ.get(
     "QWEN_BASE_URL", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
 )

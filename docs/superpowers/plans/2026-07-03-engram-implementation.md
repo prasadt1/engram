@@ -384,6 +384,7 @@ def test_analyze_photo_returns_payload_with_genre_and_writes_to_storage():
     assert result["genre"] == "landscape"
     assert result["scores"]["composition"] == 7
     assert result["imageUrl"] == "https://example.com/fake.jpg"
+    assert "spatialMetadata" in result  # required by frontend AnalysisResult type
     mock_vision.assert_called_once()
     mock_storage.save.assert_called_once()
 ```
@@ -468,9 +469,19 @@ def analyze_photo(
             "priority_fixes": [p.model_dump() for p in output.glass_box.priority_fixes],
             "grounding_citations": [c.id for c in citations],
         },
+        "spatialMetadata": output.spatial_metadata.model_dump(),
+        "settingsEstimate": {
+            "focalLength": output.settings_estimate.focal_length,
+            "aperture": output.settings_estimate.aperture,
+            "shutterSpeed": output.settings_estimate.shutter_speed,
+            "iso": output.settings_estimate.iso,
+        },
         "imageUrl": image_url,
         "storageKey": key,
     }
+    # NOTE: frontend/src/types/index.ts declares AnalysisResult.portfolioEntryId
+    # and spatialMetadata as REQUIRED — spatialMetadata is set above;
+    # portfolioEntryId is added by the persistence wiring in Task 9.
     return payload
 ```
 
@@ -593,7 +604,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from app.memory_engine import GRADUATION_THRESHOLD, MemoryItem, Skill, SkillStatus, recall as _recall
+from app.memory_engine import (
+    GRADUATION_THRESHOLD, MemoryItem, Skill, SkillStatus, recall_scored as _recall_scored,
+)
 
 
 class MemoryStore:
@@ -677,9 +690,19 @@ class MemoryStore:
         return new_id
 
     def recall(
-        self, *, user_id: str, scope: str | None = None, genre: str | None = None,
+        self, *, user_id: str, query: str | None = None, scope: str | None = None, genre: str | None = None,
         k: int = 5, include_archived: bool = False,
     ) -> list[MemoryItem]:
+        return [item for item, _ in self.recall_scored(
+            user_id=user_id, query=query, scope=scope, genre=genre, k=k, include_archived=include_archived,
+        )]
+
+    def recall_scored(
+        self, *, user_id: str, query: str | None = None, scope: str | None = None, genre: str | None = None,
+        k: int = 5, include_archived: bool = False,
+    ) -> list[tuple[MemoryItem, dict]]:
+        """recall() plus per-item {importance, recency, relevance, salience} —
+        feeds the glass-box UI and the engram-mcp recall tool (explainable retrieval)."""
         docs = self.db.memory_items.find({"user_id": user_id})
         items = [
             MemoryItem(
@@ -689,7 +712,7 @@ class MemoryStore:
             )
             for d in docs
         ]
-        return _recall(items, scope=scope, genre=genre, k=k, include_archived=include_archived)
+        return _recall_scored(items, query=query, scope=scope, genre=genre, k=k, include_archived=include_archived)
 
     def get_memory_stats(self, *, user_id: str) -> dict:
         total = self.db.memory_items.count_documents({"user_id": user_id})
@@ -752,6 +775,11 @@ def test_analyze_photo_records_skill_sessions_for_weak_dimensions():
         user_id="u1", skill="technique", bar=7.5, score=6, evidence_id=mock_store.record_skill_session.call_args_list[0].kwargs.get("evidence_id"),
     )
     mock_store.write_memory.assert_called_once()
+    mock_store.db.portfolio_entries.insert_one.assert_called_once()
+    # portfolioEntryId is required by the frontend AnalysisResult type
+    # (str() of the mock's inserted_id is fine for this unit test)
+    # -> capture the returned payload in this test and assert the key exists:
+    #    result = analyze_photo(...); assert "portfolioEntryId" in result
 ```
 
 - [ ] **Step 2: Run to verify it fails**
@@ -784,6 +812,24 @@ def analyze_photo(
             user_id=user_id, content=summary, importance=0.6,
             scope=evidence_id, genre=output.genre,
         )
+        # Persist the portfolio entry the frontend contract requires:
+        # AnalysisResult.portfolioEntryId is REQUIRED in frontend types, and
+        # the Library/Home read routes (Task 13b) list these documents.
+        from datetime import datetime, timezone
+        entry = memory_store.db.portfolio_entries.insert_one({
+            "user_id": user_id,
+            "storage_key": key,
+            "image_url": image_url,
+            "scores": payload["scores"],
+            "genre": output.genre,
+            "aesthetic_tags": output.aesthetic_tags,
+            "scene_description": output.scene_description,
+            "colour_notes": output.colour_notes,
+            "glass_box": payload["glassBox"],
+            "spatial_metadata": payload["spatialMetadata"],
+            "created_at": datetime.now(timezone.utc),
+        })
+        payload["portfolioEntryId"] = str(entry.inserted_id)
 
     return payload
 ```
@@ -935,14 +981,16 @@ PROMPT_PATH = Path(__file__).parent / "prompts" / "mentor.txt"
 RECENT_TURNS_LIMIT = 6
 
 
-def _recent_turns(memory_store, session_id: str) -> list[dict]:
-    docs = memory_store.db.chat_turns.find({"session_id": session_id}).sort("created_at", -1).limit(RECENT_TURNS_LIMIT)
+def _recent_turns(memory_store, user_id: str, session_id: str) -> list[dict]:
+    # scoped by user_id AND session_id — a guessed/stale sessionId must never
+    # leak another user's conversation (external-review finding A1)
+    docs = memory_store.db.chat_turns.find({"user_id": user_id, "session_id": session_id}).sort("created_at", -1).limit(RECENT_TURNS_LIMIT)
     return list(reversed(list(docs)))
 
 
-def _persist_turn(memory_store, session_id: str, role: str, content: str) -> None:
+def _persist_turn(memory_store, user_id: str, session_id: str, role: str, content: str) -> None:
     memory_store.db.chat_turns.insert_one({
-        "session_id": session_id, "role": role, "content": content,
+        "user_id": user_id, "session_id": session_id, "role": role, "content": content,
         "created_at": datetime.now(timezone.utc),
     })
 
@@ -952,9 +1000,9 @@ def chat(
     photo_id: str | None = None, session_id: str, persona: str = "hobbyist",
 ) -> str:
     system = PROMPT_PATH.read_text(encoding="utf-8")
-    memories = memory_store.recall(user_id=user_id, scope=photo_id, k=8)
+    memories = memory_store.recall(user_id=user_id, scope=photo_id, k=8, query=message)
     skills = memory_store.list_skills(user_id=user_id)
-    recent = _recent_turns(memory_store, session_id)
+    recent = _recent_turns(memory_store, user_id, session_id)
 
     memory_block = "\n".join(f"- {m.content}" for m in memories) or "(no relevant memories yet)"
     cleared = [s.name for s in skills if s.status == SkillStatus.CLEARED]
@@ -972,8 +1020,8 @@ def chat(
 
     result = qwen_client.chat_text(context, system=system)
 
-    _persist_turn(memory_store, session_id, "user", message)
-    _persist_turn(memory_store, session_id, "assistant", result.content)
+    _persist_turn(memory_store, user_id, session_id, "user", message)
+    _persist_turn(memory_store, user_id, session_id, "assistant", result.content)
 
     return result.content
 ```
@@ -1110,7 +1158,7 @@ def test_analyze_photo_endpoint_returns_critique(tmp_path):
     with patch("app.server.analyze_photo", return_value=fake_payload):
         resp = _client().post(
             "/api/v1/analyze-photo",
-            files={"file": ("test.jpg", b"fake-bytes", "image/jpeg")},
+            files={"image": ("test.jpg", b"fake-bytes", "image/jpeg")},  # field name must match Iris's agentClient.ts
             headers={"X-User-Id": "u1"},
         )
     assert resp.status_code == 200
@@ -1160,7 +1208,7 @@ import os
 import uuid
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Header, UploadFile
+from fastapi import FastAPI, File, Form, Header, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
@@ -1191,11 +1239,21 @@ def health() -> dict:
 
 
 @app.post("/api/v1/analyze-photo")
-async def analyze_photo_endpoint(file: UploadFile, x_user_id: str = Header(default="demo-user")):
-    data = await file.read()
+async def analyze_photo_endpoint(
+    image: UploadFile = File(...),
+    user_id: str | None = Form(None),
+    shoot_id: str | None = Form(None),
+    assignment_id: str | None = Form(None),
+    x_user_id: str = Header(default="demo-user"),
+):
+    # The form field MUST be named `image` — Iris's agentClient.ts posts
+    # form.append('image', ...); any other name 422s every upload from the
+    # copied frontend. shoot_id/assignment_id are accepted for wire
+    # compatibility and currently unused (Planner deferred per spec §14).
+    data = await image.read()
     payload = analyze_photo(
-        data, file.content_type or "image/jpeg", file.filename or "photo.jpg",
-        user_id=x_user_id, memory_store=_store(),
+        data, image.content_type or "image/jpeg", image.filename or "photo.jpg",
+        user_id=user_id or x_user_id, memory_store=_store(),
     )
     return payload
 
@@ -1252,6 +1310,34 @@ Expected: all tests pass (memory_engine 10 + storage 3 + db 1(skipped or passed)
 ```bash
 git add app/server.py tests/test_server.py
 git commit -m "Add FastAPI app: analyze-photo, chat, journey, memory-stats routes
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 13b: Portfolio read routes — the frontend contract (added after external review)
+
+**Files:**
+- Modify: `app/server.py`
+- Test: extend `tests/test_server.py`
+
+**Why this task exists:** the copied Iris frontend **hard-requires** `GET /api/v1/portfolio` (query params `limit`, `sortBy` ∈ {date, score}, `sortOrder` ∈ {asc, desc}) and `GET /api/v1/portfolio/stats` — `HomeTab.tsx` calls them in a `Promise.all` with **no `.catch` fallback**, so the home page hard-errors without them. `fetchPortfolioTrends`, `fetchAestheticProfile`, and `fetchAssignments` all have graceful `.catch` fallbacks, but trends is a cheap, high-value port (it feeds the Journey progress/identity lenses) so implement it too; aesthetic-profile may return a minimal stub; assignments stays unimplemented (frontend degrades gracefully, Planner is deferred).
+
+- [ ] **Step 1: Read the real client contracts before writing anything.** Open `frontend/src/services/memoryClient.ts` and `frontend/src/services/portfolioInsightsClient.ts` in the copied frontend (post-Task 16) or in `iris-photography-mentor/frontend/src/services/` (pre-Task 16), plus the `PortfolioEntry`/stats/trends types they reference in `frontend/src/types/`. Mirror the exact paths, query params, and response keys — do not invent a nicer shape; the frontend is the contract.
+- [ ] **Step 2: Write failing tests** (extend `tests/test_server.py`; patch `app.server._store` / `get_db` with a `mongomock` database pre-seeded with 3 `portfolio_entries` docs shaped like Task 9's insert):
+  - `GET /api/v1/portfolio?limit=2&sortBy=date&sortOrder=desc` → 200, 2 entries, newest first, each entry containing the keys the frontend type requires (at minimum: id, imageUrl, scores, genre, sceneDescription, createdAt — confirm exact casing from the client/types read in Step 1).
+  - `GET /api/v1/portfolio?sortBy=score&sortOrder=desc` → highest overall score first.
+  - `GET /api/v1/portfolio/stats` → 200 with the stats keys the frontend reads (photo count etc. — confirm from client).
+  - `GET /api/v1/portfolio/trends?limit=6` → 200 with the points/dimensions shape from Iris's `trends.py` (port `_delta_recent_vs_older` semantics over the seeded scores; the formula already exists in `app/memory_engine.py::compute_delta`).
+- [ ] **Step 3: Run to verify they fail** (404s).
+- [ ] **Step 4: Implement the routes in `app/server.py`** — read from `db.portfolio_entries` (written by Task 9), computing signed URLs via `get_storage().signed_url(entry["storage_key"])` at read time (do not trust stored URLs to still be valid — OSS signed URLs expire). Trends: reuse `compute_delta` from `app/memory_engine.py` per dimension over chronologically-sorted scores.
+- [ ] **Step 5: Run to verify green, then run the whole suite.**
+- [ ] **Step 6: Commit**
+
+```bash
+git add app/server.py tests/test_server.py
+git commit -m "Add portfolio read routes matching the Iris frontend contract
 
 Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ```
@@ -1323,11 +1409,14 @@ def test_recall_tool_returns_serializable_memories():
     from datetime import datetime, timezone
 
     mock_store = MagicMock()
-    mock_store.recall.return_value = [
-        MemoryItem(id="1", content="likes golden hour", importance=0.8, created_at=datetime.now(timezone.utc))
-    ]
+    mock_store.recall_scored.return_value = [(
+        MemoryItem(id="1", content="likes golden hour", importance=0.8, created_at=datetime.now(timezone.utc)),
+        {"importance": 0.8, "recency": 0.9, "relevance": 1.0, "salience": 0.72},
+    )]
     result = recall_tool(mock_store, user_id="u1", query="lighting preferences", k=3)
     assert result[0]["content"] == "likes golden hour"
+    assert result[0]["scores"]["salience"] == 0.72
+    assert mock_store.recall_scored.call_args.kwargs["query"] == "lighting preferences"
 
 
 def test_get_memory_stats_tool_delegates_to_store():
@@ -1361,8 +1450,13 @@ from app.memory_store import MemoryStore
 
 
 def recall_tool(store: MemoryStore, *, user_id: str, query: str, k: int = 5, scope: str | None = None) -> list[dict[str, Any]]:
-    items = store.recall(user_id=user_id, scope=scope, k=k)
-    return [{"id": i.id, "content": i.content, "importance": i.importance, "genre": i.genre} for i in items]
+    # query is genuinely used (relevance term in salience) and every item carries
+    # its score breakdown — retrieval is inspectable, not a black box.
+    scored = store.recall_scored(user_id=user_id, query=query, scope=scope, k=k)
+    return [
+        {"id": i.id, "content": i.content, "genre": i.genre, "scores": s}
+        for i, s in scored
+    ]
 
 
 def consolidate_tool(store: MemoryStore, *, user_id: str) -> dict[str, Any]:
@@ -1447,10 +1541,15 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
+- [ ] **Step 6b: Prove a LIVE path through MCP — not just wrapped functions (external-review finding H1).** Two artifacts:
+
+  1. `scripts/mcp_demo_transcript.py` — spawns the stdio server as a subprocess via the MCP client SDK (`mcp.client.stdio.stdio_client` + `ClientSession`), calls `recall` (with a real query, against the real DB) and `get_memory_stats`, and writes the full request/response exchange to `docs/mcp-transcript.md`. Commit the transcript — it's judge-readable proof the protocol path works end to end.
+  2. Wire ONE production read through MCP: `GET /api/v1/memory-stats?via=mcp` opens an MCP client session to engram-mcp and returns the tool's result (the default, no-param path remains the direct in-process call — the reliability fallback stays, per spec §6). The glass-box page (Task 23) gets a small "served via engram-mcp" toggle that hits this. This is the difference between "we ship an MCP server" and "our app demonstrably runs through it."
+
 - [ ] **Step 7: Commit**
 
 ```bash
-git add app/engram_mcp.py tests/test_engram_mcp.py scripts/run_mcp_server.py requirements.txt
+git add app/engram_mcp.py tests/test_engram_mcp.py scripts/run_mcp_server.py scripts/mcp_demo_transcript.py docs/mcp-transcript.md requirements.txt
 git commit -m "Add engram-mcp: custom MCP server exposing recall/forget/stats tools
 
 Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
@@ -1990,6 +2089,21 @@ TRACES: list[Trace] = [
         expects_current=["no longer", "cleared", "improved"],  # loose match, checked with an OR
         expects_absent=["still tilted", "keep working on horizon"],
     ),
+    Trace(
+        user_id="trace_adversarial_1",
+        facts=[
+            Fact("prefers shooting landscapes at midday", "landscape", valid_from_session=6, invalidated_by_session=7),
+            Fact("switched to golden-hour landscape sessions", "landscape", valid_from_session=7),
+        ],
+        query="When do I like to shoot landscapes?",
+        expects_current=["golden"],
+        expects_absent=["midday"],
+    ),
+    # ^ adversarial (external-review finding H3): the obsolete "midday" fact is
+    # nearly as RECENT as its correction — naive recency ranking surfaces it;
+    # only supersession-aware recall reliably excludes it. Include at least 5
+    # traces of this recent-but-obsolete class in the full set: they are what
+    # separates the engine from the no-forgetting ablation.
     # TODO: expand to 20-40 traces before the final benchmark run — this seed
     # set is enough to validate the harness mechanics first.
 ]
@@ -2036,7 +2150,7 @@ def run(seed: int = 0) -> dict:
     results = []
     for trace in TRACES:
         items = _memory_items_for_trace(trace)
-        recalled = recall(items, k=5)
+        recalled = recall(items, k=5, query=trace.query)
         recalled_text = " ".join(i.content for i in recalled)
 
         current_hit = sum(1 for phrase in trace.expects_current if phrase.lower() in recalled_text.lower())
@@ -2103,7 +2217,8 @@ Run: `cd "/Users/prasadt1/qwen hackathon/engram" && source .venv/bin/activate &&
 Expected: a Markdown table prints, `eval/results.json` is written. Sanity-check: trace_1's recall should mention Sony and not Canon; trace_2's FAMA should be high (the superseded horizon-tilt fact is correctly excluded).
 
 - [ ] **Step 4: If a trace fails the sanity check, fix the trace or the recall call — not the assertion.** This is real behavior validation, not a test to make green by adjusting expectations.
-- [ ] **Step 5: Expand to the full 20-40 traces** (design spec §9) — add more `Fact`/`Trace` entries covering: genre-mix identity shifts, multi-hop questions ("what did I improve most this month?"), and at least 3 traces per genre. Re-run after each batch.
+- [ ] **Step 5: Expand to the full 20-40 traces** (design spec §9) — add more `Fact`/`Trace` entries covering: genre-mix identity shifts, multi-hop questions ("what did I improve most this month?"), at least 3 traces per genre, and ≥5 adversarial recent-but-obsolete traces (see the annotated example above). Re-run after each batch.
+- [ ] **Step 5b: FREEZE the trace set (external-review finding H3).** Once the full set is authored, commit it with the message "Freeze eval traces" and do not edit any trace after seeing engine results — tuning traces to the engine is self-grading and a judge who diffs the history will see it. Post-freeze changes require an entry in `eval/README.md` explaining why. Also, if time allows: calibrate the chars/4 token heuristic against real `qwen_client` `CallResult` token counts on a ~10-call sample and report the calibration factor alongside results (the heuristic stays for determinism; the calibration makes it honest).
 - [ ] **Step 6: Commit**
 
 ```bash
@@ -2136,6 +2251,8 @@ diff eval/results-default.md eval/results-no-forgetting.md
 ```
 
 Expected: the `no-forgetting` run shows lower FAMA (obsolete facts leak through) — this diff *is* the headline result for the submission ("beat the no-forgetting baseline on FAMA while matching it on recall, at N× lower token cost," per spec §9).
+
+Also commit BOTH raw JSON outputs (`eval/results-default.json`, `eval/results-no-forgetting.json` — add an `--out` flag or rename after each run), and render the README results table with default and no-forgetting as side-by-side columns rather than two separate blocks — judges should see the comparison in one glance without running anything.
 
 - [ ] **Step 4: Commit**
 
@@ -2299,6 +2416,13 @@ git commit -m "Add Alibaba Cloud deployment proof (screenshot + code permalinks)
 
 ---
 
-## Suggested pacing (adjust freely — the phases are the real dependency order, not the calendar)
+## Suggested pacing + cut order (resequenced after external review)
 
-Given today is Jul 3 and Phases A (partially) and the "already done" section are complete: Phase A-B today/tomorrow, C-E (the scoring core) get the most protected time, F in parallel with G once the API is stable, H once F+G work, I the moment Alibaba clears (can run in parallel with F-H once Docker is ready), J last two days.
+Hard resequencing rules (the phases above are dependency order, not calendar order):
+- **Docker (Task 28) needs no Alibaba account — do it early (day 1–2, right after Phase D exists)** so the deploy is one `docker compose up` away the moment identity verification clears. Draft `docs/ALIBABA_CLOUD_PROOF.md`'s structure early too.
+- **Alibaba go/no-go: July 7, 9:00 AM PT.** If verification hasn't cleared by then, email the organizers (global.hackathon@alibaba-inc.com — escalation thread already prepared) describing the blocker with the account UID and asking how to satisfy the proof requirement in the interim. Don't wait silently on the review queue.
+- **Eval skeleton early:** Task 24 (FAMA) + the first 3–5 seed traces (Task 25 Step 1) run immediately after Phase C, before frontend polish — the benchmark is the submission's spine and must not be a Phase-G surprise. Expanding to the full 20–40 traces can land later.
+
+**Cut order if behind** (first listed = first cut): (1) Library genre-filter chips + milestone-badge UI — keep the genre *data*, it feeds the identity lens and scoped chat; (2) split-view visual polish (a plain two-pane layout is acceptable); (3) the Reflection LLM summary line (Journey renders skill state without it); (4) the consolidation pass (already MVP-stubbed). **Never cut:** the engram-mcp live path, /eval + ablations, the Journey page, the graduation demo moment, or the Alibaba proof artifacts.
+
+Calendar sketch: Jul 3–4 Phases A–D + Docker + eval skeleton; Jul 5 Phase E + Phase G hardening + frontend copy (Tasks 16–17); Jul 6 Phase F core (Journey, split view, MentorChat); Jul 7 go/no-go + deploy (Phase I) + Phase H seed data; Jul 8 Phase J docs/video + full dry-run; Jul 9 buffer only, submit by ~11 AM PT.

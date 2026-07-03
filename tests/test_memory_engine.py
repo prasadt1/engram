@@ -100,6 +100,42 @@ def test_recall_prefers_high_salience_over_mere_recency():
     assert result[0].id == "core_goal"
 
 
+# --- Query relevance ----------------------------------------------------------
+
+
+def test_query_matching_memory_outranks_equal_salience_nonmatch():
+    a = MemoryItem(id="night_note", content="struggles with exposure in night photography",
+                   importance=0.5, created_at=_at(3))
+    b = MemoryItem(id="portrait_note", content="strong eye contact in portrait framing",
+                   importance=0.5, created_at=_at(3))
+    result = recall([a, b], now=NOW, query="how is my night photography exposure?", k=2)
+    assert result[0].id == "night_note"
+
+
+def test_no_query_keeps_pure_salience_ordering():
+    a = _item("high", importance=0.9, days_ago=1)
+    b = _item("low", importance=0.2, days_ago=1)
+    assert [i.id for i in recall([a, b], now=NOW)] == ["high", "low"]
+
+
+def test_unrelated_but_important_memory_still_surfaces_via_relevance_floor():
+    cleared = MemoryItem(id="cleared_horizon", content="graduated the horizon tilt weakness",
+                         importance=1.0, created_at=_at(2))
+    result = recall([cleared], now=NOW, query="what about my lighting?", k=1)
+    assert result == [cleared]  # floor keeps it retrievable despite zero overlap
+
+
+def test_recall_scored_breakdown_components_multiply_to_salience():
+    from app.memory_engine import recall_scored
+
+    item = MemoryItem(id="x", content="night exposure work", importance=0.8, created_at=_at(30))
+    [(returned, scores)] = recall_scored([item], now=NOW, query="night", k=1)
+    assert returned.id == "x"
+    assert set(scores) == {"importance", "recency", "relevance", "salience"}
+    expected = scores["importance"] * scores["recency"] * scores["relevance"]
+    assert abs(scores["salience"] - expected) < 1e-3
+
+
 # --- Token-budget packing ----------------------------------------------------
 
 
