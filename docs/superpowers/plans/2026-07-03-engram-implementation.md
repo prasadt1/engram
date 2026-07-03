@@ -1272,6 +1272,8 @@ git commit -m "Add Reflection progress summary specialist"
 
 Routes needed for the five/six surfaces in spec §5: upload+critique, chat (global + scoped), portfolio list (for the Library), journey summary, memory stats (glass box), health. This intentionally does not port Iris's Planner/Triage/PrintSales/VisualDescriber routes (deferred per spec §14).
 
+**Carried notes from Task 2's quality review:** (a) `get_db()` raises `RuntimeError` if `MONGODB_URI` is unset — once wired into routes, add a startup check (fail fast at boot with a clear message) rather than letting it surface as a raw 500 per-request; (b) `db.py`'s `serverSelectionTimeoutMS=15000` is fine for smoke tests but long for request paths — do the connectivity check once at startup so requests don't carry a 15s tail-latency risk.
+
 **Wire-compatibility note (added after plan review):** the chat route's request/response shape must match Iris's real `mentorClient.ts` exactly — `{message, sessionId, persona}` in, `{reply, persona, sessionId, userId}` out (camelCase on the wire; FastAPI's Pydantic `alias` handles the snake_case↔camelCase translation) — so the existing frontend needs zero breaking changes when Task 22 wires it up. `photo_id` is the one genuinely new field, purely additive.
 
 - [ ] **Step 1: Write the failing integration test**
