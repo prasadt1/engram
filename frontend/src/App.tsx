@@ -18,6 +18,7 @@ import { getStoredTheme, type ThemeMode } from './lib/theme';
 import { ThemeProvider } from './lib/ThemeContext';
 import type { AppTab } from './config/navConfig';
 import { isAppTab, setTabHash, tabFromHash } from './config/navConfig';
+import { FEATURES } from './config/features';
 import { useAuth } from './auth/useAuth';
 import { setApiUserScope } from './lib/apiFetch';
 import { clearMentorSession } from './services/mentorClient';
@@ -91,12 +92,27 @@ function App() {
   const toast = useToast();
 
   const navigate = useCallback((tab: AppTab) => {
-    setActiveTab(tab);
-    setTabHash(tab);
+    // Single choke point for every onNavigate/CTA in the tree (sidebar,
+    // bottom nav, HomeTab's "Go to Practice" buttons, MyWorkTab's
+    // onGoToPractice). Practice has no nav entry while FEATURES.practice
+    // is off, so a stray CTA landing here must not strand the user on an
+    // unrendered tab — fall back to home instead.
+    const target = tab === 'practice' && !FEATURES.practice ? 'home' : tab;
+    setActiveTab(target);
+    setTabHash(target);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
   const refreshActiveAssignment = useCallback(async () => {
+    // Dedicated poll: fires on every tab switch (see the useEffect below).
+    // FEATURES.practice is off in this build — no /api/v1/assignments*
+    // routes exist on the backend — so skip the network call entirely
+    // rather than firing a guaranteed-404 on every navigation. null is the
+    // truthful state: there is no active assignment to report.
+    if (!FEATURES.practice) {
+      setActiveAssignment(null);
+      return;
+    }
     try {
       setActiveAssignment(await fetchActiveAssignment());
     } catch {
@@ -156,7 +172,14 @@ function App() {
         fetchPortfolio({ limit: 4, sortBy: 'date', sortOrder: 'desc' }),
         fetchAestheticProfile().catch(() => null),
         fetchPortfolioTrends(6).catch(() => null),
-        fetchPendingApprovals('triage').catch(() => ({ items: [], total: 0 })),
+        // FEATURES.triage is off in this build (no /api/v1/pending-approvals
+        // route on the backend) — this fires on every tab switch, so a
+        // guaranteed-404 here would be the single noisiest network call in
+        // judges' devtools. Skip the request entirely rather than firing
+        // then falling back on the .catch.
+        FEATURES.triage
+          ? fetchPendingApprovals('triage').catch(() => ({ items: [], total: 0 }))
+          : Promise.resolve({ items: [], total: 0 }),
         userMode === 'working_pro'
           ? fetchPrintPending().catch(() => ({ items: [], total: 0 }))
           : Promise.resolve({ items: [], total: 0 }),
@@ -361,7 +384,13 @@ function App() {
             />
           )}
 
-          {activeTab === 'practice' && (
+          {/* Practice tab (assignments + Field capture sub-view) is deferred
+              in this build — FEATURES.practice is false because no
+              /api/v1/assignments* routes exist on the backend yet. Gating
+              the render (not just the nav entry) covers stray entry points
+              like MyWorkTab's "Go to Practice" CTA, which still calls
+              navigate('practice') below. */}
+          {activeTab === 'practice' && FEATURES.practice && (
             <Tabs
               value={practiceView}
               onChange={(v) => setPracticeView(v as 'list' | 'field')}

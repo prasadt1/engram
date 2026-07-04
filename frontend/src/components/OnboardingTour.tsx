@@ -5,12 +5,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ArrowRight,
-  Camera,
   Home,
   Images,
   MessageCircle,
+  Settings,
   Sparkles,
-  Target,
   X,
 } from 'lucide-react';
 
@@ -22,6 +21,11 @@ interface TourStep {
   tabHint?: string;
 }
 
+// Practice (assignments) and Field capture steps were removed here: both
+// are deferred in this build (see ../config/features.ts — no matching
+// backend routes exist yet), so the tour would otherwise walk new users
+// into tabs that aren't in the nav. Steps below are audited to only
+// describe what's actually reachable: Home, Work, Mentor, Settings.
 const TOUR_STEPS: TourStep[] = [
   {
     id: 'home',
@@ -40,28 +44,20 @@ const TOUR_STEPS: TourStep[] = [
     tabHint: 'My Work tab',
   },
   {
-    id: 'practice',
-    icon: Target,
-    title: 'Practice challenges',
-    description:
-      'I propose focused assignments — you accept, shoot in Field or Studio, then compare before & after when complete.',
-    tabHint: 'Practice tab',
-  },
-  {
-    id: 'field',
-    icon: Camera,
-    title: 'Field capture',
-    description:
-      'Shoot with live horizon guidance and get a full critique on device — same Glass Box memory as web.',
-    tabHint: 'Practice → Field',
-  },
-  {
     id: 'mentor',
     icon: MessageCircle,
     title: 'Mentor & Organize',
     description:
       'Ask about your library, run organize scans, and approve every tag or delete — nothing changes without you.',
     tabHint: 'Mentor tab',
+  },
+  {
+    id: 'settings',
+    icon: Settings,
+    title: 'Settings',
+    description:
+      'Switch between Hobbyist and Working pro, restart this tour, or adjust theme — anytime.',
+    tabHint: 'Settings',
   },
   {
     id: 'finish',

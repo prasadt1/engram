@@ -93,8 +93,8 @@ export const OnboardingScreen: React.FC<Props> = ({ onComplete, onPersist }) => 
             <Store className="w-8 h-8 text-brand-400 mb-3" aria-hidden />
             <h2 className="text-lg font-bold text-white mb-2">Working pro</h2>
             <p className="text-sm text-muted leading-relaxed">
-              Listing drafts, portfolio insight, and print-ready picks — nothing goes live until
-              you approve each card.
+              Portfolio insight and a memory that tracks your style — advanced pro tools coming
+              soon.
             </p>
             <span className="inline-block mt-4 text-sm font-semibold text-brand-400">
               Start as working pro →

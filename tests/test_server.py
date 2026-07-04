@@ -96,6 +96,65 @@ def test_health_endpoint():
     assert resp.json()["status"] == "ok"
 
 
+# --- Users/me routes (persona persistence) -------------------------------
+# Mirrors Iris's app/memory/users.py::get_user_profile / set_persona
+# contract exactly (see frontend/src/services/userClient.ts::UserProfile):
+# { userId, persona, preferences }. The frontend calls GET on every boot
+# (App.tsx) and PATCH on persona selection (OnboardingScreen/SettingsTab).
+
+
+def test_users_me_get_returns_default_persona_when_user_doc_absent():
+    client = mongomock.MongoClient()
+    store = MagicMock()
+    store.db = client["t"]
+    with patch("app.server._store", return_value=store):
+        resp = _client().get("/api/v1/users/me", headers={"X-User-Id": "new-user"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["userId"] == "new-user"
+    assert body["persona"] == "hobbyist"  # default persona, matches Iris's fallback
+    assert body["preferences"] == {}
+
+
+def test_users_me_get_prefers_camelcase_userid_query_param_over_header():
+    # userClient.ts::fetchUserProfile sends `?userId=` (camelCase) for
+    # signed-in users, not `?user_id=` — a plain FastAPI param name would
+    # silently fail to bind this (Iris's own route has this exact bug:
+    # app/api/server.py declares a bare `user_id` param with no alias).
+    # This locks in the Query(alias="userId") fix.
+    client = mongomock.MongoClient()
+    store = MagicMock()
+    store.db = client["t"]
+    with patch("app.server._store", return_value=store):
+        resp = _client().get(
+            "/api/v1/users/me?userId=signed-in-user",
+            headers={"X-User-Id": "demo-user"},  # header present but must lose to the query param
+        )
+    assert resp.status_code == 200
+    assert resp.json()["userId"] == "signed-in-user"
+
+
+def test_users_me_patch_then_get_round_trips_persona():
+    client = mongomock.MongoClient()
+    store = MagicMock()
+    store.db = client["t"]
+    with patch("app.server._store", return_value=store):
+        patch_resp = _client().patch(
+            "/api/v1/users/me",
+            json={"persona": "working_pro"},
+            headers={"X-User-Id": "u1"},
+        )
+        assert patch_resp.status_code == 200
+        assert patch_resp.json() == {"userId": "u1", "persona": "working_pro"}
+
+        get_resp = _client().get("/api/v1/users/me", headers={"X-User-Id": "u1"})
+    assert get_resp.status_code == 200
+    body = get_resp.json()
+    assert body["userId"] == "u1"
+    assert body["persona"] == "working_pro"
+    assert body["preferences"]["onboardingComplete"] is True
+
+
 def test_analyze_photo_endpoint_saves_before_analyze_and_uses_image_field():
     fake_payload = {"scores": {"composition": 7}, "genre": "landscape", "imageUrl": "http://x/y.jpg", "portfolioEntryId": "abc"}
     with patch("app.server.analyze_photo", return_value=fake_payload) as mock_analyze, \

@@ -20,7 +20,7 @@ from datetime import datetime
 from typing import Any
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -95,6 +95,61 @@ def _store() -> MemoryStore:
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
+
+
+# --- Users/me routes (persona persistence) --------------------------------
+# Mirrors Iris's app/memory/users.py::get_user_profile / set_persona wire
+# contract exactly — { userId, persona, preferences } — see
+# frontend/src/services/userClient.ts::UserProfile. The frontend calls GET
+# on every boot (App.tsx, up to 3x: userMode sync, onboarding-complete
+# check, and again after auth.userId stabilises) and PATCH on persona
+# selection (OnboardingScreen / SettingsTab).
+
+VALID_PERSONAS = ("hobbyist", "working_pro", "vision_impairment")
+
+
+class PersonaUpdate(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    persona: str
+    user_id: str | None = Field(default=None, alias="userId")
+
+
+@app.get("/api/v1/users/me")
+def users_me(
+    user_id: str | None = Query(default=None, alias="userId"),
+    x_user_id: str = Header(default="demo-user"),
+) -> dict:
+    """?userId= query param (this is what userClient.ts::fetchUserProfile
+    actually sends for signed-in users — note Iris's own route declares a
+    bare `user_id` param with no alias, so this same mismatch exists
+    upstream too; fixed here via the alias rather than faithfully
+    reproducing it) wins over the X-User-Id header when both are present,
+    matching every other route's X-User-Id-as-fallback convention here."""
+    uid = user_id or x_user_id
+    doc = _store().db.users.find_one({"_id": uid})
+    if not doc:
+        # No user doc yet: return the default shape rather than 404 — the
+        # frontend's first-boot GET (before onboarding/persona selection)
+        # must never error, same tolerance as the portfolio read routes.
+        return {"userId": uid, "persona": "hobbyist", "preferences": {}}
+    return {
+        "userId": uid,
+        "persona": doc.get("persona") or "hobbyist",
+        "preferences": doc.get("preferences") or {},
+    }
+
+
+@app.patch("/api/v1/users/me")
+def users_me_patch(body: PersonaUpdate, x_user_id: str = Header(default="demo-user")) -> dict:
+    if body.persona not in VALID_PERSONAS:
+        raise HTTPException(status_code=400, detail=f"persona must be one of {VALID_PERSONAS}")
+    uid = body.user_id or x_user_id
+    _store().db.users.update_one(
+        {"_id": uid},
+        {"$set": {"persona": body.persona, "preferences.onboardingComplete": True}},
+        upsert=True,
+    )
+    return {"userId": uid, "persona": body.persona}
 
 
 # --- Portfolio read routes (Task 13b) ------------------------------------
