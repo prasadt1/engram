@@ -23,6 +23,7 @@ export interface JourneyResponse {
   summary: string;
   skills: JourneySkill[];
   stats: JourneyStats;
+  identity: string | null;
 }
 
 // The summary sentence is one live LLM call server-side (~5-10s), well

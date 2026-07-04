@@ -15,6 +15,7 @@ interface Props {
   summary: string;
   skills: JourneySkill[];
   stats: JourneyStats;
+  identity: string | null;
 }
 
 const STREAK_TARGET = 3;
@@ -27,7 +28,7 @@ function pickCurrentFocus(watching: JourneySkill[]): JourneySkill | null {
   return watching.reduce((best, skill) => (skill.consecutive > best.consecutive ? skill : best));
 }
 
-export const JourneySection: React.FC<Props> = ({ summary, skills }) => {
+export const JourneySection: React.FC<Props> = ({ summary, skills, identity }) => {
   if (skills.length === 0) {
     return (
       <section className="max-w-4xl mx-auto px-1">
@@ -47,6 +48,10 @@ export const JourneySection: React.FC<Props> = ({ summary, skills }) => {
   return (
     <section className="max-w-4xl mx-auto px-1 space-y-4">
       <Eyebrow>Your journey</Eyebrow>
+
+      {identity && (
+        <p className="font-serif text-xl md:text-2xl text-white leading-snug">{identity}</p>
+      )}
 
       {summary && (
         <p className="font-serif text-lg md:text-xl text-white leading-snug border-l-2 border-brand-500/40 pl-4">
