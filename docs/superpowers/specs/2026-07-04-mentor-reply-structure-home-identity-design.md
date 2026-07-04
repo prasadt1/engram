@@ -181,8 +181,8 @@ Degradation matrix (helper must handle each; unit-tested):
 ### Testing
 
 - Unit-test `build_identity_line` across the full degradation matrix above.
-- Unit-test the new genre-mode store method (ties on count → deterministic pick,
-  e.g. first alphabetically or first-seen; state which).
+- Unit-test the new genre-mode store method, including the tie-break case
+  (most-recently-shot genre wins on a count tie, per above).
 
 ## Component 3: Logo
 
