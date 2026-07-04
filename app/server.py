@@ -38,6 +38,10 @@ from app.reflection import summarize_progress  # noqa: E402
 from app.storage import get_storage  # noqa: E402
 
 logger = logging.getLogger(__name__)
+# Startup messages go through uvicorn's configured logger so they actually
+# show up in uvicorn/container logs — the app's own logger has no handler
+# configured at INFO, so lifespan messages were invisible on deploy day.
+boot_logger = logging.getLogger("uvicorn.error")
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 
@@ -52,9 +56,9 @@ async def lifespan(app: FastAPI):
         db.client.admin.command("ping")
         db.memory_items.create_index([("user_id", 1)])
         db.skills.create_index([("user_id", 1)])
-        logger.info("Mongo reachable; indexes ensured")
+        boot_logger.info("Mongo reachable; indexes ensured")
     else:
-        logger.warning("MONGODB_URI not set — skipping startup DB check (dev/test mode)")
+        boot_logger.warning("MONGODB_URI not set — skipping startup DB check (dev/test mode)")
     yield
 
 
@@ -376,17 +380,18 @@ async def _get_memory_stats_via_mcp(user_id: str) -> dict:
     this is the production path any Qwen agent actually takes when it mounts
     engram over MCP, so this route can serve as a live protocol health check.
 
-    cwd=_REPO_ROOT (not env=) so the spawned process's own load_dotenv() finds
-    the same .env this server loaded — stdio_client's default child
-    environment is a hardcoded safe allowlist (HOME/PATH/etc.), not a copy of
-    this process's os.environ, so MONGODB_URI would otherwise be invisible to
-    the child."""
+    env is passed explicitly because stdio_client's default child env is a
+    sanitized allowlist (HOME/PATH/etc.) that strips MONGODB_URI, and the
+    container has no .env file for the child's own load_dotenv() to find
+    (config arrives there as parent env vars via compose env_file). cwd is
+    kept for path resolution of the launcher script and local .env."""
     from mcp import ClientSession
     from mcp.client.stdio import StdioServerParameters, stdio_client
 
     params = StdioServerParameters(
         command=sys.executable,
         args=[os.path.join("scripts", "run_mcp_server.py")],
+        env=dict(os.environ),
         cwd=_REPO_ROOT,
     )
 

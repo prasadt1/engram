@@ -46,14 +46,14 @@ async def run_transcript() -> list[dict]:
     from mcp import ClientSession
     from mcp.client.stdio import StdioServerParameters, stdio_client
 
-    # cwd=REPO_ROOT (not env=) so the spawned process's own load_dotenv() finds
-    # the same .env this script just loaded — stdio_client's default child
-    # environment is a hardcoded safe allowlist (HOME/PATH/etc.), NOT a copy
-    # of this process's os.environ, so MONGODB_URI would otherwise be invisible
-    # to the child unless we either set cwd here or forward env explicitly.
+    # env is passed explicitly because stdio_client's default child env is a
+    # sanitized allowlist (HOME/PATH/etc.) that strips MONGODB_URI, and a
+    # container has no .env file for the child's own load_dotenv() to find.
+    # cwd stays for path resolution of the launcher script and local .env.
     params = StdioServerParameters(
         command=sys.executable,
         args=[os.path.join("scripts", "run_mcp_server.py")],
+        env=dict(os.environ),
         cwd=REPO_ROOT,
     )
 
