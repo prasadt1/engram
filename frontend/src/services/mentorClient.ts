@@ -83,3 +83,88 @@ export async function sendMentorMessage(
   saveSessionId(data.sessionId);
   return data;
 }
+
+/** The stream's "done" event carries everything ChatResponse has except
+ * `reply` — the full text arrives as onDelta chunks, not as one field. */
+export type ChatStreamDone = Omit<ChatResponse, 'reply'>;
+
+function parseSseBlock(block: string): { event: string | null; data: string | null } {
+  let event: string | null = null;
+  const dataLines: string[] = [];
+  for (const line of block.split('\n')) {
+    if (line.startsWith('event:')) event = line.slice('event:'.length).trim();
+    else if (line.startsWith('data:')) dataLines.push(line.slice('data:'.length).trim());
+  }
+  return { event, data: dataLines.length ? dataLines.join('\n') : null };
+}
+
+/**
+ * Streams the reply token-by-token over SSE, calling onDelta as each chunk
+ * arrives. Resolves with the same trailing metadata sendMentorMessage
+ * returns synchronously (the receipt isn't computed token-by-token — the
+ * backend sends it once, in a final "done" event, after the text).
+ */
+export async function streamMentorMessage(
+  message: string,
+  persona: 'hobbyist' | 'working_pro',
+  options: { signal?: AbortSignal; photoId?: string; onDelta: (delta: string) => void },
+): Promise<ChatStreamDone> {
+  rememberPersonaForSession(persona);
+  const sessionId = loadSessionId();
+  const res = await apiFetch('/api/v1/agent/chat/stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      message,
+      sessionId: sessionId ?? undefined,
+      persona,
+      photo_id: options.photoId ?? null,
+    }),
+    signal: options.signal,
+    timeoutMs: 90_000,
+  });
+  if (!res.ok || !res.body) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(detail || `Chat failed (${res.status})`);
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let done: ChatStreamDone | null = null;
+  let errorDetail: string | null = null;
+
+  try {
+    while (true) {
+      const { value, done: streamDone } = await reader.read();
+      if (streamDone) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      let sepIndex;
+      while ((sepIndex = buffer.indexOf('\n\n')) !== -1) {
+        const block = buffer.slice(0, sepIndex);
+        buffer = buffer.slice(sepIndex + 2);
+        const { event, data } = parseSseBlock(block);
+        if (!data) continue;
+        const parsed = JSON.parse(data);
+        if (event === 'error') {
+          errorDetail = parsed.detail || 'The mentor had trouble responding.';
+        } else if (event === 'done') {
+          done = parsed as ChatStreamDone;
+        } else if (typeof parsed.delta === 'string') {
+          options.onDelta(parsed.delta);
+        }
+      }
+    }
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new Error('Request timed out — the API may be waking up. Try again in a moment.', { cause: err });
+    }
+    throw err;
+  }
+
+  if (errorDetail) throw new Error(errorDetail);
+  if (!done) throw new Error('Stream ended unexpectedly.');
+  saveSessionId(done.sessionId);
+  return done;
+}

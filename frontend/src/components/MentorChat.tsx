@@ -30,7 +30,7 @@ import { MemoryReceipt } from './MemoryReceipt';
 import { groupMessagesIntoTurns } from '../lib/mentorChatTurns';
 import { friendlyErrorMessage } from '../lib/friendlyError';
 import { mentorLoadingStage } from '../lib/mentorLoadingStages';
-import { sendMentorMessage, type ChatMessage } from '../services/mentorClient';
+import { streamMentorMessage, type ChatMessage } from '../services/mentorClient';
 import { IconButton } from './primitives';
 import type { MemoryReceipt as MemoryReceiptData } from '../types';
 
@@ -144,16 +144,26 @@ export const MentorChat = forwardRef<MentorChatHandle, Props>(
         const controller = new AbortController();
         abortRef.current = controller;
 
+        const assistantId = `a-${Date.now()}`;
+        let assistantStarted = false;
+        let accumulated = '';
+
         try {
-          const res = await sendMentorMessage(trimmed, persona, { signal: controller.signal, photoId });
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `a-${Date.now()}`,
-              role: 'assistant',
-              content: res.reply,
+          const res = await streamMentorMessage(trimmed, persona, {
+            signal: controller.signal,
+            photoId,
+            onDelta: (delta) => {
+              accumulated += delta;
+              if (!assistantStarted) {
+                assistantStarted = true;
+                setMessages((prev) => [...prev, { id: assistantId, role: 'assistant', content: accumulated }]);
+              } else {
+                setMessages((prev) =>
+                  prev.map((m) => (m.id === assistantId ? { ...m, content: accumulated } : m)),
+                );
+              }
             },
-          ]);
+          });
           setLatestReceipt(res.memoryReceipt ?? null);
         } catch (e) {
           const msg = friendlyErrorMessage(e);
@@ -162,7 +172,7 @@ export const MentorChat = forwardRef<MentorChatHandle, Props>(
           } else {
             setError(msg);
             setLastFailedText(trimmed);
-            setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
+            setMessages((prev) => prev.filter((m) => m.id !== userMsg.id && m.id !== assistantId));
             setInput(trimmed);
           }
         } finally {
