@@ -89,6 +89,44 @@ export interface CritiqueBreakdown {
   overall: string;
 }
 
+/** Per-item salience breakdown — same shape memory_engine.salience_breakdown emits. */
+export interface MemoryReceiptScores {
+  importance: number;
+  recency: number;
+  relevance: number;
+  salience: number;
+}
+
+export interface MemoryReceiptRecalledItem {
+  id: string;
+  content: string;
+  genre?: string;
+  scores: MemoryReceiptScores;
+}
+
+export interface MemoryReceiptRetiredItem {
+  id: string;
+  content: string;
+}
+
+export interface MemoryReceiptDroppedItem {
+  id: string;
+  content: string;
+}
+
+/**
+ * The receipt for what long-term memory actually made it into a prompt:
+ * recall, forgetting (retired_excluded), and the context-token budget,
+ * all made visible rather than asserted. See app/context_builder.py.
+ */
+export interface MemoryReceipt {
+  recalled: MemoryReceiptRecalledItem[];
+  retired_excluded: MemoryReceiptRetiredItem[];
+  dropped_by_budget: MemoryReceiptDroppedItem[];
+  token_budget: number;
+  query?: string;
+}
+
 export interface AnalysisResult {
   portfolioEntryId: string;
   assignmentId?: string;
@@ -99,6 +137,8 @@ export interface AnalysisResult {
   glassBox: GlassBox;
   spatialMetadata: SpatialMetadata;
   aestheticTags: string[];
+  /** Primary subject genre classification (Coach agent) */
+  genre?: string;
   /** UI fields (from Coach agent / mock) */
   critique?: CritiqueBreakdown;
   strengths?: string[];
@@ -110,6 +150,8 @@ export interface AnalysisResult {
     shutterSpeed: string;
     iso: string;
   };
+  /** Present only when the critique was built with the photographer's memory recalled. */
+  memoryReceipt?: MemoryReceipt | null;
 }
 
 // Assignment types (spec §7.2)

@@ -4,6 +4,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp, Star } from 'lucide-react';
+import { Tag } from '../primitives/Tag';
 
 interface Props {
   overallScore: number;
@@ -11,6 +12,8 @@ interface Props {
   badgeClass: string;
   headline: string;
   fullCritique: string;
+  /** Primary subject genre classification (Coach agent), e.g. "landscape" */
+  genre?: string;
 }
 
 export const OverallVerdictCard: React.FC<Props> = ({
@@ -19,6 +22,7 @@ export const OverallVerdictCard: React.FC<Props> = ({
   badgeClass,
   headline,
   fullCritique,
+  genre,
 }) => {
   const [expanded, setExpanded] = useState(false);
   const hasMore = fullCritique.trim().length > headline.trim().length + 2;
@@ -39,6 +43,11 @@ export const OverallVerdictCard: React.FC<Props> = ({
         <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border shrink-0 ${badgeClass}`}>
           {skillLevel}
         </span>
+        {genre && (
+          <Tag variant="outline" className="shrink-0">
+            {genre.replace(/_/g, ' ')}
+          </Tag>
+        )}
         <h2 className="font-serif text-base md:text-lg text-stone-100 leading-snug flex items-start gap-2 flex-1 min-w-[12rem]">
           <Star className="w-5 h-5 text-brand-400 fill-brand-400 shrink-0 mt-0.5" aria-hidden />
           <span>{headline}</span>

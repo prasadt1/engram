@@ -2,19 +2,20 @@
  * Upload UI — gemini3 dark theme (photography-coach-ai-gemini3)
  */
 
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   Upload,
   Image as ImageIcon,
   Aperture,
   ArrowUp,
-  BookOpen,
-  Zap,
-  Target,
-  Eye,
   X,
 } from 'lucide-react';
-import { analyzeLoadingStage, analyzeWaitHint } from '../../lib/analyzeWaitCopy';
+import {
+  ANALYZE_THINKING_STEPS,
+  analyzeLoadingStage,
+  analyzeThinkingStepIndex,
+  analyzeWaitHint,
+} from '../../lib/analyzeWaitCopy';
 import { FilmGrain } from '../FilmGrain';
 import { ApertureLoader } from '../ApertureLoader';
 import { InlineAlertBanner } from '../InlineAlertBanner';
@@ -26,14 +27,6 @@ interface PhotoUploaderProps {
   onCancel?: () => void;
 }
 
-const THINKING_STEPS = [
-  { text: 'Grounding in photography principles…', icon: BookOpen },
-  { text: 'Looking at your composition…', icon: Target },
-  { text: 'Evaluating lighting and exposure…', icon: Zap },
-  { text: 'Assessing technique and sharpness…', icon: Eye },
-  { text: 'Building Glass Box critique…', icon: Aperture },
-];
-
 const PhotoUploader: React.FC<PhotoUploaderProps> = ({
   onImageSelected,
   isAnalyzing,
@@ -41,20 +34,13 @@ const PhotoUploader: React.FC<PhotoUploaderProps> = ({
   onCancel,
 }) => {
   const [dragActive, setDragActive] = useState(false);
-  const [currentThinkingStep, setCurrentThinkingStep] = useState(0);
   const [fileError, setFileError] = useState<string | null>(null);
   const stageMessage = analyzeLoadingStage(waitSec);
-
-  useEffect(() => {
-    if (!isAnalyzing) return;
-    setCurrentThinkingStep(0);
-    const interval = setInterval(() => {
-      setCurrentThinkingStep((prev) =>
-        prev < THINKING_STEPS.length - 1 ? prev + 1 : prev,
-      );
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [isAnalyzing]);
+  // Shares ANALYZE_THINKING_STEPS with AnalyzingOverlay.tsx (Home's upload
+  // path) so both surfaces narrate the same real pipeline in lockstep,
+  // driven by real elapsed time rather than a decorative fixed-interval
+  // timer that would finish long before the ~60-70s backend call does.
+  const currentThinkingStep = analyzeThinkingStepIndex(waitSec);
 
   const processFile = (file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -135,7 +121,7 @@ const PhotoUploader: React.FC<PhotoUploaderProps> = ({
               <p className="text-sm text-muted mb-4">{stageMessage}</p>
               <div className="w-full mt-2 bg-surface-1 rounded-xl border border-warm p-4 text-sm text-left shadow-inner">
                 <div className="space-y-3">
-                  {THINKING_STEPS.map((step, index) => {
+                  {ANALYZE_THINKING_STEPS.map((step, index) => {
                     const isActive = index === currentThinkingStep;
                     const isPast = index < currentThinkingStep;
                     if (index > currentThinkingStep + 1) return null;

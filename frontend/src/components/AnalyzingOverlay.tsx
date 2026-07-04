@@ -3,27 +3,17 @@
  * Used during photo analysis to show AI reasoning in progress.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
 import {
-  Aperture,
-  BookOpen,
-  Eye,
-  Target,
-  X,
-  Zap,
-} from 'lucide-react';
-import { analyzeLoadingStage, analyzeWaitHint } from '../lib/analyzeWaitCopy';
+  ANALYZE_THINKING_STEPS,
+  analyzeLoadingStage,
+  analyzeThinkingStepIndex,
+  analyzeWaitHint,
+} from '../lib/analyzeWaitCopy';
 import { ApertureLoader } from './ApertureLoader';
 import { ViewfinderFrame } from './ViewfinderFrame';
-
-const THINKING_STEPS = [
-  { text: 'Grounding in photography principles…', icon: BookOpen },
-  { text: 'Looking at your composition…', icon: Target },
-  { text: 'Evaluating lighting and exposure…', icon: Zap },
-  { text: 'Assessing technique and sharpness…', icon: Eye },
-  { text: 'Building Glass Box critique…', icon: Aperture },
-];
 
 interface Props {
   /** URL of the photo being analyzed (for preview) */
@@ -39,17 +29,10 @@ export const AnalyzingOverlay: React.FC<Props> = ({
   waitSec = 0,
   onCancel,
 }) => {
-  const [currentStep, setCurrentStep] = useState(0);
   const stageMessage = analyzeLoadingStage(waitSec);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentStep((prev) =>
-        prev < THINKING_STEPS.length - 1 ? prev + 1 : prev
-      );
-    }, 2000);
-    return () => clearInterval(interval);
-  }, []);
+  // Real elapsed time drives the checklist too, so it never "finishes" and
+  // sits frozen while the actual critique is still being written.
+  const currentStep = analyzeThinkingStepIndex(waitSec);
 
   useEffect(() => {
     const prevOverflow = document.body.style.overflow;
@@ -104,7 +87,7 @@ export const AnalyzingOverlay: React.FC<Props> = ({
 
         <div className="rounded-xl bg-surface-1 border border-warm p-4 shadow-lg">
           <div className="space-y-3">
-            {THINKING_STEPS.map((step, index) => {
+            {ANALYZE_THINKING_STEPS.map((step, index) => {
               const isActive = index === currentStep;
               const isPast = index < currentStep;
               const isFuture = index > currentStep + 1;

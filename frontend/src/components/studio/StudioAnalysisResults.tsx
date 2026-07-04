@@ -122,6 +122,7 @@ const StudioAnalysisResults: React.FC<Props> = ({
         badgeClass={badgeClass}
         headline={verdictHeadline}
         fullCritique={analysis.critique.overall}
+        genre={analysis.genre}
       />
 
       {/* Photo + score breakdown side by side */}
