@@ -38,3 +38,8 @@ def test_multiple_cleared_skills_joined():
 
 def test_no_portfolio_at_all_returns_none():
     assert build_identity_line(None, None, [], None) is None
+
+
+def test_underscored_tag_and_genre_are_humanized():
+    result = build_identity_line("still_life", "natural_light", ["composition"], "lighting")
+    assert result == "You're a natural light still life shooter — composition cleared, now sharpening lighting."

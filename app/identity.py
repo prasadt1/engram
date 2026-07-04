@@ -6,11 +6,21 @@ structure-home-identity-design.md, Component 2."""
 from __future__ import annotations
 
 
+def _humanize(value: str) -> str:
+    """LLM-generated genre/tag values are snake_case tokens
+    (e.g. "natural_light", "still_life") -- this is user-facing copy, so
+    turn underscores into spaces before it reaches a sentence."""
+    return value.replace("_", " ")
+
+
 def build_identity_line(
     genre: str | None, tag: str | None, cleared: list[str], watching: str | None,
 ) -> str | None:
     if not genre and not tag and not cleared and not watching:
         return None
+
+    genre = _humanize(genre) if genre else genre
+    tag = _humanize(tag) if tag else tag
 
     if tag and genre:
         descriptor = f"a {tag} {genre} shooter"
