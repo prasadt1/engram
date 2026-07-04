@@ -389,13 +389,20 @@ async def _get_memory_stats_via_mcp(user_id: str) -> dict:
         args=[os.path.join("scripts", "run_mcp_server.py")],
         cwd=_REPO_ROOT,
     )
-    async with stdio_client(params) as (read, write):
-        async with ClientSession(read, write) as session:
-            await session.initialize()
-            result = await session.call_tool("get_memory_stats", {"user_id": user_id})
-            if result.isError:
-                raise RuntimeError(f"engram-mcp get_memory_stats failed: {result.content}")
-            return json.loads(result.content[0].text)
+
+    async def _round_trip() -> dict:
+        async with stdio_client(params) as (read, write):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                result = await session.call_tool("get_memory_stats", {"user_id": user_id})
+                if result.isError:
+                    raise RuntimeError(f"engram-mcp get_memory_stats failed: {result.content}")
+                return json.loads(result.content[0].text)
+
+    # Healthy round trip is ~7s (subprocess spawn dominates); 15s is generous
+    # headroom. Without this bound, a wedged subprocess would hang the route
+    # (and its threadpool worker) indefinitely.
+    return await asyncio.wait_for(_round_trip(), timeout=15.0)
 
 
 @app.get("/api/v1/memory-stats")
@@ -405,6 +412,18 @@ def memory_stats(x_user_id: str = Header(default="demo-user"), via: str | None =
         # spec — the default (non-mcp) path below stays the plain in-process
         # call, which is the reliability fallback if the MCP subprocess path
         # ever has trouble.
-        stats = asyncio.run(_get_memory_stats_via_mcp(x_user_id))
+        try:
+            stats = asyncio.run(_get_memory_stats_via_mcp(x_user_id))
+        except (asyncio.TimeoutError, Exception) as exc:
+            # Broad catch is deliberate: subprocess failures surface as
+            # ExceptionGroup (anyio task group), which none of the app-level
+            # exception handlers map. No silent fallback to the direct call
+            # here — a served_via label the response didn't earn would defeat
+            # the point of the route.
+            logger.warning("engram-mcp path failed: %s", exc)
+            raise HTTPException(
+                status_code=503,
+                detail="The engram-mcp subprocess path is unavailable right now — the default /api/v1/memory-stats path serves the same data in-process.",
+            )
         return {**stats, "served_via": "engram-mcp"}
     return _store().get_memory_stats(user_id=x_user_id)

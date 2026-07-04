@@ -1,3 +1,4 @@
+import asyncio
 import os
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
@@ -203,6 +204,17 @@ def test_memory_stats_via_mcp_round_trips_through_real_stdio_server():
     body = resp.json()
     assert body["served_via"] == "engram-mcp"
     assert "total_memories" in body  # real get_memory_stats shape, unmocked
+
+
+def test_memory_stats_via_mcp_failure_maps_to_friendly_503():
+    # A wedged/failed MCP subprocess must NOT hang the route or leak a raw
+    # 500 — and must not silently fall back to the in-process call while
+    # claiming served_via mcp. The timeout lives in
+    # app.server._get_memory_stats_via_mcp (asyncio.wait_for, 15s).
+    with patch("app.server._get_memory_stats_via_mcp", side_effect=asyncio.TimeoutError):
+        resp = _client().get("/api/v1/memory-stats", params={"via": "mcp"}, headers={"X-User-Id": "u1"})
+    assert resp.status_code == 503
+    assert "engram-mcp" in resp.json()["detail"]
 
 
 def test_memory_stats_default_path_is_unchanged_direct_call():
