@@ -15,7 +15,7 @@ def test_chat_scopes_recall_to_photo_id_and_returns_reply_with_receipt():
     store = _mock_store()
     fake = MagicMock(content="Great question about your night shots!")
 
-    with patch("app.mentor.qwen_client.chat_text", return_value=fake):
+    with patch("app.mentor.qwen_client.chat_fast", return_value=fake):
         result = chat(
             message="How's my night photography?", user_id="u1", memory_store=store,
             photo_id="p123", session_id="s1", persona="hobbyist",
@@ -36,7 +36,7 @@ def test_chat_uses_global_scope_when_no_photo_id():
     store = _mock_store()
     fake = MagicMock(content="Here's your overall progress.")
 
-    with patch("app.mentor.qwen_client.chat_text", return_value=fake):
+    with patch("app.mentor.qwen_client.chat_fast", return_value=fake):
         chat(message="How am I doing overall?", user_id="u1", memory_store=store,
              photo_id=None, session_id="s1", persona="hobbyist")
 
@@ -49,7 +49,7 @@ def test_chat_persists_turns_scoped_to_user_and_session():
     store = _mock_store()
     fake = MagicMock(content="Sure thing!")
 
-    with patch("app.mentor.qwen_client.chat_text", return_value=fake):
+    with patch("app.mentor.qwen_client.chat_fast", return_value=fake):
         chat(message="Follow-up question", user_id="u1", memory_store=store,
              photo_id=None, session_id="s1", persona="hobbyist")
 
@@ -73,7 +73,7 @@ def test_chat_reply_context_includes_cleared_and_watching_skills():
     ]
     fake = MagicMock(content="You're doing great!")
 
-    with patch("app.mentor.qwen_client.chat_text", return_value=fake) as mock_chat:
+    with patch("app.mentor.qwen_client.chat_fast", return_value=fake) as mock_chat:
         chat(message="Status?", user_id="u1", memory_store=store,
              photo_id=None, session_id="s1", persona="hobbyist")
 

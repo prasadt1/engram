@@ -60,7 +60,10 @@ def chat(
         f"## User's message\n{message}"
     )
 
-    result = qwen_client.chat_text(context, system=system)
+    # Fast tier: this is a conversational reply, not a task needing the
+    # reasoning model's extended thinking (which ran 70-80s in testing —
+    # unacceptable chat latency).
+    result = qwen_client.chat_fast(context, system=system)
 
     _persist_turn(memory_store, user_id, session_id, "user", message)
     _persist_turn(memory_store, user_id, session_id, "assistant", result.content)
