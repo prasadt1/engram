@@ -21,6 +21,7 @@ export function BrandLogo({
   direction = 'simplified',
   markSize,
   markScale = MARK_SCALE,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for API compatibility with mark/tittle variants
   extraBold = false,
   animate = false,
   className = '',
@@ -98,14 +99,19 @@ export function BrandLogo({
   const resolvedSize = size ?? preset.size;
   const resolvedMarkSize =
     markSize ?? preset.markSize ?? Math.round(resolvedSize * markScale);
-  const useExtraBold = extraBold || preset.extraBold;
 
   return (
     <span
       className={`inline-flex items-center leading-none ${className}`}
       style={{ gap: preset.gap }}
     >
-      <IrisMark size={resolvedMarkSize} extraBold={useExtraBold} {...markProps} />
+      <img
+        src="/engram-icon-192.png"
+        alt=""
+        width={resolvedMarkSize}
+        height={resolvedMarkSize}
+        style={{ borderRadius: '20%' }}
+      />
       <span
         style={{
           fontFamily: "'Newsreader', Georgia, serif",
