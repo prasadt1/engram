@@ -376,6 +376,26 @@ def test_scores_stray_overall_key_is_dropped_and_validates_without_repair():
     }
 
 
+def test_normalize_coach_output_drops_stray_scores_key_directly():
+    # Exercises _normalize_coach_output itself, not just the end-to-end
+    # payload -- pydantic's default extra="ignore" would silently drop an
+    # unrecognised scores key on its own, so the end-to-end test above can't
+    # prove this specific normalization step does anything.
+    import json
+
+    from app.coach import _normalize_coach_output
+
+    parsed = json.loads(SCORES_STRAY_OVERALL_JSON)
+    assert "overall" in parsed["scores"]
+
+    normalized = _normalize_coach_output(parsed)
+
+    assert "overall" not in normalized["scores"]
+    assert set(normalized["scores"].keys()) == {
+        "composition", "lighting", "technique", "creativity", "subject_impact"
+    }
+
+
 def test_uppercase_enum_values_are_lowercased_and_validate_without_repair():
     result, mock_chat_text = _analyze_with_vision_json(UPPERCASE_ENUMS_JSON)
 
