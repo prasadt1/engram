@@ -39,8 +39,8 @@ export function groupMessagesIntoTurns(messages: ChatMessage[]): ChatTurn[] {
 }
 
 export function turnPreview(text: string, maxLen = 140): string {
-  const { headline, hasStructure } = splitMentorReply(text);
-  const source = hasStructure && headline ? headline : text;
+  const { headline, beats, hasStructure } = splitMentorReply(text);
+  const source = hasStructure ? (headline || beats[0]?.text || text) : text;
   const flat = source.replace(/\s+/g, ' ').trim();
   if (flat.length <= maxLen) return flat;
   return `${flat.slice(0, maxLen).trim()}…`;
