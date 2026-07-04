@@ -1,2 +1,3 @@
 pytest>=8.0.0
 mongomock>=4.1.0
+cairosvg>=2.7  # docs toolchain: architecture.svg -> png
