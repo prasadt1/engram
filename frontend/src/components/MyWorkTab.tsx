@@ -31,7 +31,6 @@ import {
 } from 'lucide-react';
 import { SimilarPhotosRow } from './SimilarPhotosRow';
 import { LazyPortfolioImage } from './LazyPortfolioImage';
-import { ImageLightbox } from './ImageLightbox';
 import { searchModeLabel, searchPortfolioLibrary } from '../services/portfolioInsightsClient';
 import { SubViewBack } from './SubViewBack';
 import { FilmGrain } from './FilmGrain';
@@ -50,6 +49,7 @@ import { MemoryGridSkeleton } from './SkeletonBlocks';
 import PhotoUploader from './studio/PhotoUploader';
 import StudioAnalysisResults from './studio/StudioAnalysisResults';
 import { MemoryReceipt } from './MemoryReceipt';
+import { PhotoDetailView } from './PhotoDetailView';
 import { ActivePracticeBanner } from './studio/ActivePracticeBanner';
 import { fetchAestheticProfile, fetchPortfolio, fetchPortfolioTrends, deletePortfolioEntries, deletePortfolioEntry, type SortField, type SortOrder } from '../services/memoryClient';
 import { analyzePhoto } from '../services/agentClient';
@@ -60,7 +60,7 @@ import type {
   PortfolioListItem,
   PortfolioTrendsResponse,
 } from '../types/memory';
-import type { Assignment } from '../types/practice';
+import type { Assignment, UserMode } from '../types/practice';
 import { useAuth } from '../auth/useAuth';
 
 const TREND_DISPLAY_KEYS = ['composition', 'lighting', 'technique', 'overall'] as const;
@@ -81,6 +81,8 @@ interface PendingAnalysis {
 }
 
 interface MyWorkTabProps {
+  /** Drives the persona for PhotoDetailView's scoped mentor chat. */
+  mode: UserMode;
   activeAssignment?: Assignment | null;
   onAssignmentComplete?: () => void;
   onGoHome?: () => void;
@@ -96,6 +98,7 @@ interface MyWorkTabProps {
 type ViewMode = 'gallery' | 'upload' | 'analyzing' | 'result';
 
 export const MyWorkTab: React.FC<MyWorkTabProps> = ({
+  mode,
   activeAssignment,
   onAssignmentComplete,
   onGoHome,
@@ -112,7 +115,10 @@ export const MyWorkTab: React.FC<MyWorkTabProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [lightboxEntry, setLightboxEntry] = useState<PortfolioListItem | null>(null);
+  // Clicking a photo in the grid opens the split-view detail (photo + scoped
+  // mentor chat) — ImageLightbox stays in the codebase as a component but is
+  // no longer wired to this click; PhotoDetailView is the library-flow entry point.
+  const [detailEntry, setDetailEntry] = useState<PortfolioListItem | null>(null);
   const [trends, setTrends] = useState<PortfolioTrendsResponse | null>(null);
 
   // Sort and filter state
@@ -898,13 +904,13 @@ export const MyWorkTab: React.FC<MyWorkTabProps> = ({
                 <button
                   type="button"
                   className="text-left w-full cursor-zoom-in"
-                  aria-label={`View full-size photo, score ${entry.overallAverage} out of 10`}
+                  aria-label={`Open photo detail and ask the mentor about it, score ${entry.overallAverage} out of 10`}
                   onClick={() => {
                     if (selectMode) {
                       toggleSelected(entry.id);
                       return;
                     }
-                    if (entry.imageUrl) setLightboxEntry(entry);
+                    if (entry.imageUrl) setDetailEntry(entry);
                   }}
                 >
                   <div className="p-3 bg-photo-black border-b border-warm/40">
@@ -1072,13 +1078,11 @@ export const MyWorkTab: React.FC<MyWorkTabProps> = ({
           })}
         </div>
       )}
-      {lightboxEntry && lightboxEntry.imageUrl && (
-        <ImageLightbox
-          src={lightboxEntry.imageUrl}
-          alt={lightboxEntry.sceneDescription?.slice(0, 120) || 'Portfolio photo'}
-          caption={lightboxEntry.sceneDescription || undefined}
-          score={lightboxEntry.overallAverage}
-          onClose={() => setLightboxEntry(null)}
+      {detailEntry && detailEntry.imageUrl && (
+        <PhotoDetailView
+          photo={detailEntry}
+          persona={mode}
+          onClose={() => setDetailEntry(null)}
         />
       )}
     </div>

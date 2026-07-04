@@ -5,6 +5,14 @@ export interface PortfolioListItem {
   userId: string;
   shootId: string;
   imageUrl: string;
+  /**
+   * The raw storage key (e.g. "photos/abc.jpg") this entry's critique was
+   * saved under — NOT the signed/proxied imageUrl, which can rotate. This is
+   * what mentor chat's photo_id must match, since app/mentor.py passes it
+   * straight through as memory_store.recall(scope=photo_id) and the memory
+   * that critique wrote used this same key as its scope (app/coach.py).
+   */
+  storageKey?: string;
   createdAt: string;
   scores: AnalysisScores;
   overallAverage: number;

@@ -1,31 +1,20 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Check,
   ImageIcon,
   Layers,
   Loader2,
   MessageCircle,
-  Send,
   Sparkles,
   Trash2,
   X,
 } from 'lucide-react';
-import { ChatErrorBanner } from './ChatErrorBanner';
 import { HitlReasoningCallout } from './HitlReasoningCallout';
 import { ScanProgressBanner } from './ScanProgressBanner';
-import { TabEmptyState } from './TabEmptyState';
-import { MentorChatTurn } from './MentorChatTurn';
-import { groupMessagesIntoTurns } from '../lib/mentorChatTurns';
-import { friendlyErrorMessage } from '../lib/friendlyError';
-import { mentorLoadingStage } from '../lib/mentorLoadingStages';
+import { MentorChat, type MentorChatHandle } from './MentorChat';
 import { triageScanStage } from '../lib/scanLoadingStages';
 import { entryIdsForProposal } from '../lib/triageEntryIds';
-import {
-  fetchMentorSuggestedQuestions,
-  loadSessionId,
-  sendMentorMessage,
-  type ChatMessage,
-} from '../services/mentorClient';
+import { fetchMentorSuggestedQuestions, loadSessionId } from '../services/mentorClient';
 import {
   decideApproval,
   fetchPendingApprovals,
@@ -33,9 +22,10 @@ import {
   runTriageScan,
 } from '../services/triageClient';
 import { HitlHistoryPanel } from './HitlHistoryPanel';
-import { Button, Card, Eyebrow, IconButton, SegmentedControl } from './primitives';
+import { Button, Card, Eyebrow, SegmentedControl } from './primitives';
 import { fetchPortfolio, fetchPortfolioStats } from '../services/memoryClient';
 import { FEATURES } from '../config/features';
+import { friendlyErrorMessage } from '../lib/friendlyError';
 import type { UserMode } from '../types/practice';
 import type { PendingApproval } from '../types/triage';
 import type { PortfolioListItem } from '../types/memory';
@@ -244,16 +234,29 @@ function OrganizeFeedbackBanner({
 export const MentorTab: React.FC<Props> = ({ mode, onGoToWork }) => {
   const [view, setView] = useState<MentorView>('chat');
 
-  // Chat state
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [waitSec, setWaitSec] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const [lastFailedText, setLastFailedText] = useState<string | null>(null);
+  // Chat area: the message/turn/loading state machine itself lives in
+  // MentorChat now. MentorTab keeps only what its surrounding chrome
+  // (suggested questions, quick actions) needs: a ref to inject a prompt
+  // as if typed, and a mirrored loading flag to disable those chips while
+  // a reply is in flight — same UX as before the extraction.
+  const [chatLoading, setChatLoading] = useState(false);
   const [starters, setStarters] = useState<string[]>(STARTERS_BY_MODE[mode]);
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const abortRef = useRef<AbortController | null>(null);
+  const mentorChatRef = useRef<MentorChatHandle>(null);
+  // MentorChat unmounts while view === 'label' (see the two independent
+  // `view === 'chat'` / `view === 'label'` conditionals below), so
+  // handleBacklogTriage's setView('chat') + ref call can race a mount that
+  // hasn't committed yet. Queue the turn here and flush it once MentorChat
+  // is back on screen, instead of silently dropping it if the ref is null.
+  // Each queued turn carries a unique id and a "last flushed" ref guards
+  // against StrictMode's dev-only double-invoke of the flush effect body:
+  // both invocations run against the same pre-commit pendingBacklogTurn
+  // value, so without the guard the turn would land in the transcript twice.
+  const [pendingBacklogTurn, setPendingBacklogTurn] = useState<{
+    id: number;
+    user: string;
+    assistant: string;
+  } | null>(null);
+  const flushedBacklogTurnId = useRef<number | null>(null);
 
   // Label Photos state
   const [labelItems, setLabelItems] = useState<PendingApproval[]>([]);
@@ -267,27 +270,6 @@ export const MentorTab: React.FC<Props> = ({ mode, onGoToWork }) => {
   const [libraryCount, setLibraryCount] = useState(0);
   const [pendingOrganizeCount, setPendingOrganizeCount] = useState(0);
   const [backlogRunning, setBacklogRunning] = useState(false);
-  const [expandedTurnIds, setExpandedTurnIds] = useState<Set<string>>(new Set());
-
-  const chatTurns = useMemo(() => groupMessagesIntoTurns(messages), [messages]);
-
-  // Auto-collapse older exchanges; keep only the latest turn expanded.
-  useEffect(() => {
-    if (chatTurns.length === 0) {
-      setExpandedTurnIds(new Set());
-      return;
-    }
-    setExpandedTurnIds(new Set([chatTurns[chatTurns.length - 1].id]));
-  }, [chatTurns.length, chatTurns[chatTurns.length - 1]?.assistant?.id]);
-
-  const toggleTurn = useCallback((turnId: string) => {
-    setExpandedTurnIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(turnId)) next.delete(turnId);
-      else next.add(turnId);
-      return next;
-    });
-  }, []);
 
   useEffect(() => {
     setStarters(STARTERS_BY_MODE[mode]);
@@ -304,71 +286,22 @@ export const MentorTab: React.FC<Props> = ({ mode, onGoToWork }) => {
       });
   }, [mode]);
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, loading]);
-
-  useEffect(() => {
-    if (!loading) {
-      setWaitSec(0);
-      return;
-    }
-    const tick = window.setInterval(() => setWaitSec((s) => s + 1), 1000);
-    return () => window.clearInterval(tick);
-  }, [loading]);
-
-  const cancelRequest = useCallback(() => {
-    abortRef.current?.abort();
-    abortRef.current = null;
-    setLoading(false);
+  const sendToChat = useCallback((text: string) => {
+    mentorChatRef.current?.sendMessage(text);
   }, []);
 
-  const send = useCallback(async (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed || loading) return;
-
-    const userMsg: ChatMessage = {
-      id: `u-${Date.now()}`,
-      role: 'user',
-      content: trimmed,
-    };
-    setMessages((prev) => [...prev, userMsg]);
-    setInput('');
-    setLoading(true);
-    setError(null);
-    setLastFailedText(null);
-
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    try {
-      const res = await sendMentorMessage(trimmed, mode, { signal: controller.signal });
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `a-${Date.now()}`,
-          role: 'assistant',
-          content: res.reply,
-        },
-      ]);
-    } catch (e) {
-      const msg = friendlyErrorMessage(e);
-      if (e instanceof Error && e.name === 'AbortError') {
-        setError(msg);
-      } else {
-        setError(msg);
-        setLastFailedText(trimmed);
-        setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
-        setInput(trimmed);
-      }
-    } finally {
-      abortRef.current = null;
-      setLoading(false);
-    }
-  }, [loading, mode]);
+  // Flush a queued backlog-triage turn once MentorChat has (re)mounted for
+  // the 'chat' view — see the setState comment above for why this can't
+  // just call the ref synchronously from handleBacklogTriage.
+  useEffect(() => {
+    if (view !== 'chat' || !pendingBacklogTurn) return;
+    if (flushedBacklogTurnId.current === pendingBacklogTurn.id) return;
+    flushedBacklogTurnId.current = pendingBacklogTurn.id;
+    mentorChatRef.current?.appendCompletedTurn(pendingBacklogTurn.user, pendingBacklogTurn.assistant);
+    setPendingBacklogTurn(null);
+  }, [view, pendingBacklogTurn]);
 
   const hasSession = Boolean(loadSessionId());
-  const stageMessage = mentorLoadingStage(waitSec, mode);
 
   /* ─────────────────────────────────────────────────────────────────────────
      Label Photos logic
@@ -469,20 +402,12 @@ export const MentorTab: React.FC<Props> = ({ mode, onGoToWork }) => {
     setLabelError(null);
     try {
       const result = await runTriageBacklog(mode);
+      setPendingBacklogTurn({
+        id: Date.now(),
+        user: 'Run backlog triage on my portfolio.',
+        assistant: result.reply || 'Backlog triage finished — check Organize for pending approvals.',
+      });
       setView('chat');
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `user-${Date.now()}`,
-          role: 'user',
-          content: 'Run backlog triage on my portfolio.',
-        },
-        {
-          id: `assistant-${Date.now()}`,
-          role: 'assistant',
-          content: result.reply || 'Backlog triage finished — check Organize for pending approvals.',
-        },
-      ]);
     } catch (e) {
       setLabelError(friendlyErrorMessage(e));
     } finally {
@@ -556,137 +481,65 @@ export const MentorTab: React.FC<Props> = ({ mode, onGoToWork }) => {
             </p>
           </div>
 
-          <div className="flex-1 flex flex-col rounded-xl border border-warm bg-surface-1 min-h-[400px] pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.length === 0 && (
-                <div className="py-4">
-                  <TabEmptyState
-                    icon={Sparkles}
-                    title="Start a conversation"
-                    description="I search your past critiques and portfolio memory — replies can take 30–90 seconds when I dig through your library."
-                    steps={[
-                      'Upload a few photos in My Work so I have memory to draw on',
-                      'Pick a suggested question below, or type your own',
-                      'Open Glass Box on any critique to see what I remembered',
-                    ]}
-                  />
+          <MentorChat
+            ref={mentorChatRef}
+            persona={mode}
+            onLoadingChange={setChatLoading}
+            footerSlot={
+              <>
+                <div className="px-3 py-2 border-t border-warm/80 bg-canvas-elevated/30">
+                  <Eyebrow className="mb-2">Quick actions</Eyebrow>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={chatLoading}
+                      onClick={() => setView('label')}
+                      className="text-xs px-3 py-1.5 rounded-full border border-brand-500/40 bg-brand-500/10 text-brand-300 hover:bg-brand-500/20 disabled:opacity-40"
+                    >
+                      Organize library
+                    </button>
+                    <button
+                      type="button"
+                      disabled={chatLoading}
+                      onClick={() => sendToChat('What patterns do you see in my recent critiques?')}
+                      className="text-xs px-3 py-1.5 rounded-full border border-warm text-stone-300 hover:border-brand-500 hover:text-brand-300 disabled:opacity-40"
+                    >
+                      Review progress
+                    </button>
+                    {mode === 'working_pro' && (
+                      <button
+                        type="button"
+                        disabled={chatLoading}
+                        onClick={() =>
+                          sendToChat('Which of my recent photos are strongest candidates for print sales?')
+                        }
+                        className="text-xs px-3 py-1.5 rounded-full border border-warm text-stone-300 hover:border-brand-500 hover:text-brand-300 disabled:opacity-40"
+                      >
+                        Print candidates
+                      </button>
+                    )}
+                  </div>
                 </div>
-              )}
-              {chatTurns.length > 1 && (
-                <p className="text-[10px] text-muted uppercase tracking-wide px-1">
-                  {chatTurns.length - 1} earlier exchange{chatTurns.length - 1 === 1 ? '' : 's'} — tap to
-                  expand
-                </p>
-              )}
-              {chatTurns.map((turn, index) => {
-                const isLatest = index === chatTurns.length - 1;
-                const isPendingLatest = isLatest && loading && !turn.assistant;
-                return (
-                  <MentorChatTurn
-                    key={turn.id}
-                    turn={turn}
-                    expanded={expandedTurnIds.has(turn.id) || isPendingLatest}
-                    onToggle={() => toggleTurn(turn.id)}
-                    loading={isPendingLatest}
-                    loadingStage={isPendingLatest ? stageMessage : undefined}
-                    waitSec={isPendingLatest ? waitSec : 0}
-                    onCancel={isPendingLatest ? cancelRequest : undefined}
-                    isLatest={isLatest}
-                  />
-                );
-              })}
-              <div ref={bottomRef} />
-            </div>
 
-            {error && (
-              <ChatErrorBanner
-                message={error}
-                onRetry={
-                  lastFailedText
-                    ? () => {
-                        setError(null);
-                        void send(lastFailedText);
-                      }
-                    : undefined
-                }
-                onDismiss={() => setError(null)}
-              />
-            )}
-
-            <div className="px-3 py-2 border-t border-warm/80 bg-canvas-elevated/30">
-              <Eyebrow className="mb-2">Quick actions</Eyebrow>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  disabled={loading}
-                  onClick={() => setView('label')}
-                  className="text-xs px-3 py-1.5 rounded-full border border-brand-500/40 bg-brand-500/10 text-brand-300 hover:bg-brand-500/20 disabled:opacity-40"
-                >
-                  Organize library
-                </button>
-                <button
-                  type="button"
-                  disabled={loading}
-                  onClick={() => void send('What patterns do you see in my recent critiques?')}
-                  className="text-xs px-3 py-1.5 rounded-full border border-warm text-stone-300 hover:border-brand-500 hover:text-brand-300 disabled:opacity-40"
-                >
-                  Review progress
-                </button>
-                {mode === 'working_pro' && (
-                  <button
-                    type="button"
-                    disabled={loading}
-                    onClick={() =>
-                      void send('Which of my recent photos are strongest candidates for print sales?')
-                    }
-                    className="text-xs px-3 py-1.5 rounded-full border border-warm text-stone-300 hover:border-brand-500 hover:text-brand-300 disabled:opacity-40"
-                  >
-                    Print candidates
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="px-3 py-2 border-t border-warm/80 bg-canvas-elevated/40">
-              <Eyebrow className="mb-2">Suggested questions</Eyebrow>
-              <div className="flex flex-wrap gap-2">
-                {starters.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    disabled={loading}
-                    onClick={() => void send(s)}
-                    className="text-xs px-3 py-1.5 rounded-full border border-warm text-stone-300 hover:border-brand-500 hover:text-brand-300 transition-colors disabled:opacity-40 disabled:pointer-events-none"
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <form
-              className="p-3 border-t border-warm flex gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void send(input);
-              }}
-            >
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask about your progress…"
-                disabled={loading}
-                className="flex-1 rounded-lg bg-canvas-elevated border border-warm px-4 py-2 text-sm text-white placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand-500"
-              />
-              <IconButton
-                type="submit"
-                disabled={loading || !input.trim()}
-                icon={<Send className="w-5 h-5" />}
-                label="Send message"
-              />
-            </form>
-          </div>
+                <div className="px-3 py-2 border-t border-warm/80 bg-canvas-elevated/40">
+                  <Eyebrow className="mb-2">Suggested questions</Eyebrow>
+                  <div className="flex flex-wrap gap-2">
+                    {starters.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        disabled={chatLoading}
+                        onClick={() => sendToChat(s)}
+                        className="text-xs px-3 py-1.5 rounded-full border border-warm text-stone-300 hover:border-brand-500 hover:text-brand-300 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            }
+          />
 
           {hasSession && (
             <p className="text-xs text-muted mt-2 text-center">
