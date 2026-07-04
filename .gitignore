@@ -6,3 +6,9 @@ node_modules/
 dist/
 .DS_Store
 data/
+# The bare data/ rule above targets this repo's own runtime photo storage
+# (./data/media/photos); it's unanchored, so it also matches
+# frontend/src/data/ — committed source data (copies of the eval/ benchmark
+# JSONs for the Glass box page, see frontend/src/components/GlassBoxTab.tsx)
+# that must be tracked. Un-ignore it explicitly.
+!frontend/src/data/
