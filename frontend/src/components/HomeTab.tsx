@@ -676,13 +676,17 @@ export const HomeTab: React.FC<Props> = ({
                   activeAssignment
                     ? 'Active practice brief'
                     : completedAssignmentCount === 0
-                      ? 'Accept a challenge in Practice'
+                      ? FEATURES.practice
+                        ? 'Accept a challenge in Practice'
+                        : 'Coming soon'
                       : 'Completed practice briefs'
                 }
                 action={
-                  <Button variant="subtle" size="sm" onClick={() => onNavigate('practice')}>
-                    Practice →
-                  </Button>
+                  FEATURES.practice ? (
+                    <Button variant="subtle" size="sm" onClick={() => onNavigate('practice')}>
+                      Practice →
+                    </Button>
+                  ) : undefined
                 }
               />
             </div>
