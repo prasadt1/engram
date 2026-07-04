@@ -99,3 +99,47 @@ def test_top_aesthetic_tags_respects_limit_window():
 def test_top_aesthetic_tags_empty_when_no_portfolio():
     store = _store()
     assert store.top_aesthetic_tags(user_id="u1", limit=20, top_n=8) == []
+
+
+def test_dominant_genre_picks_most_frequent():
+    store = _store()
+    now = datetime.now(timezone.utc)
+    for i, genre in enumerate(["landscape", "landscape", "portrait"]):
+        store.db.portfolio_entries.insert_one({
+            "user_id": "u1", "genre": genre, "created_at": now - timedelta(days=i),
+        })
+    assert store.dominant_genre(user_id="u1") == "landscape"
+
+
+def test_dominant_genre_tie_break_prefers_most_recently_shot():
+    store = _store()
+    now = datetime.now(timezone.utc)
+    # one "portrait" doc, most recent; one "landscape" doc, older -- 1-1 tie,
+    # portrait must win because it was shot more recently.
+    store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "genre": "portrait", "created_at": now,
+    })
+    store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "genre": "landscape", "created_at": now - timedelta(days=5),
+    })
+    assert store.dominant_genre(user_id="u1") == "portrait"
+
+
+def test_dominant_genre_none_when_no_portfolio():
+    store = _store()
+    assert store.dominant_genre(user_id="u1") is None
+
+
+def test_dominant_genre_respects_limit_window():
+    store = _store()
+    now = datetime.now(timezone.utc)
+    store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "genre": "portrait", "created_at": now,
+    })
+    for i in range(1, 4):
+        store.db.portfolio_entries.insert_one({
+            "user_id": "u1", "genre": "landscape", "created_at": now - timedelta(days=i),
+        })
+    # full history -> landscape wins 3-1; limit=1 (most recent doc only) -> portrait
+    assert store.dominant_genre(user_id="u1", limit=None) == "landscape"
+    assert store.dominant_genre(user_id="u1", limit=1) == "portrait"

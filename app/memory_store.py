@@ -168,3 +168,22 @@ class MemoryStore:
                 tag_counts[tag] = tag_counts.get(tag, 0) + 1
         ranked = sorted(tag_counts.items(), key=lambda pair: -pair[1])
         return [tag for tag, _ in ranked[:top_n]]
+
+    def dominant_genre(self, *, user_id: str, limit: int | None = None) -> str | None:
+        """Most frequent genre across portfolio_entries; ties broken by
+        whichever genre was shot most recently (docs are read most-recent
+        first, so the first occurrence of a genre IS its most recent)."""
+        cursor = self.db.portfolio_entries.find({"user_id": user_id}).sort("created_at", -1)
+        if limit is not None:
+            cursor = cursor.limit(limit)
+        counts: dict[str, int] = {}
+        most_recent_rank: dict[str, int] = {}
+        for idx, doc in enumerate(cursor):
+            genre = doc.get("genre")
+            if not genre:
+                continue
+            counts[genre] = counts.get(genre, 0) + 1
+            most_recent_rank.setdefault(genre, idx)
+        if not counts:
+            return None
+        return max(counts.items(), key=lambda pair: (pair[1], -most_recent_rank[pair[0]]))[0]
