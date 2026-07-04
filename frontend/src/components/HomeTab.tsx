@@ -14,6 +14,7 @@ import {
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import { AnalyzingOverlay } from './AnalyzingOverlay';
 import { InlineAlertBanner } from './InlineAlertBanner';
+import { JourneySection } from './JourneySection';
 import { LibraryBackdrop } from './LibraryBackdrop';
 import { PhotoMat } from './PhotoMat';
 import { Button, Card, Tag, Eyebrow, StatCard } from './primitives';
@@ -30,6 +31,7 @@ import {
 import { useAuth } from '../auth/useAuth';
 import { analyzePhoto } from '../services/agentClient';
 import { fetchAssignments } from '../services/practiceClient';
+import { fetchJourney } from '../services/journeyClient';
 import type { AppTab } from '../config/navConfig';
 import type { AnalysisResult } from '../types';
 import type { Assignment, UserMode } from '../types/practice';
@@ -39,6 +41,7 @@ import type {
   PortfolioStats,
   PortfolioTrendsResponse,
 } from '../types/memory';
+import type { JourneyResponse } from '../services/journeyClient';
 
 interface Props {
   mode: UserMode;
@@ -126,6 +129,7 @@ export const HomeTab: React.FC<Props> = ({
   const [contactSheet, setContactSheet] = useState<PortfolioListItem[]>([]);
   const [profile, setProfile] = useState<AestheticProfileSummary | null>(null);
   const [trends, setTrends] = useState<PortfolioTrendsResponse | null>(null);
+  const [journey, setJourney] = useState<JourneyResponse | null>(null);
   const [portfolioTotal, setPortfolioTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -156,7 +160,7 @@ export const HomeTab: React.FC<Props> = ({
     if (isInitial) setLoading(true);
     setLoadError(null);
     try {
-      const [portfolioStats, recentPhotos, topByScore, oldestPortfolio, aesthetic, trendData, assignments] =
+      const [portfolioStats, recentPhotos, topByScore, oldestPortfolio, aesthetic, trendData, assignments, journeyData] =
         await Promise.all([
         fetchPortfolioStats(),
         fetchPortfolio({ limit: 10, sortBy: 'date', sortOrder: 'desc' }),
@@ -165,6 +169,7 @@ export const HomeTab: React.FC<Props> = ({
         fetchAestheticProfile().catch(() => null),
         fetchPortfolioTrends(6).catch(() => null),
         fetchAssignments().catch(() => ({ proposed: [], active: [], completed: [] })),
+        fetchJourney().catch(() => null),
       ]);
 
       setStats(portfolioStats);
@@ -174,6 +179,14 @@ export const HomeTab: React.FC<Props> = ({
       setContactSheet(recentPhotos.entries);
       setProfile(aesthetic);
       setTrends(trendData);
+      // Journey's summary sentence is a live LLM call (~5-10s) — the
+      // slowest thing in this Promise.all by a wide margin. In dev,
+      // StrictMode's double-invoke means load() actually runs twice per
+      // mount; if the second run's journey fetch loses the race (aborted,
+      // or the model is briefly slower) it must not blank out a summary
+      // the first run already fetched successfully — keep the last
+      // non-null result rather than the last result.
+      setJourney((prev) => journeyData ?? prev);
       const win = pickLatestPracticeWin(assignments.completed);
       setLatestPracticeWin(win);
       setRecentCompletedAssignment(pickMostRecentCompleted(assignments.completed));
@@ -535,6 +548,13 @@ export const HomeTab: React.FC<Props> = ({
               </div>
             </div>
           </div>
+        )}
+
+        {/* Your journey — since-last-time summary, graduation cards, watching
+            streaks. Returning users only: a first-visit user already gets
+            this same "upload to start" message in the pitch hero above. */}
+        {isReturning && journey && (
+          <JourneySection summary={journey.summary} skills={journey.skills} stats={journey.stats} />
         )}
 
         {/* First visit: example Glass Box */}

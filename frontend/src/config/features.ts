@@ -26,4 +26,10 @@ export const FEATURES = {
    * STARTERS_BY_MODE on any failure, so this flag only prevents the
    * guaranteed-404 network call itself; the fallback stays wired either way. */
   mentorSuggestedQuestions: false,
+  /** Print Sales tab (working-pro listing drafts) — depends on the same
+   * /api/v1/pending-approvals* HITL routes as Triage, which don't exist on
+   * Engram yet. Gated the same way as Practice: hidden from nav, guarded
+   * at the render site, and its pending-drafts poll skipped so it doesn't
+   * fire a guaranteed 404 on every tab switch for working-pro users. */
+  printSales: false,
 } as const;

@@ -121,9 +121,9 @@ export const SettingsTab: React.FC<Props> = ({
       <Card>
         <h2 className="text-sm font-semibold text-white mb-3">What I remember</h2>
         <p className="text-sm text-muted leading-relaxed">
-          Your uploads, scores, Glass Box reasoning, tags, practice assignments, and approval
-          history live in your private MongoDB library — tied to this demo profile in your browser.
-          I do not publish listings or change labels until you approve each suggestion.
+          Your critiques, scores, genres, and the skills you&apos;re working on live in your
+          private MongoDB library — tied to this demo profile in your browser. I do not publish
+          listings or change labels until you approve each suggestion.
         </p>
       </Card>
 

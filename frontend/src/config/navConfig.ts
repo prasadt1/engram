@@ -45,10 +45,11 @@ export function bottomNavItems(_mode: UserMode): NavItem[] {
   return [HOME, WORK, ...(FEATURES.practice ? [PRACTICE] : []), MENTOR];
 }
 
-/** Desktop sidebar — working pro gets Print Sales; Practice deferred for all. */
+/** Desktop sidebar — working pro gets Print Sales (while FEATURES.printSales
+ * is on); Practice deferred for all. */
 export function sidebarNavItems(mode: UserMode): NavItem[] {
   const base = [HOME, WORK, ...(FEATURES.practice ? [PRACTICE] : []), MENTOR];
-  return mode === 'working_pro' ? [...base, PRINT] : base;
+  return mode === 'working_pro' && FEATURES.printSales ? [...base, PRINT] : base;
 }
 
 export function isAppTab(value: string): value is AppTab {
@@ -77,6 +78,7 @@ export function tabFromHash(): AppTab | null {
   // session before this build deferred the tab) must not strand the user
   // on a tab with no nav entry pointing back at it.
   if (tab === 'practice' && !FEATURES.practice) return null;
+  if (tab === 'print' && !FEATURES.printSales) return null;
   return tab;
 }
 

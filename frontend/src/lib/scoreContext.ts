@@ -88,7 +88,10 @@ export function getDimensionTips(dimension: string): string[] {
   return DIMENSION_TIPS[key] ?? DIMENSION_TIPS.composition;
 }
 
-const DIMENSION_LABELS: Record<string, string> = {
+/** Sentence-case display labels for the five Glass Box dimensions — shared
+ * with any other skill-name surface (e.g. the Journey section) so there's
+ * one place that knows "subject_impact" reads as "Subject impact". */
+export const DIMENSION_LABELS: Record<string, string> = {
   composition: 'Composition',
   lighting: 'Lighting',
   technique: 'Technique',
@@ -98,6 +101,14 @@ const DIMENSION_LABELS: Record<string, string> = {
 
 export function getTipsForDimension(dimension: string, _score?: number): string[] {
   return getDimensionTips(dimension);
+}
+
+/** Human-readable label for any skill/dimension name. Looks up the sentence
+ * -case Glass Box label first (composition, lighting, ...); falls back to a
+ * generic snake_case → Title Case split for skills outside the five
+ * dimensions (e.g. "horizon_tilt" -> "Horizon tilt"). */
+export function humanizeSkillName(name: string): string {
+  return DIMENSION_LABELS[name] ?? `${name.charAt(0).toUpperCase()}${name.slice(1)}`.replace(/_/g, ' ');
 }
 
 export function getFocusArea(
