@@ -6,7 +6,7 @@
 
 **Architecture:** Backend prompt change makes the mentor emit a deterministic `headline / beats / --- / full-note` shape in plain markdown (no schema, no new endpoint). Frontend adds a pure split-and-render layer on top of the existing SSE stream — render raw while streaming, swap to the structured layout once done. Home's identity line is composed server-side from data that already exists (skills) plus two small new/extracted store aggregations (dominant genre, top tag), with zero new LLM calls. Logo is a static-asset swap.
 
-**Tech Stack:** FastAPI + pytest (backend, has a real test runner — use it). React + TypeScript + Vite (frontend). **The frontend has no test runner configured** (`package.json` scripts are only `dev`/`build`/`lint`/`preview` — no vitest/jest). Per this repo's established convention this session, frontend correctness is verified via `npx tsc --noEmit`, `npx eslint`, and live browser verification (Claude Preview tools: `preview_start`/`preview_eval`/`preview_snapshot`/`preview_screenshot`), not unit test files. Do not add a new test framework as part of this plan — that's scope creep this close to the deadline. Where the design spec says "unit test," treat that as "verify via a one-off `node`/`npx tsx` smoke check during implementation, then confirm live in preview" for frontend pure functions, and as real `pytest` tests for backend code.
+**Tech Stack:** FastAPI + pytest (backend, has a real test runner — use it). React + TypeScript + Vite (frontend). **The frontend has no test runner configured** (`package.json` scripts are only `dev`/`build`/`lint`/`preview` — no vitest/jest, and **no `tsx` either** — confirmed `npx tsx` prompts to install and fails non-interactively). Per this repo's established convention this session, frontend correctness is verified via `npx tsc --noEmit`, `npx eslint`, and live browser verification (Claude Preview tools: `preview_start`/`preview_eval`/`preview_snapshot`/`preview_screenshot`), not unit test files. Do not add a new test framework as part of this plan — that's scope creep this close to the deadline. Where the design spec says "unit test," treat that as "verify via a one-off manual smoke check during implementation, then confirm live in preview" for frontend pure functions, and as real `pytest` tests for backend code. **For the one-off smoke checks (Tasks 7-8), install `tsx` as a devDependency first** (`npm install -D tsx` — a small TS execution runner, not a test framework, so this doesn't violate the "no new test framework" rule) so `npx tsx -e "..."` actually runs instead of hanging on an install prompt.
 
 ---
 
@@ -741,7 +741,17 @@ export function beatIcon(label: string): 'check' | 'arrow-down-right' | 'arrow-r
 }
 ```
 
-- [ ] **Step 2: Verify manually (no test runner)**
+- [ ] **Step 2: Install `tsx` for the manual smoke checks (one-time)**
+
+`tsx` isn't in this project's devDependencies and `npx tsx` prompts to install
+interactively — confirmed it fails non-interactively without this step. This
+is a small TS execution runner for one-off scripts, not a test framework, so
+it doesn't conflict with the "no new test framework" rule above.
+
+Run: `cd "/Users/prasadt1/qwen hackathon/engram/frontend" && npm install -D tsx`
+Expected: added to `devDependencies` in `package.json`, installs cleanly.
+
+- [ ] **Step 3: Verify manually**
 
 Run: `cd "/Users/prasadt1/qwen hackathon/engram/frontend" && npx tsx -e "
 import { splitMentorReply } from './src/lib/mentorReplyStructure';
@@ -763,18 +773,21 @@ console.log('fullNote contains second ---:', result.fullNote?.includes('---'));
 
 Expected: first call shows `headline`, 3 `beats` (Working/Watch/Next with correct `text`), non-null `fullNote`, `hasStructure: true`. Second call: `headline` = the whole string, `beats: []`, `fullNote: null`, `hasStructure: false`. Third call: `headline` set, `beats: []`, non-null `fullNote`, `hasStructure: true`. Fourth: `fullNote contains second ---: true` (confirms we split on the FIRST `---` only).
 
-- [ ] **Step 3: Typecheck**
+- [ ] **Step 4: Typecheck**
 
 Run: `npx tsc --noEmit`
 Expected: no errors
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 cd "/Users/prasadt1/qwen hackathon/engram"
-git add frontend/src/lib/mentorReplyStructure.ts
+git add frontend/src/lib/mentorReplyStructure.ts frontend/package.json frontend/package-lock.json
 git commit -m "Add splitMentorReply: parse headline/beats/full-note from raw mentor text"
 ```
+
+(The `tsx` devDependency added in Step 2 rides along in this commit — it's a
+real project dependency now, used again in Task 8.)
 
 ---
 
@@ -785,14 +798,18 @@ git commit -m "Add splitMentorReply: parse headline/beats/full-note from raw men
 
 - [ ] **Step 1: Update `turnPreview`**
 
-In `frontend/src/lib/mentorChatTurns.ts`, add the import and change `turnPreview`:
+In `frontend/src/lib/mentorChatTurns.ts`, the file already starts with
+`import type { ChatMessage } from '../services/mentorClient';` — leave that
+line alone. Add ONE new import below it:
 
 ```ts
-import type { ChatMessage } from '../services/mentorClient';
 import { splitMentorReply } from './mentorReplyStructure';
+```
 
-// ... (ChatTurn interface and groupMessagesIntoTurns unchanged) ...
+Then replace the existing `turnPreview` function (the `ChatTurn` interface
+and `groupMessagesIntoTurns` above it are unchanged) with:
 
+```ts
 export function turnPreview(text: string, maxLen = 140): string {
   const { headline, hasStructure } = splitMentorReply(text);
   const source = hasStructure && headline ? headline : text;
@@ -803,6 +820,8 @@ export function turnPreview(text: string, maxLen = 140): string {
 ```
 
 - [ ] **Step 2: Verify manually**
+
+(`tsx` is already installed from Task 7 — no install step needed here.)
 
 Run: `cd "/Users/prasadt1/qwen hackathon/engram/frontend" && npx tsx -e "
 import { turnPreview } from './src/lib/mentorChatTurns';
@@ -1229,7 +1248,9 @@ Replace `frontend/public/manifest.json`'s `icons` array:
 
 Run: `cd "/Users/prasadt1/qwen hackathon/engram" && grep -rln "favicon.png\|favicon.svg\|iris-icon-192\|iris-icon-512" --include="*.tsx" --include="*.ts" --include="*.html" --include="*.json" --include="*.md" . | grep -v node_modules | grep -v /dist/`
 
-Expected: no output (already verified during planning — this step re-confirms nothing changed since).
+Expected: no output. (Steps 2-3 just rewrote `index.html` and `manifest.json`
+to drop these filenames — this grep confirms nothing ELSE in the repo still
+references them before deleting the files in Step 5.)
 
 - [ ] **Step 5: Delete the superseded files**
 
