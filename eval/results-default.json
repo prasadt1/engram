@@ -1,0 +1,461 @@
+{
+  "summary": {
+    "trace_count": 26,
+    "ablation": "none",
+    "mean_fama": 1.0,
+    "mean_token_savings_ratio": 1.72,
+    "note": "seed=0; token counts are a chars/4 heuristic (documented estimate); timestamps synthesized from session indices for determinism"
+  },
+  "results": [
+    {
+      "user_id": "trace_1",
+      "recall_current_hits": "1/1",
+      "recall_absent_ok": "1/1",
+      "fama": {
+        "mpa": 1.0,
+        "faa": 1.0,
+        "lambda": 0.5,
+        "fama": 1.0
+      },
+      "engine_tokens": 8,
+      "baseline_tokens": 16,
+      "token_savings_ratio": 2.0,
+      "recalled_contents": [
+        "switched to a Sony mirrorless body"
+      ]
+    },
+    {
+      "user_id": "trace_2",
+      "recall_current_hits": "1/1",
+      "recall_absent_ok": "1/1",
+      "fama": {
+        "mpa": 1.0,
+        "faa": 1.0,
+        "lambda": 0.5,
+        "fama": 1.0
+      },
+      "engine_tokens": 15,
+      "baseline_tokens": 27,
+      "token_savings_ratio": 1.8,
+      "recalled_contents": [
+        "consistently level horizons across recent landscape sessions"
+      ]
+    },
+    {
+      "user_id": "trace_3",
+      "recall_current_hits": "1/1",
+      "recall_absent_ok": "n/a",
+      "fama": {
+        "mpa": 1.0,
+        "faa": 1.0,
+        "lambda": 0.0,
+        "fama": 1.0
+      },
+      "engine_tokens": 21,
+      "baseline_tokens": 21,
+      "token_savings_ratio": 1.0,
+      "recalled_contents": [
+        "wants to improve environmental portrait composition",
+        "prefers moody low-key portrait lighting"
+      ]
+    },
+    {
+      "user_id": "trace_adversarial_1",
+      "recall_current_hits": "1/1",
+      "recall_absent_ok": "1/1",
+      "fama": {
+        "mpa": 1.0,
+        "faa": 1.0,
+        "lambda": 0.5,
+        "fama": 1.0
+      },
+      "engine_tokens": 10,
+      "baseline_tokens": 19,
+      "token_savings_ratio": 1.9,
+      "recalled_contents": [
+        "switched to golden-hour landscape sessions"
+      ]
+    },
+    {
+      "user_id": "trace_adversarial_2",
+      "recall_current_hits": "1/1",
+      "recall_absent_ok": "1/1",
+      "fama": {
+        "mpa": 1.0,
+        "faa": 1.0,
+        "lambda": 0.5,
+        "fama": 1.0
+      },
+      "engine_tokens": 11,
+      "baseline_tokens": 23,
+      "token_savings_ratio": 2.09,
+      "recalled_contents": [
+        "moved to studio strobes for portrait sessions"
+      ]
+    },
+    {
+      "user_id": "trace_adversarial_3",
+      "recall_current_hits": "1/1",
+      "recall_absent_ok": "1/1",
+      "fama": {
+        "mpa": 1.0,
+        "faa": 1.0,
+        "lambda": 0.5,
+        "fama": 1.0
+      },
+      "engine_tokens": 12,
+      "baseline_tokens": 22,
+      "token_savings_ratio": 1.83,
+      "recalled_contents": [
+        "now shoots wildlife on a tripod with a gimbal head"
+      ]
+    },
+    {
+      "user_id": "trace_adversarial_4",
+      "recall_current_hits": "1/1",
+      "recall_absent_ok": "1/1",
+      "fama": {
+        "mpa": 1.0,
+        "faa": 1.0,
+        "lambda": 0.5,
+        "fama": 1.0
+      },
+      "engine_tokens": 13,
+      "baseline_tokens": 22,
+      "token_savings_ratio": 1.69,
+      "recalled_contents": [
+        "switched street photography to black-and-white edits"
+      ]
+    },
+    {
+      "user_id": "trace_adversarial_5",
+      "recall_current_hits": "1/1",
+      "recall_absent_ok": "1/1",
+      "fama": {
+        "mpa": 1.0,
+        "faa": 1.0,
+        "lambda": 0.5,
+        "fama": 1.0
+      },
+      "engine_tokens": 12,
+      "baseline_tokens": 26,
+      "token_savings_ratio": 2.17,
+      "recalled_contents": [
+        "built a softbox lighting setup for still life work"
+      ]
+    },
+    {
+      "user_id": "trace_adversarial_6",
+      "recall_current_hits": "1/1",
+      "recall_absent_ok": "1/1",
+      "fama": {
+        "mpa": 1.0,
+        "faa": 1.0,
+        "lambda": 0.5,
+        "fama": 1.0
+      },
+      "engine_tokens": 17,
+      "baseline_tokens": 29,
+      "token_savings_ratio": 1.71,
+      "recalled_contents": [
+        "switched to a tilt-shift lens to keep architecture verticals straight"
+      ]
+    },
+    {
+      "user_id": "trace_4",
+      "recall_current_hits": "1/1",
+      "recall_absent_ok": "1/1",
+      "fama": {
+        "mpa": 1.0,
+        "faa": 1.0,
+        "lambda": 0.5,
+        "fama": 1.0
+      },
+      "engine_tokens": 13,
+      "baseline_tokens": 24,
+      "token_savings_ratio": 1.85,
+      "recalled_contents": [
+        "uses graduated ND filters to hold landscape sky detail"
+      ]
+    },
+    {
+      "user_id": "trace_5",
+      "recall_current_hits": "1/1",
+      "recall_absent_ok": "1/1",
+      "fama": {
+        "mpa": 1.0,
+        "faa": 1.0,
+        "lambda": 0.5,
+        "fama": 1.0
+      },
+      "engine_tokens": 11,
+      "baseline_tokens": 26,
+      "token_savings_ratio": 2.36,
+      "recalled_contents": [
+        "uses a reflector for portrait catchlights now"
+      ]
+    },
+    {
+      "user_id": "trace_6",
+      "recall_current_hits": "1/1",
+      "recall_absent_ok": "1/1",
+      "fama": {
+        "mpa": 1.0,
+        "faa": 1.0,
+        "lambda": 0.5,
+        "fama": 1.0
+      },
+      "engine_tokens": 15,
+      "baseline_tokens": 27,
+      "token_savings_ratio": 1.8,
+      "recalled_contents": [
+        "composes still life with negative space and minimal backgrounds"
+      ]
+    },
+    {
+      "user_id": "trace_7",
+      "recall_current_hits": "1/1",
+      "recall_absent_ok": "n/a",
+      "fama": {
+        "mpa": 1.0,
+        "faa": 1.0,
+        "lambda": 0.0,
+        "fama": 1.0
+      },
+      "engine_tokens": 15,
+      "baseline_tokens": 15,
+      "token_savings_ratio": 1.0,
+      "recalled_contents": [
+        "wants to master focus stacking for macro-style still life shots"
+      ]
+    },
+    {
+      "user_id": "trace_8",
+      "recall_current_hits": "1/1",
+      "recall_absent_ok": "1/1",
+      "fama": {
+        "mpa": 1.0,
+        "faa": 1.0,
+        "lambda": 0.5,
+        "fama": 1.0
+      },
+      "engine_tokens": 16,
+      "baseline_tokens": 30,
+      "token_savings_ratio": 1.88,
+      "recalled_contents": [
+        "shoots candid street photography confidently using zone focusing"
+      ]
+    },
+    {
+      "user_id": "trace_9",
+      "recall_current_hits": "1/1",
+      "recall_absent_ok": "n/a",
+      "fama": {
+        "mpa": 1.0,
+        "faa": 1.0,
+        "lambda": 0.0,
+        "fama": 1.0
+      },
+      "engine_tokens": 17,
+      "baseline_tokens": 17,
+      "token_savings_ratio": 1.0,
+      "recalled_contents": [
+        "mentor called street photography the genre I'm strongest in right now"
+      ]
+    },
+    {
+      "user_id": "trace_10",
+      "recall_current_hits": "1/1",
+      "recall_absent_ok": "1/1",
+      "fama": {
+        "mpa": 1.0,
+        "faa": 1.0,
+        "lambda": 0.5,
+        "fama": 1.0
+      },
+      "engine_tokens": 15,
+      "baseline_tokens": 30,
+      "token_savings_ratio": 2.0,
+      "recalled_contents": [
+        "fixed wildlife autofocus misses with back-button focus and AF-C"
+      ]
+    },
+    {
+      "user_id": "trace_11",
+      "recall_current_hits": "1/1",
+      "recall_absent_ok": "n/a",
+      "fama": {
+        "mpa": 1.0,
+        "faa": 1.0,
+        "lambda": 0.0,
+        "fama": 1.0
+      },
+      "engine_tokens": 18,
+      "baseline_tokens": 18,
+      "token_savings_ratio": 1.0,
+      "recalled_contents": [
+        "sets a personal rule to keep a respectful distance from wildlife subjects"
+      ]
+    },
+    {
+      "user_id": "trace_12",
+      "recall_current_hits": "1/1",
+      "recall_absent_ok": "1/1",
+      "fama": {
+        "mpa": 1.0,
+        "faa": 1.0,
+        "lambda": 0.5,
+        "fama": 1.0
+      },
+      "engine_tokens": 16,
+      "baseline_tokens": 31,
+      "token_savings_ratio": 1.94,
+      "recalled_contents": [
+        "corrects architecture verticals with perspective control in post"
+      ]
+    },
+    {
+      "user_id": "trace_13",
+      "recall_current_hits": "1/1",
+      "recall_absent_ok": "n/a",
+      "fama": {
+        "mpa": 1.0,
+        "faa": 1.0,
+        "lambda": 0.0,
+        "fama": 1.0
+      },
+      "engine_tokens": 15,
+      "baseline_tokens": 15,
+      "token_savings_ratio": 1.0,
+      "recalled_contents": [
+        "chasing symmetry as the signature look of my architecture work"
+      ]
+    },
+    {
+      "user_id": "trace_chain_1",
+      "recall_current_hits": "1/1",
+      "recall_absent_ok": "2/2",
+      "fama": {
+        "mpa": 1.0,
+        "faa": 1.0,
+        "lambda": 0.6667,
+        "fama": 1.0
+      },
+      "engine_tokens": 13,
+      "baseline_tokens": 39,
+      "token_savings_ratio": 3.0,
+      "recalled_contents": [
+        "settled on a natural true-to-life color grade for edits"
+      ]
+    },
+    {
+      "user_id": "trace_chain_2",
+      "recall_current_hits": "1/1",
+      "recall_absent_ok": "2/2",
+      "fama": {
+        "mpa": 1.0,
+        "faa": 1.0,
+        "lambda": 0.6667,
+        "fama": 1.0
+      },
+      "engine_tokens": 14,
+      "baseline_tokens": 34,
+      "token_savings_ratio": 2.43,
+      "recalled_contents": [
+        "runs a DxO PureRAW plus Lightroom hybrid editing workflow"
+      ]
+    },
+    {
+      "user_id": "trace_chain_3",
+      "recall_current_hits": "1/1",
+      "recall_absent_ok": "2/2",
+      "fama": {
+        "mpa": 1.0,
+        "faa": 1.0,
+        "lambda": 0.6667,
+        "fama": 1.0
+      },
+      "engine_tokens": 13,
+      "baseline_tokens": 36,
+      "token_savings_ratio": 2.77,
+      "recalled_contents": [
+        "shoots every day now with a phone as a backup camera"
+      ]
+    },
+    {
+      "user_id": "trace_multihop_1",
+      "recall_current_hits": "2/2",
+      "recall_absent_ok": "2/2",
+      "fama": {
+        "mpa": 1.0,
+        "faa": 1.0,
+        "lambda": 0.4,
+        "fama": 1.0
+      },
+      "engine_tokens": 50,
+      "baseline_tokens": 74,
+      "token_savings_ratio": 1.48,
+      "recalled_contents": [
+        "cleared the landscape horizon weakness with a hotshoe bubble level",
+        "cleared the wildlife autofocus weakness by switching to back-button focus",
+        "still actively working on portrait composition, no breakthrough yet"
+      ]
+    },
+    {
+      "user_id": "trace_multihop_2",
+      "recall_current_hits": "2/2",
+      "recall_absent_ok": "n/a",
+      "fama": {
+        "mpa": 1.0,
+        "faa": 1.0,
+        "lambda": 0.0,
+        "fama": 1.0
+      },
+      "engine_tokens": 47,
+      "baseline_tokens": 47,
+      "token_savings_ratio": 1.0,
+      "recalled_contents": [
+        "street photography keeper rate is the highest of any genre right now",
+        "landscape work is still developing, lowest keeper rate of the three",
+        "wildlife keeper rate is climbing but still behind street"
+      ]
+    },
+    {
+      "user_id": "trace_multihop_3",
+      "recall_current_hits": "3/3",
+      "recall_absent_ok": "n/a",
+      "fama": {
+        "mpa": 1.0,
+        "faa": 1.0,
+        "lambda": 0.0,
+        "fama": 1.0
+      },
+      "engine_tokens": 54,
+      "baseline_tokens": 54,
+      "token_savings_ratio": 1.0,
+      "recalled_contents": [
+        "architecture symmetry work has become consistently sharp and well-composed",
+        "still life negative-space compositions are getting cleaner every session",
+        "portrait catchlights are reliably present now thanks to the reflector habit"
+      ]
+    },
+    {
+      "user_id": "trace_multihop_4",
+      "recall_current_hits": "2/2",
+      "recall_absent_ok": "n/a",
+      "fama": {
+        "mpa": 1.0,
+        "faa": 1.0,
+        "lambda": 0.0,
+        "fama": 1.0
+      },
+      "engine_tokens": 27,
+      "baseline_tokens": 27,
+      "token_savings_ratio": 1.0,
+      "recalled_contents": [
+        "switched the main camera body over to a Sony mirrorless",
+        "added a dedicated macro lens for close-up still life work"
+      ]
+    }
+  ]
+}
