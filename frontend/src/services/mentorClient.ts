@@ -3,6 +3,7 @@
  */
 
 import { apiFetch } from '../lib/apiFetch';
+import type { MemoryReceipt } from '../types';
 const SESSION_KEY = 'engram_mentor_session';
 const PERSONA_KEY = 'engram_mentor_persona';
 
@@ -17,6 +18,8 @@ export interface ChatResponse {
   persona: string;
   sessionId: string;
   userId: string;
+  /** Present when the backend built this reply with memory recalled (app/mentor.py's receipt). */
+  memoryReceipt?: MemoryReceipt | null;
 }
 
 export function loadSessionId(): string | null {
@@ -54,7 +57,7 @@ export async function fetchMentorSuggestedQuestions(
 export async function sendMentorMessage(
   message: string,
   persona: 'hobbyist' | 'working_pro',
-  options?: { signal?: AbortSignal },
+  options?: { signal?: AbortSignal; photoId?: string },
 ): Promise<ChatResponse> {
   rememberPersonaForSession(persona);
   const sessionId = loadSessionId();
@@ -65,6 +68,7 @@ export async function sendMentorMessage(
       message,
       sessionId: sessionId ?? undefined,
       persona,
+      photo_id: options?.photoId ?? null,
     }),
     signal: options?.signal,
   });
