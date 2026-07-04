@@ -9,12 +9,14 @@ metadata (importance, recency, scope, genre), not vector similarity.
 from __future__ import annotations
 
 import base64
+import io
 import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from PIL import Image, ImageOps
 from pydantic import ValidationError
 
 from app import qwen_client
@@ -26,9 +28,139 @@ logger = logging.getLogger(__name__)
 
 PROMPT_PATH = Path(__file__).parent / "prompts" / "coach.txt"
 
+# Longest edge (px) an image is downscaled to before being sent to the vision
+# model. Chosen to stay comfortably under typical vision-model input limits
+# while preserving enough detail for composition/technique critique.
+MAX_VISION_DIMENSION = 1568
+VISION_JPEG_QUALITY = 85
+
 
 def _principles_block(citations) -> str:
     return "\n\n".join(f"### {c.title} ({c.id})\n{c.excerpt}" for c in citations)
+
+
+def _prepare_vision_image(image_bytes: bytes, mime_type: str) -> tuple[bytes, str]:
+    """Return (bytes, mime_type) to send to chat_vision(), downscaled if needed.
+
+    This is a separate in-memory copy — it never touches the bytes that get
+    persisted via get_storage().save() elsewhere in the pipeline. The full
+    original upload must remain unchanged for storage/serving.
+
+    Falls back to the original bytes/mime_type unresized if the bytes aren't
+    decodable by Pillow (e.g. an unusual format), so a decode hiccup here
+    never fails the whole analysis.
+    """
+    try:
+        with Image.open(io.BytesIO(image_bytes)) as img:
+            # Respect EXIF orientation BEFORE measuring/resizing, so portrait
+            # phone photos with sideways-stored pixel data don't get resized
+            # (or sent to the model) rotated incorrectly.
+            img = ImageOps.exif_transpose(img)
+            if img is None:
+                return image_bytes, mime_type
+
+            width, height = img.size
+            longest = max(width, height)
+            if longest > MAX_VISION_DIMENSION:
+                scale = MAX_VISION_DIMENSION / longest
+                new_size = (max(1, round(width * scale)), max(1, round(height * scale)))
+                img = img.resize(new_size, Image.LANCZOS)
+            # else: already small enough — never upscale.
+
+            if img.mode not in ("RGB", "L"):
+                img = img.convert("RGB")
+
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG", quality=VISION_JPEG_QUALITY)
+            return buf.getvalue(), "image/jpeg"
+    except Exception:
+        logger.warning("could not decode image for resizing; sending original bytes unresized", exc_info=True)
+        return image_bytes, mime_type
+
+
+def _normalize_coach_output(parsed: dict) -> dict:
+    """Defensively repair known model-output shape deviations before validation.
+
+    DashScope/Qwen only supports loose `{"type": "json_object"}` mode with no
+    schema enforcement, so the model sometimes drifts from the shape rules
+    spelled out in prompts/coach.txt even though they're explicit. Each fix
+    below targets one specific, previously-observed failure pattern so the
+    common cases are silently repaired instead of falling into the slow
+    (and sometimes still-failing) shape-repair chain. Every step is
+    defensive: unexpected/missing shapes are left alone rather than raising,
+    so worst case is unchanged pre-existing behavior (validation fails and
+    the repair chain kicks in as before).
+    """
+    if not isinstance(parsed, dict):
+        return parsed
+
+    # 1. "critique" as a plain string instead of the required object shape.
+    # Shape rule: "critique is an OBJECT with exactly those 4 keys, never a
+    # plain string." Duplicate the same text into all four fields: this
+    # guarantees no info loss regardless of which field a caller reads,
+    # without fabricating per-dimension content we don't have.
+    critique = parsed.get("critique")
+    if isinstance(critique, str):
+        parsed["critique"] = {
+            "composition": critique,
+            "lighting": critique,
+            "technique": critique,
+            "overall": critique,
+        }
+
+    # 2. "scores" with a stray extra key (most commonly "overall").
+    # Shape rule: "scores contains EXACTLY the 5 keys shown — no 'overall'
+    # inside scores." Drop anything outside the exact 5-key set.
+    scores = parsed.get("scores")
+    if isinstance(scores, dict):
+        allowed_score_keys = {"composition", "lighting", "technique", "creativity", "subject_impact"}
+        parsed["scores"] = {k: v for k, v in scores.items() if k in allowed_score_keys}
+
+    # 3. Enum-like values not lowercase.
+    # Shape rule: "All enum-like values are lowercase."
+    genre = parsed.get("genre")
+    if isinstance(genre, str):
+        parsed["genre"] = genre.lower()
+
+    glass_box = parsed.get("glassBox")
+    if isinstance(glass_box, dict):
+        priority_fixes = glass_box.get("priority_fixes")
+        if isinstance(priority_fixes, list):
+            for fix in priority_fixes:
+                if isinstance(fix, dict) and isinstance(fix.get("severity"), str):
+                    fix["severity"] = fix["severity"].lower()
+
+    spatial_metadata = parsed.get("spatialMetadata")
+    if isinstance(spatial_metadata, dict):
+        annotations = spatial_metadata.get("annotations")
+        if isinstance(annotations, list):
+            for ann in annotations:
+                if isinstance(ann, dict) and isinstance(ann.get("severity"), str):
+                    ann["severity"] = ann["severity"].lower()
+
+        lighting_map = spatial_metadata.get("lighting_map")
+        if isinstance(lighting_map, dict):
+            for key in ("fill_light_strength", "color_temperature", "shadow_character"):
+                value = lighting_map.get(key)
+                if isinstance(value, str):
+                    lighting_map[key] = value.lower()
+
+        # 4. "secondary_subjects" items not shaped as dicts (plain strings).
+        # Shape rule: "secondary_subjects is always a JSON list — use [] when
+        # none." The schema further requires each item to be a dict, so wrap
+        # bare strings; default to [] if the field isn't even a list.
+        subject_relationships = spatial_metadata.get("subject_relationships")
+        if isinstance(subject_relationships, dict):
+            secondary_subjects = subject_relationships.get("secondary_subjects")
+            if isinstance(secondary_subjects, list):
+                subject_relationships["secondary_subjects"] = [
+                    {"name": item} if isinstance(item, str) else item
+                    for item in secondary_subjects
+                ]
+            elif secondary_subjects is not None:
+                subject_relationships["secondary_subjects"] = []
+
+    return parsed
 
 
 def _run_coach_model(
@@ -36,8 +168,9 @@ def _run_coach_model(
 ) -> CoachAnalysisOutput:
     system = PROMPT_PATH.read_text(encoding="utf-8")
     principles = _principles_block(citations)
-    b64 = base64.b64encode(image_bytes).decode("ascii")
-    data_uri = f"data:{mime_type};base64,{b64}"
+    vision_bytes, vision_mime_type = _prepare_vision_image(image_bytes, mime_type)
+    b64 = base64.b64encode(vision_bytes).decode("ascii")
+    data_uri = f"data:{vision_mime_type};base64,{b64}"
 
     prompt = f"{system}\n\n## Photography principles\n{principles}\n\nAnalyze this photograph."
     if photographer_context:
@@ -54,10 +187,17 @@ def _run_coach_model(
         return qwen_client.chat_fast(fix_prompt, json_mode=True).content
 
     parsed = qwen_client.parse_json_with_repair(result.content, _repair)
+    parsed = _normalize_coach_output(parsed)
     try:
         return CoachAnalysisOutput.model_validate(parsed)
     except ValidationError as first_err:
-        logger.warning("coach output failed shape validation (%d errors); attempting one shape-repair", len(first_err.errors()))
+        error_detail = "; ".join(
+            f"{'.'.join(str(p) for p in e['loc'])}: {e['msg']}" for e in first_err.errors()
+        )[:2000]
+        logger.warning(
+            "coach output failed shape validation (%d errors); attempting one shape-repair: %s",
+            len(first_err.errors()), error_detail,
+        )
         skeleton_prompt = (
             "The following JSON does not match the required shape. Errors:\n"
             + "\n".join(f"- {'.'.join(str(p) for p in e['loc'])}: {e['msg']}" for e in first_err.errors())
@@ -68,8 +208,13 @@ def _run_coach_model(
             + "secondary_subjects must be a list ([] if none); genre must be one of landscape/portrait/still_life/street/wildlife/macro/architecture/other (lowercase). "
             + "Return ONLY the corrected JSON.\n\n" + json.dumps(parsed)
         )
-        repaired = qwen_client.chat_text(skeleton_prompt, json_mode=True).content
+        # Last-resort repair after the primary attempt already failed —
+        # failing fast matters more here than one more attempt at a generous
+        # budget, so this uses a shorter timeout than chat_text()'s default
+        # (worst case 30s with the one automatic timeout-retry, vs 80s).
+        repaired = qwen_client.chat_text(skeleton_prompt, json_mode=True, timeout=15.0).content
         reparsed = qwen_client.parse_json_with_repair(repaired, _repair)
+        reparsed = _normalize_coach_output(reparsed)
         return CoachAnalysisOutput.model_validate(reparsed)  # raises with full context if still wrong
 
 

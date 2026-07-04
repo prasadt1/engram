@@ -141,12 +141,16 @@ export async function analyzePhoto(request: AnalyzePhotoRequest): Promise<Analyz
     //   2. parse_json_with_repair on the vision output: if malformed, _repair
     //      calls chat_fast once: 30s (+1 retry) = 60s worst case.
     //   3. If pydantic validation then fails, chat_text does a shape-repair
-    //      pass: 40s (+1 retry) = 80s worst case.
+    //      pass with an explicit shorter timeout (last-resort path, so
+    //      failing fast matters more than a generous budget): 15s (+1
+    //      retry) = 30s worst case.
     //   4. parse_json_with_repair runs again on the shape-repair output: if
     //      that JSON is also malformed, _repair can call chat_fast a SECOND
     //      time: 30s (+1 retry) = 60s worst case.
-    // 120 + 60 + 80 + 60 = 320s true worst case. 350s gives ~30s of margin
-    // for network/processing overhead on top of that.
+    // 120 + 60 + 30 + 60 = 270s true worst case. 350s keeps a wider ~80s
+    // margin for network/processing overhead on top of that (previously
+    // ~30s margin over a 320s true worst case, before the shape-repair
+    // timeout was tightened).
     timeoutMs: 350_000,
   });
 

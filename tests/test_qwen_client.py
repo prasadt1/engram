@@ -74,3 +74,23 @@ def test_chat_fast_passes_explicit_timeout():
         qwen_client.chat_fast("prompt")
 
     assert mock_client_factory.call_args.args[1] == 30.0
+
+
+def test_chat_text_defaults_to_40s_timeout():
+    fake_result = MagicMock()
+    with patch("app.qwen_client._call", return_value=fake_result) as mock_call:
+        qwen_client.chat_text("prompt")
+
+    # Same rationale as test_chat_vision_passes_explicit_timeout: assert on
+    # _call's call_args (not _client) so this only passes if chat_text
+    # genuinely passes timeout itself, rather than coincidentally matching
+    # _call's own default.
+    assert mock_call.call_args.kwargs["timeout"] == 40.0
+
+
+def test_chat_text_passes_through_custom_timeout():
+    fake_result = MagicMock()
+    with patch("app.qwen_client._call", return_value=fake_result) as mock_call:
+        qwen_client.chat_text("prompt", timeout=15.0)
+
+    assert mock_call.call_args.kwargs["timeout"] == 15.0
