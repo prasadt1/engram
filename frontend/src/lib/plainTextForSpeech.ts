@@ -12,6 +12,7 @@ export function plainTextForSpeech(input: string): string {
     .replace(/^>\s+/gm, '')
     .replace(/^[-*+]\s+/gm, '')
     .replace(/^\d+\.\s+/gm, '')
+    .replace(/^---$/gm, ' ')
     .replace(/\n+/g, '. ')
     .replace(/\s+/g, ' ')
     .trim();
