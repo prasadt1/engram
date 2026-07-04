@@ -1,3 +1,4 @@
+import json
 from unittest.mock import MagicMock, patch
 
 from openai import APIStatusError
@@ -94,3 +95,84 @@ def test_chat_text_passes_through_custom_timeout():
         qwen_client.chat_text("prompt", timeout=15.0)
 
     assert mock_call.call_args.kwargs["timeout"] == 15.0
+
+
+# ---------------------------------------------------------------------------
+# Local JSON-syntax salvage: _close_truncated_json + parse_json_with_repair
+# ---------------------------------------------------------------------------
+# qwen-vl-plus (the vision fallback model) was measured producing unparseable
+# JSON on 5/6 calls: output degenerating into trailing whitespace with
+# unterminated strings/braces (finish_reason=stop, not a token cap). A local
+# zero-latency syntax repair recovers these without any model call.
+
+def test_close_truncated_json_closes_unterminated_string():
+    raw = '{"sceneDescription": "A lone tree on a hill at suns'
+    repaired = qwen_client._close_truncated_json(raw)
+    parsed = json.loads(repaired)
+    assert parsed["sceneDescription"].startswith("A lone tree")
+
+
+def test_close_truncated_json_closes_unbalanced_braces():
+    raw = '{"scores": {"composition": 7, "lighting": 8}, "strengths": ["good light"'
+    parsed = json.loads(qwen_client._close_truncated_json(raw))
+    assert parsed["scores"]["composition"] == 7
+    assert parsed["strengths"] == ["good light"]
+
+
+def test_close_truncated_json_real_degeneration_pattern():
+    # The observed qwen-vl-plus failure shape: valid prefix, then the output
+    # trails off into whitespace inside an unterminated string.
+    raw = '{"sceneDescription": "A portrait.", "colourNotes": "Muted greens and    \n\t   '
+    parsed = json.loads(qwen_client._close_truncated_json(raw))
+    assert parsed["sceneDescription"] == "A portrait."
+    assert parsed["colourNotes"].startswith("Muted greens")
+
+
+def test_close_truncated_json_respects_escaped_quotes():
+    raw = '{"note": "the so-called \\"golden hour\\" light'
+    parsed = json.loads(qwen_client._close_truncated_json(raw))
+    assert parsed["note"] == 'the so-called "golden hour" light'
+
+
+def test_close_truncated_json_handles_trailing_backslash():
+    raw = '{"note": "ends with a backslash \\'
+    parsed = json.loads(qwen_client._close_truncated_json(raw))
+    assert parsed["note"].startswith("ends with a backslash")
+
+
+def test_close_truncated_json_leaves_valid_json_alone():
+    raw = '{"a": [1, 2], "b": "done"}'
+    assert json.loads(qwen_client._close_truncated_json(raw)) == {"a": [1, 2], "b": "done"}
+
+
+def test_parse_json_with_repair_uses_local_salvage_without_model_call():
+    raw = '{"sceneDescription": "A lone tree", "strengths": ["good light"'
+    retry_fn = MagicMock()
+
+    parsed = qwen_client.parse_json_with_repair(raw, retry_fn)
+
+    retry_fn.assert_not_called()  # local repair succeeded -> zero model calls
+    assert parsed["sceneDescription"] == "A lone tree"
+    assert parsed["strengths"] == ["good light"]
+
+
+def test_parse_json_with_repair_falls_back_to_model_when_local_repair_fails():
+    raw = "sorry, I cannot produce JSON for this image"
+    retry_fn = MagicMock(return_value='{"repaired": true}')
+
+    parsed = qwen_client.parse_json_with_repair(raw, retry_fn)
+
+    retry_fn.assert_called_once_with(raw)
+    assert parsed == {"repaired": True}
+
+
+def test_parse_json_with_repair_raises_when_model_repair_also_fails():
+    raw = "still not json"
+    retry_fn = MagicMock(return_value="also not json")
+
+    try:
+        qwen_client.parse_json_with_repair(raw, retry_fn)
+        raise AssertionError("expected ValueError")
+    except ValueError as e:
+        assert "JSON repair failed" in str(e)
+    retry_fn.assert_called_once_with(raw)

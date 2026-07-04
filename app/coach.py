@@ -21,6 +21,7 @@ from pydantic import ValidationError
 
 from app import qwen_client
 from app.grounding import SCENE_TO_DOCS, detect_scene_type_hint, ground_principles
+from app.output_salvage import validate_with_local_salvage
 from app.schema import CoachAnalysisOutput
 from app.storage import get_storage
 
@@ -189,7 +190,12 @@ def _run_coach_model(
     parsed = qwen_client.parse_json_with_repair(result.content, _repair)
     parsed = _normalize_coach_output(parsed)
     try:
-        return CoachAnalysisOutput.model_validate(parsed)
+        # Local salvage repairs near-miss output (off-enum values, out-of-range
+        # scores, missing non-core fields) with pure dict surgery — zero model
+        # calls. It raises only for genuinely broken CORE fields
+        # (sceneDescription/scores/critique), which is the only class of
+        # damage the model-based shape-repair chain below is still for.
+        return validate_with_local_salvage(parsed)
     except ValidationError as first_err:
         error_detail = "; ".join(
             f"{'.'.join(str(p) for p in e['loc'])}: {e['msg']}" for e in first_err.errors()
@@ -215,7 +221,11 @@ def _run_coach_model(
         repaired = qwen_client.chat_text(skeleton_prompt, json_mode=True, timeout=15.0).content
         reparsed = qwen_client.parse_json_with_repair(repaired, _repair)
         reparsed = _normalize_coach_output(reparsed)
-        return CoachAnalysisOutput.model_validate(reparsed)  # raises with full context if still wrong
+        # The repair model routinely reintroduces near-miss enums (the skeleton
+        # prompt doesn't spell out every allowed value), so the re-validated
+        # output gets the same local salvage; raises with full context only if
+        # core damage survives even the model repair.
+        return validate_with_local_salvage(reparsed)
 
 
 def analyze_photo(

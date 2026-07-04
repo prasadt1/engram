@@ -9,6 +9,7 @@ per call for the benchmark and the cost story in the submission.
 from __future__ import annotations
 
 import json
+import logging
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -16,6 +17,8 @@ from typing import Any
 from openai import APIStatusError, APITimeoutError, OpenAI
 
 from app import config
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -158,16 +161,82 @@ def chat_vision(image_data_uri: str, prompt: str, json_mode: bool = False) -> Ca
     return _call(messages, config.MODEL_VISION, config.MODEL_VISION_FALLBACK, json_mode=json_mode, timeout=60.0)
 
 
+def _close_truncated_json(raw: str) -> str:
+    """Locally repair truncated JSON: close an unterminated string, then close
+    unbalanced braces/brackets.
+
+    This targets qwen-vl-plus's measured failure mode (5/6 calls): output that
+    degenerates into trailing whitespace with unterminated strings/braces
+    (finish_reason=stop, not a token cap). A simple stack scan — tracking
+    whether we're inside a string, respecting backslash escapes — recovers
+    these at zero latency. Pure function; returns the (possibly) repaired
+    string, never raises.
+    """
+    s = raw.rstrip()
+    stack: list[str] = []
+    in_string = False
+    escaped = False
+    for ch in s:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_string = False
+        elif ch == '"':
+            in_string = True
+        elif ch in "{[":
+            stack.append(ch)
+        elif ch == "}":
+            if stack and stack[-1] == "{":
+                stack.pop()
+        elif ch == "]":
+            if stack and stack[-1] == "[":
+                stack.pop()
+
+    if in_string:
+        if escaped:
+            # A truncation right after a backslash: complete the escape so the
+            # closing quote we append isn't itself escaped.
+            s += "\\"
+        s += '"'
+    elif s.endswith(","):
+        # A structural trailing comma (we know we're outside any string) would
+        # make the closed-up JSON invalid; drop it.
+        s = s[:-1]
+
+    closers = {"{": "}", "[": "]"}
+    while stack:
+        s += closers[stack.pop()]
+    return s
+
+
 def parse_json_with_repair(raw: str, retry_prompt_fn) -> dict:
-    """Parse JSON; on failure, ask the model once to repair its own output."""
+    """Parse JSON; try a zero-latency local truncation repair; only then ask
+    the model once to repair its own output."""
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
-        repaired = retry_prompt_fn(raw)
-        try:
-            return json.loads(repaired)
-        except json.JSONDecodeError as e:
-            raise ValueError(
-                f"JSON repair failed. Original (first 500 chars): {raw[:500]!r} | "
-                f"Repaired (first 500 chars): {repaired[:500]!r}"
-            ) from e
+        pass
+
+    locally_repaired = _close_truncated_json(raw)
+    try:
+        result = json.loads(locally_repaired)
+        logger.warning(
+            "parse_json_with_repair: local JSON-syntax repair succeeded "
+            "(raw %d chars -> repaired %d chars); no model repair call needed",
+            len(raw), len(locally_repaired),
+        )
+        return result
+    except json.JSONDecodeError:
+        pass
+
+    repaired = retry_prompt_fn(raw)
+    try:
+        return json.loads(repaired)
+    except json.JSONDecodeError as e:
+        raise ValueError(
+            f"JSON repair failed. Original (first 500 chars): {raw[:500]!r} | "
+            f"Repaired (first 500 chars): {repaired[:500]!r}"
+        ) from e
