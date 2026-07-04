@@ -9,10 +9,15 @@ and a response shape that's additive-only over what Iris already expects
 
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
 import os
+import sys
 import uuid
 from contextlib import asynccontextmanager
+from datetime import datetime
+from typing import Any
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
@@ -27,11 +32,16 @@ load_dotenv()
 from app.coach import analyze_photo  # noqa: E402
 from app.db import get_db  # noqa: E402
 from app.mentor import chat as mentor_chat  # noqa: E402
+from app.memory_engine import compute_delta  # noqa: E402
 from app.memory_store import MemoryStore  # noqa: E402
 from app.reflection import summarize_progress  # noqa: E402
 from app.storage import get_storage  # noqa: E402
 
 logger = logging.getLogger(__name__)
+# Startup messages go through uvicorn's configured logger so they actually
+# show up in uvicorn/container logs — the app's own logger has no handler
+# configured at INFO, so lifespan messages were invisible on deploy day.
+boot_logger = logging.getLogger("uvicorn.error")
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 
@@ -46,9 +56,9 @@ async def lifespan(app: FastAPI):
         db.client.admin.command("ping")
         db.memory_items.create_index([("user_id", 1)])
         db.skills.create_index([("user_id", 1)])
-        logger.info("Mongo reachable; indexes ensured")
+        boot_logger.info("Mongo reachable; indexes ensured")
     else:
-        logger.warning("MONGODB_URI not set — skipping startup DB check (dev/test mode)")
+        boot_logger.warning("MONGODB_URI not set — skipping startup DB check (dev/test mode)")
     yield
 
 
@@ -85,6 +95,214 @@ def _store() -> MemoryStore:
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
+
+
+# --- Portfolio read routes (Task 13b) ------------------------------------
+# Mirrors the wire contract of Iris's app/memory/portfolio.py + trends.py
+# (see frontend/src/services/memoryClient.ts and types/memory.ts).
+# HomeTab.tsx calls fetchPortfolioStats() and fetchPortfolio(...) in a
+# Promise.all with NO .catch, so these two must never 404/500 for a valid user.
+
+_SCORE_DIMS = ("composition", "lighting", "technique", "creativity", "subject_impact")
+
+# Frontend SortField values (memoryClient.ts) -> the doc field(s) they sort on.
+_SORT_FIELDS = {
+    "date": "created_at",
+    "composition": "scores.composition",
+    "lighting": "scores.lighting",
+    "technique": "scores.technique",
+    "creativity": "scores.creativity",
+    "subject_impact": "scores.subject_impact",
+    # "score" is handled specially below (computed average, not a stored field)
+}
+
+
+def _avg_score(scores: dict[str, Any]) -> float:
+    vals = [float(scores[k]) for k in _SCORE_DIMS if scores.get(k) is not None]
+    return sum(vals) / len(vals) if vals else 0.0
+
+
+def _serialize_portfolio_entry(doc: dict[str, Any]) -> dict[str, Any]:
+    """doc (as written by app.coach.analyze_photo) -> PortfolioListItem
+    (frontend/src/types/memory.ts). imageUrl is computed HERE via
+    get_storage().signed_url() rather than trusted from the stored
+    image_url field, since OSS-signed URLs expire."""
+    scores = doc.get("scores") or {}
+    created = doc.get("created_at")
+    created_iso = created.isoformat() if isinstance(created, datetime) else (str(created) if created else "")
+
+    storage_key = doc.get("storage_key")
+    image_url = get_storage().signed_url(storage_key) if storage_key else (doc.get("image_url") or "")
+
+    return {
+        "id": str(doc["_id"]),
+        "userId": str(doc.get("user_id", "")),
+        "shootId": str(doc.get("shoot_id", "")),
+        "imageUrl": image_url,
+        "createdAt": created_iso,
+        "scores": scores,
+        "overallAverage": round(_avg_score(scores), 1),
+        "aestheticTags": doc.get("aesthetic_tags") or [],
+        "userTags": doc.get("user_tags") or [],
+        "sceneDescription": doc.get("scene_description"),
+        "colourNotes": doc.get("colour_notes"),
+        "glassBoxSummary": (doc.get("glass_box") or {}).get("observations", [])[:2],
+    }
+
+
+@app.get("/api/v1/portfolio")
+def portfolio_list(
+    limit: int = 48,
+    sort_by: str = "date",
+    sort_order: str = "desc",
+    user_tag: str | None = None,
+    x_user_id: str = Header(default="demo-user"),
+) -> dict:
+    """PortfolioListResponse { entries, total } — matches memoryClient.ts's
+    fetchPortfolio(), which sends query params sort_by/sort_order (snake_case
+    on the wire, even though the TS-side option keys are sortBy/sortOrder)
+    plus limit and user_tag. See FetchPortfolioOptions in memoryClient.ts."""
+    query: dict[str, Any] = {"user_id": x_user_id}
+    if user_tag:
+        query["user_tags"] = user_tag
+
+    coll = _store().db.portfolio_entries
+    capped_limit = max(1, min(limit, 100))
+    direction = 1 if sort_order.lower() == "asc" else -1
+
+    if sort_by == "score":
+        # overallAverage is computed, not a stored field — sort in Python
+        # (demo scale; an aggregation $avg pipeline is the Mongo-native
+        # equivalent Iris uses, but this collection is small per user).
+        docs = list(coll.find(query))
+        docs.sort(key=lambda d: _avg_score(d.get("scores") or {}), reverse=(direction == -1))
+        docs = docs[:capped_limit]
+    else:
+        sort_field = _SORT_FIELDS.get(sort_by, "created_at")
+        docs = list(coll.find(query).sort(sort_field, direction).limit(capped_limit))
+
+    entries = [_serialize_portfolio_entry(d) for d in docs]
+    total = coll.count_documents(query)
+    return {"entries": entries, "total": total}
+
+
+@app.get("/api/v1/portfolio/stats")
+def portfolio_stats(x_user_id: str = Header(default="demo-user")) -> dict:
+    """PortfolioStats { total, firstUpload, strongest } (types/memory.ts)."""
+    query = {"user_id": x_user_id}
+    coll = _store().db.portfolio_entries
+
+    total = coll.count_documents(query)
+
+    first_upload = None
+    first_doc = coll.find_one(query, sort=[("created_at", 1)])
+    if first_doc and isinstance(first_doc.get("created_at"), datetime):
+        first_upload = first_doc["created_at"].strftime("%b %Y")
+
+    strongest = None
+    docs = list(coll.find(query))
+    if docs:
+        best = max(docs, key=lambda d: _avg_score(d.get("scores") or {}))
+        strongest = _serialize_portfolio_entry(best)
+
+    return {"total": total, "firstUpload": first_upload, "strongest": strongest}
+
+
+@app.get("/api/v1/portfolio/trends")
+def portfolio_trends(limit: int = 12, x_user_id: str = Header(default="demo-user")) -> dict:
+    """PortfolioTrendsResponse { photoCount, points, dimensions, insufficientData }
+    (types/memory.ts) — chronological score series + compute_delta per
+    dimension, shaped like Iris's app/memory/trends.py::compute_portfolio_trends.
+    compute_delta (app/memory_engine.py) is the same newer-half-vs-older-half
+    formula as Iris's _delta_recent_vs_older, so historical trend data agrees."""
+    capped_limit = max(4, min(limit, 24))
+    query = {"user_id": x_user_id}
+    coll = _store().db.portfolio_entries
+    docs = list(coll.find(query).sort("created_at", 1).limit(capped_limit))
+
+    if not docs:
+        return {"photoCount": 0, "points": [], "dimensions": [], "insufficientData": True}
+
+    points: list[dict[str, Any]] = []
+    for doc in docs:
+        scores = doc.get("scores") or {}
+        created = doc.get("created_at")
+        created_iso = created.isoformat() if isinstance(created, datetime) else (str(created) if created else "")
+        row: dict[str, Any] = {"createdAt": created_iso}
+        for k in _SCORE_DIMS:
+            row[k] = round(float(scores.get(k, 0)), 1)
+        row["overall"] = round(_avg_score(scores), 1)
+        points.append(row)
+
+    dimension_labels = {
+        "composition": "Composition", "lighting": "Lighting", "technique": "Technique",
+        "creativity": "Creativity", "subject_impact": "Subject", "overall": "Overall",
+    }
+    dimensions: list[dict[str, Any]] = []
+    for key in (*_SCORE_DIMS, "overall"):
+        values = [float(p[key]) for p in points]
+        delta = compute_delta(values)
+        dimensions.append({
+            "key": key,
+            "label": dimension_labels[key],
+            "values": values,
+            "latest": values[-1] if values else None,
+            "delta": delta,
+            "trend": "up" if delta is not None and delta > 0.15
+                else "down" if delta is not None and delta < -0.15
+                else "flat",
+        })
+
+    return {
+        "photoCount": len(points),
+        "points": points,
+        "dimensions": dimensions,
+        "insufficientData": len(points) < 4,
+    }
+
+
+@app.get("/api/v1/aesthetic-profile")
+def aesthetic_profile(x_user_id: str = Header(default="demo-user")) -> dict:
+    """AestheticProfileSummary { photoCount, dominantTags, averageScores,
+    stylisticConsistencyScore, computedAt? } (types/memory.ts). The frontend
+    calls this via fetchAestheticProfile().catch(() => null), so this is the
+    documented-fallback-tolerant minimal shape rather than Iris's full
+    embedding-derived profile (Engram doesn't track embeddings)."""
+    query = {"user_id": x_user_id}
+    coll = _store().db.portfolio_entries
+    docs = list(coll.find(query).sort("created_at", -1).limit(20))
+
+    if not docs:
+        return {
+            "photoCount": 0,
+            "dominantTags": [],
+            "averageScores": {},
+            "stylisticConsistencyScore": None,
+        }
+
+    tag_counts: dict[str, int] = {}
+    sums = {k: 0.0 for k in _SCORE_DIMS}
+    for doc in docs:
+        for tag in doc.get("aesthetic_tags") or []:
+            tag_counts[tag] = tag_counts.get(tag, 0) + 1
+        scores = doc.get("scores") or {}
+        for k in _SCORE_DIMS:
+            sums[k] += float(scores.get(k, 0))
+
+    n = len(docs)
+    avg_scores = {k: round(sums[k] / n, 1) for k in _SCORE_DIMS}
+    mean = sum(avg_scores.values()) / len(avg_scores)
+    variance = sum((x - mean) ** 2 for x in avg_scores.values()) / len(avg_scores)
+    consistency = max(0.0, min(1.0, 1.0 - (variance / 25.0)))
+
+    dominant = sorted(tag_counts.items(), key=lambda x: -x[1])[:8]
+
+    return {
+        "photoCount": coll.count_documents(query),
+        "dominantTags": [t for t, _ in dominant],
+        "averageScores": avg_scores,
+        "stylisticConsistencyScore": round(consistency, 2),
+    }
 
 
 @app.post("/api/v1/analyze-photo")
@@ -153,6 +371,64 @@ def journey(x_user_id: str = Header(default="demo-user")) -> dict:
     }
 
 
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+async def _get_memory_stats_via_mcp(user_id: str) -> dict:
+    """Round-trip get_memory_stats through the real engram-mcp stdio server
+    (scripts/run_mcp_server.py) rather than calling MemoryStore in-process —
+    this is the production path any Qwen agent actually takes when it mounts
+    engram over MCP, so this route can serve as a live protocol health check.
+
+    env is passed explicitly because stdio_client's default child env is a
+    sanitized allowlist (HOME/PATH/etc.) that strips MONGODB_URI, and the
+    container has no .env file for the child's own load_dotenv() to find
+    (config arrives there as parent env vars via compose env_file). cwd is
+    kept for path resolution of the launcher script and local .env."""
+    from mcp import ClientSession
+    from mcp.client.stdio import StdioServerParameters, stdio_client
+
+    params = StdioServerParameters(
+        command=sys.executable,
+        args=[os.path.join("scripts", "run_mcp_server.py")],
+        env=dict(os.environ),
+        cwd=_REPO_ROOT,
+    )
+
+    async def _round_trip() -> dict:
+        async with stdio_client(params) as (read, write):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                result = await session.call_tool("get_memory_stats", {"user_id": user_id})
+                if result.isError:
+                    raise RuntimeError(f"engram-mcp get_memory_stats failed: {result.content}")
+                return json.loads(result.content[0].text)
+
+    # Healthy round trip is ~7s (subprocess spawn dominates); 15s is generous
+    # headroom. Without this bound, a wedged subprocess would hang the route
+    # (and its threadpool worker) indefinitely.
+    return await asyncio.wait_for(_round_trip(), timeout=15.0)
+
+
 @app.get("/api/v1/memory-stats")
-def memory_stats(x_user_id: str = Header(default="demo-user")) -> dict:
+def memory_stats(x_user_id: str = Header(default="demo-user"), via: str | None = None) -> dict:
+    if via == "mcp":
+        # Sync route + asyncio.run(...): acceptable for this demo path per
+        # spec — the default (non-mcp) path below stays the plain in-process
+        # call, which is the reliability fallback if the MCP subprocess path
+        # ever has trouble.
+        try:
+            stats = asyncio.run(_get_memory_stats_via_mcp(x_user_id))
+        except (asyncio.TimeoutError, Exception) as exc:
+            # Broad catch is deliberate: subprocess failures surface as
+            # ExceptionGroup (anyio task group), which none of the app-level
+            # exception handlers map. No silent fallback to the direct call
+            # here — a served_via label the response didn't earn would defeat
+            # the point of the route.
+            logger.warning("engram-mcp path failed: %s", exc)
+            raise HTTPException(
+                status_code=503,
+                detail="The engram-mcp subprocess path is unavailable right now — the default /api/v1/memory-stats path serves the same data in-process.",
+            )
+        return {**stats, "served_via": "engram-mcp"}
     return _store().get_memory_stats(user_id=x_user_id)

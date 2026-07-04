@@ -1481,8 +1481,9 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 - [ ] **Step 1: Read the real client contracts before writing anything.** Open `frontend/src/services/memoryClient.ts` and `frontend/src/services/portfolioInsightsClient.ts` in the copied frontend (post-Task 16) or in `iris-photography-mentor/frontend/src/services/` (pre-Task 16), plus the `PortfolioEntry`/stats/trends types they reference in `frontend/src/types/`. Mirror the exact paths, query params, and response keys — do not invent a nicer shape; the frontend is the contract.
 - [ ] **Step 2: Write failing tests** (extend `tests/test_server.py`; patch `app.server._store` / `get_db` with a `mongomock` database pre-seeded with 3 `portfolio_entries` docs shaped like Task 9's insert):
-  - `GET /api/v1/portfolio?limit=2&sortBy=date&sortOrder=desc` → 200, 2 entries, newest first, each entry containing the keys the frontend type requires (at minimum: id, imageUrl, scores, genre, sceneDescription, createdAt — confirm exact casing from the client/types read in Step 1).
-  - `GET /api/v1/portfolio?sortBy=score&sortOrder=desc` → highest overall score first.
+  - **AS-BUILT CORRECTION:** the wire params are **`sort_by` / `sort_order` (snake_case)** — the TS client's option keys are camelCase but `memoryClient.ts` builds `URLSearchParams({sort_by, sort_order})`. This snippet originally said sortBy/sortOrder and was wrong; the implementation follows the real client. Full as-built contract: `{entries: PortfolioListItem[], total}` with PortfolioListItem keys `id, userId, shootId(""), imageUrl(signed at read), createdAt, scores, overallAverage, aestheticTags, userTags, sceneDescription, colourNotes, glassBoxSummary`; stats `{total, firstUpload("%b %Y"|null), strongest(item|null)}`; trends `{photoCount, points[], dimensions[{key,label,values,latest,delta,trend}], insufficientData}`; aesthetic-profile `{photoCount, dominantTags, averageScores, stylisticConsistencyScore}`.
+  - `GET /api/v1/portfolio?limit=2&sort_by=date&sort_order=desc` → 200, 2 entries, newest first, each entry containing the keys the frontend type requires.
+  - `GET /api/v1/portfolio?sort_by=score&sort_order=desc` → highest overall score first.
   - `GET /api/v1/portfolio/stats` → 200 with the stats keys the frontend reads (photo count etc. — confirm from client).
   - `GET /api/v1/portfolio/trends?limit=6` → 200 with the points/dimensions shape from Iris's `trends.py` (port `_delta_recent_vs_older` semantics over the seeded scores; the formula already exists in `app/memory_engine.py::compute_delta`).
 - [ ] **Step 3: Run to verify they fail** (404s).
@@ -1844,6 +1845,8 @@ git add -A && git commit -m "Show genre chip on critique results"
 ---
 
 ### Task 20: Library — genre filter and milestone badges
+
+**Carried from Task 13b's contract review — two frontend contract members have NO backend route:** (1) `deletePortfolioEntry(ies)` (used by `MyWorkTab.tsx` — a real library feature): either add a small `DELETE /api/v1/portfolio/{entry_id}` (+ batch) route mirroring Iris's, or gate the delete UI; deleting from the library during judge click-testing must not 404. (2) `fetchPortfolioByShoots` (used by `AssignmentCompare.tsx` — assignments are deferred): gate that component. Decide when touching the library; don't leave dead buttons.
 
 **Files:**
 - Modify: the library grid component (likely `frontend/src/components/HomeTab.tsx` region or a dedicated library component — locate via `grep -rl "portfolio" frontend/src/components | grep -i librar\|work`)
