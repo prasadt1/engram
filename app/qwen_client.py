@@ -127,11 +127,15 @@ def chat_fast(prompt: str, system: str | None = None, json_mode: bool = False) -
     if system:
         messages.append({"role": "system", "content": system})
     messages.append({"role": "user", "content": prompt})
+    # This is the first JSON-repair attempt in Coach's chain, fired after a
+    # 60s (x2 on timeout) vision call already ran; keep it tight at 30s + one
+    # timeout-retry (60s worst case) so the combined chain stays bounded.
     return _call(
         messages,
         config.MODEL_FAST,
         config.MODEL_FAST_FALLBACK,
         json_mode=json_mode,
+        timeout=30.0,
     )
 
 
@@ -145,7 +149,10 @@ def chat_vision(image_data_uri: str, prompt: str, json_mode: bool = False) -> Ca
             ],
         }
     ]
-    return _call(messages, config.MODEL_VISION, config.MODEL_VISION_FALLBACK, json_mode=json_mode)
+    # Vision calls run slower than text; 60s + one automatic timeout-retry
+    # caps this at 120s worst case, still within the frontend's budget once
+    # combined with repair-path timeouts below.
+    return _call(messages, config.MODEL_VISION, config.MODEL_VISION_FALLBACK, json_mode=json_mode, timeout=60.0)
 
 
 def parse_json_with_repair(raw: str, retry_prompt_fn) -> dict:

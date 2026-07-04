@@ -135,7 +135,12 @@ export async function analyzePhoto(request: AnalyzePhotoRequest): Promise<Analyz
     body: form,
     signal: request.signal,
     // Cloud Run Coach pipeline (Gemini + GCS + embeddings) often exceeds 45s.
-    timeoutMs: 120_000,
+    // Backend now bounds this explicitly: chat_vision is 60s (+1 timeout-retry
+    // = 120s worst case), chained JSON-repair calls add chat_fast's 30s
+    // (+retry = 60s) and chat_text's 40s (+retry = 80s). 170s gives headroom
+    // over the common single-vision-call case while still failing well before
+    // the 260s absolute worst-case chain.
+    timeoutMs: 170_000,
   });
 
   if (!response.ok) {

@@ -47,3 +47,28 @@ def test_chat_fast_stream_falls_back_to_secondary_model_on_404():
     assert deltas == ["fallback reply"]
     second_call_kwargs = fake_client.chat.completions.create.call_args_list[1].kwargs
     assert second_call_kwargs["model"] == qwen_client.config.MODEL_FAST_FALLBACK
+
+
+def test_chat_vision_passes_explicit_timeout():
+    fake_client = MagicMock()
+    fake_client.chat.completions.create.return_value = MagicMock(
+        choices=[MagicMock(message=MagicMock(content="{}"))],
+        usage=MagicMock(prompt_tokens=1, completion_tokens=1),
+    )
+    with patch("app.qwen_client._client", return_value=fake_client) as mock_client_factory:
+        qwen_client.chat_vision("data:image/jpeg;base64,xxx", "prompt")
+
+    # _call() invokes _client(base_url, timeout) positionally.
+    assert mock_client_factory.call_args.args[1] == 60.0
+
+
+def test_chat_fast_passes_explicit_timeout():
+    fake_client = MagicMock()
+    fake_client.chat.completions.create.return_value = MagicMock(
+        choices=[MagicMock(message=MagicMock(content="ok"))],
+        usage=MagicMock(prompt_tokens=1, completion_tokens=1),
+    )
+    with patch("app.qwen_client._client", return_value=fake_client) as mock_client_factory:
+        qwen_client.chat_fast("prompt")
+
+    assert mock_client_factory.call_args.args[1] == 30.0
