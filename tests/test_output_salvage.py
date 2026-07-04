@@ -389,3 +389,70 @@ def test_salvage_actions_logged_at_warning(caplog):
     assert any(
         "fill_light_strength" in m and "medium" in m and "moderate" in m for m in warnings
     ), warnings
+
+
+# ---------------------------------------------------------------------------
+# Drift tripwires: this module hand-mirrors facts from app/schema.py
+# (aliases, Literal enum values). These tests fail the moment the schema
+# changes without a matching update here, so near-miss salvage on a new or
+# renamed field can't silently misroute.
+# ---------------------------------------------------------------------------
+
+def _reachable_models(model, seen=None):
+    """All BaseModel subclasses reachable from `model`'s field annotations."""
+    import typing
+
+    from pydantic import BaseModel
+
+    seen = seen if seen is not None else set()
+    if model in seen:
+        return seen
+    seen.add(model)
+    stack = [f.annotation for f in model.model_fields.values()]
+    while stack:
+        ann = stack.pop()
+        if isinstance(ann, type) and issubclass(ann, BaseModel):
+            _reachable_models(ann, seen)
+        else:
+            stack.extend(typing.get_args(ann))
+    return seen
+
+
+def test_key_canon_covers_every_alias_in_schema():
+    from app.output_salvage import _KEY_CANON
+    from app.schema import CoachAnalysisOutput
+
+    for model in _reachable_models(CoachAnalysisOutput):
+        for name, field in model.model_fields.items():
+            if field.alias and field.alias != name:
+                assert field.alias in _KEY_CANON, (
+                    f"{model.__name__}.{name} alias {field.alias!r} missing from "
+                    "_KEY_CANON -- add it so loc classification keeps working"
+                )
+                assert _KEY_CANON[field.alias] == name
+
+
+def test_allowed_enum_sets_match_schema_literals():
+    from typing import get_args
+
+    from app.output_salvage import (
+        _COLOR_TEMP_ALLOWED,
+        _FILL_LIGHT_ALLOWED,
+        _GENRE_ALLOWED,
+        _SEVERITY_ALLOWED,
+        _SHADOW_ALLOWED,
+    )
+    from app.schema import (
+        CoachAnalysisOutput,
+        LightingMap,
+        PriorityFix,
+        SpatialAnnotation,
+    )
+
+    lm = LightingMap.model_fields
+    assert _FILL_LIGHT_ALLOWED == set(get_args(lm["fill_light_strength"].annotation))
+    assert _COLOR_TEMP_ALLOWED == set(get_args(lm["color_temperature"].annotation))
+    assert _SHADOW_ALLOWED == set(get_args(lm["shadow_character"].annotation))
+    assert _GENRE_ALLOWED == set(get_args(CoachAnalysisOutput.model_fields["genre"].annotation))
+    assert _SEVERITY_ALLOWED == set(get_args(PriorityFix.model_fields["severity"].annotation))
+    assert _SEVERITY_ALLOWED == set(get_args(SpatialAnnotation.model_fields["severity"].annotation))

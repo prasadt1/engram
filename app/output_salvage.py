@@ -378,10 +378,15 @@ def _handle_error(raw: dict, err: dict, prunes: dict[tuple, set[int]]) -> bool:
             return False
         return _default_rule(raw, loc, canon, etype, value, prunes)
 
-    # B) Numeric range violation — only reachable on scores.*. Clamping is
-    # content-true (10.5 means "ten"), so clamping a CORE score is allowed;
-    # only fabrication is forbidden.
+    # B) Numeric range violation on scores.*. Clamping is content-true
+    # (10.5 means "ten"), so clamping a CORE score is allowed; only
+    # fabrication is forbidden. The loc guard matters: scores is the only
+    # constrained numeric field today, but if another ge/le field is ever
+    # added (e.g. bounding-box percentages), [0,10] would be the wrong
+    # bounds for it — route anything non-score to the default rule instead.
     if etype in _RANGE_ERRORS:
+        if canon[:1] != ("scores",):
+            return _default_rule(raw, loc, canon, etype, value, prunes)
         try:
             new = min(10.0, max(0.0, float(value)))
         except (TypeError, ValueError):
