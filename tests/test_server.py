@@ -116,6 +116,24 @@ def test_users_me_get_returns_default_persona_when_user_doc_absent():
     assert body["preferences"] == {}
 
 
+def test_users_me_get_prefers_camelcase_userid_query_param_over_header():
+    # userClient.ts::fetchUserProfile sends `?userId=` (camelCase) for
+    # signed-in users, not `?user_id=` — a plain FastAPI param name would
+    # silently fail to bind this (Iris's own route has this exact bug:
+    # app/api/server.py declares a bare `user_id` param with no alias).
+    # This locks in the Query(alias="userId") fix.
+    client = mongomock.MongoClient()
+    store = MagicMock()
+    store.db = client["t"]
+    with patch("app.server._store", return_value=store):
+        resp = _client().get(
+            "/api/v1/users/me?userId=signed-in-user",
+            headers={"X-User-Id": "demo-user"},  # header present but must lose to the query param
+        )
+    assert resp.status_code == 200
+    assert resp.json()["userId"] == "signed-in-user"
+
+
 def test_users_me_patch_then_get_round_trips_persona():
     client = mongomock.MongoClient()
     store = MagicMock()

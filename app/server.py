@@ -20,7 +20,7 @@ from datetime import datetime
 from typing import Any
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -115,10 +115,16 @@ class PersonaUpdate(BaseModel):
 
 
 @app.get("/api/v1/users/me")
-def users_me(user_id: str | None = None, x_user_id: str = Header(default="demo-user")) -> dict:
-    """user_id query param (Iris parity + frontend's ?userId= for signed-in
-    users) wins over the X-User-Id header when both are present, matching
-    every other route's X-User-Id-as-fallback convention in this file."""
+def users_me(
+    user_id: str | None = Query(default=None, alias="userId"),
+    x_user_id: str = Header(default="demo-user"),
+) -> dict:
+    """?userId= query param (this is what userClient.ts::fetchUserProfile
+    actually sends for signed-in users — note Iris's own route declares a
+    bare `user_id` param with no alias, so this same mismatch exists
+    upstream too; fixed here via the alias rather than faithfully
+    reproducing it) wins over the X-User-Id header when both are present,
+    matching every other route's X-User-Id-as-fallback convention here."""
     uid = user_id or x_user_id
     doc = _store().db.users.find_one({"_id": uid})
     if not doc:
