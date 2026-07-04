@@ -7,3 +7,4 @@ pymongo>=4.8.0
 oss2>=2.18.0
 pydantic>=2.8.0
 mcp>=1.28,<2
+Pillow>=10.4.0

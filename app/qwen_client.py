@@ -78,14 +78,17 @@ def _call(
     raise last_err  # pragma: no cover
 
 
-def chat_text(prompt: str, system: str | None = None, json_mode: bool = False) -> CallResult:
+def chat_text(prompt: str, system: str | None = None, json_mode: bool = False, timeout: float = 40.0) -> CallResult:
     messages = []
     if system:
         messages.append({"role": "system", "content": system})
     messages.append({"role": "user", "content": prompt})
-    # Callers (mentor chat) budget 90s client-side; a 40s per-attempt ceiling
-    # leaves room for one timeout retry (80s worst case) plus recall/DB time.
-    return _call(messages, config.MODEL_REASONING, config.MODEL_REASONING_FALLBACK, json_mode=json_mode, timeout=40.0)
+    # Default timeout=40.0: callers (mentor chat) budget 90s client-side; a
+    # 40s per-attempt ceiling leaves room for one timeout retry (80s worst
+    # case) plus recall/DB time. Do NOT change this default — other callers
+    # (e.g. Coach's shape-repair path) pass an explicitly shorter timeout
+    # instead when a tighter budget is appropriate.
+    return _call(messages, config.MODEL_REASONING, config.MODEL_REASONING_FALLBACK, json_mode=json_mode, timeout=timeout)
 
 
 def chat_fast_stream(prompt: str, system: str | None = None):

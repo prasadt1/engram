@@ -526,6 +526,28 @@ def test_portfolio_search_returns_matches_shaped_for_frontend_contract():
         assert key in match
 
 
+def test_portfolio_search_generic_term_matches_portrait_genre_via_synonym():
+    # doc B is genre="portrait" with scene_description "Backlit portrait,
+    # golden hour." -- no literal "person"/"people"/"human" anywhere in its
+    # text/tags, so this only matches through the genre-synonym path.
+    store = _seed_portfolio_store()
+    portrait_doc = store.db.portfolio_entries.find_one({"genre": "portrait"})
+    with patch("app.server._store", return_value=store), \
+         patch("app.server.get_storage") as mock_gs:
+        _patch_signed_urls(mock_gs)
+        resp = _client().get(
+            "/api/v1/portfolio/search",
+            params={"q": "person", "limit": 8},
+            headers={"X-User-Id": "u1"},
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body["matches"]) == 1
+    match = body["matches"][0]
+    assert match["id"] == str(portrait_doc["_id"])
+    assert match["matchedObservations"] == ["Genre: portrait"]
+
+
 def test_portfolio_search_empty_query_returns_message_no_error():
     store = _seed_portfolio_store()
     with patch("app.server._store", return_value=store), \
