@@ -131,14 +131,28 @@ Correction from spec review: the three inputs are NOT all available in the
 journey path today. Concrete sources, each verified against the code:
 - **cleared skill(s) + watching skill** — already in the journey route via
   `skills[].status` (`app/server.py` journey route). Available, no change.
-- **top aesthetic tag** — the aggregation exists but lives in the
-  `/api/v1/aesthetic-profile` route (`dominantTags`), NOT the journey path. The
-  tag-frequency logic must be extracted into a reusable store/helper function so
-  the journey route can call it too (don't duplicate the aggregation).
+- **top aesthetic tag** — the aggregation exists but lives *inline* in the
+  `/api/v1/aesthetic-profile` route (`app/server.py`, ~lines 340-370), where it
+  reads only the **20 most-recent** portfolio docs (`.sort(created_at,-1).limit(20)`)
+  and returns the top 8 as `dominantTags`. Extract this into a reusable store
+  helper **parameterized by a doc window** (`limit: int | None`). The
+  aesthetic-profile route keeps its current behavior by passing `limit=20`
+  (no behavior change there).
 - **dominant genre** — does NOT exist anywhere; `genre` is a per-document field
-  on `portfolio_entries` (written by `coach.py`) with no aggregation. Add a small
-  store method that counts `portfolio_entries.genre` for the user and returns the
-  mode (most frequent). New, but a one-line Mongo aggregation / counter.
+  on `portfolio_entries` (written by `coach.py`) with no aggregation. Add a store
+  method that counts `portfolio_entries.genre` for the user and returns the mode,
+  **also parameterized by the same `limit` window**.
+
+**Window consistency (the fix the review flagged):** the identity line must
+compute top-tag and dominant-genre over the **same** doc window, or the two
+descriptors describe different time slices. For an *identity* statement ("who you
+are"), use the **full history** — the journey route calls both helpers with
+`limit=None`. (The aesthetic-profile route independently keeps `limit=20`; only
+its *reuse of the extracted helper* is shared, not the window value.)
+
+**Genre-mode tie-break:** on a count tie, pick the **most-recently-shot** genre
+(reflects current identity), not alphabetical — alphabetical would bias toward
+`architecture`/`landscape` given the fixed genre enum. State this in the method.
 
 `identity` is composed in a **pure helper** `build_identity_line(genre, tag,
 cleared: list[str], watching: str | None) -> str | None` that takes these
