@@ -12,6 +12,7 @@ import { PracticeTab } from './components/PracticeTab';
 import { PrintSalesTab } from './components/PrintSalesTab';
 import { SettingsTab } from './components/SettingsTab';
 import { FieldTab } from './components/FieldTab';
+import { GlassBoxTab } from './components/GlassBoxTab';
 import { InlineAlertBanner } from './components/InlineAlertBanner';
 import { ScoreExplainer, ScoreExplainerTrigger } from './components/ScoreExplainer';
 import { OnboardingTour, resetTour } from './components/OnboardingTour';
@@ -102,6 +103,17 @@ function App() {
   const [showLogoCompare, setShowLogoCompare] = useState(
     () => typeof window !== 'undefined' && window.location.hash === '#logo-compare',
   );
+  // Glass box: judge-facing internals + benchmark page. Footer-linked, not
+  // part of AppTab's primary nav (see config/navConfig.ts) — it's a
+  // reference surface for evaluators, not a feature a photographer needs
+  // day to day. Modeled as a flag alongside activeTab (like showLogoCompare)
+  // rather than an AppTab member, so it can't accidentally leak into
+  // bottomNavItems/sidebarNavItems. Unlike showLogoCompare it renders inside
+  // the normal shell (sidebar/footer intact) via the activeTab-style
+  // conditional in <main>, per this task's routing spec.
+  const [showGlassBox, setShowGlassBox] = useState(
+    () => typeof window !== 'undefined' && window.location.hash === '#glassbox',
+  );
   const [practiceDetailId, setPracticeDetailId] = useState<string | null>(null);
   const [onboardingBusy, setOnboardingBusy] = useState(false);
   const [sidebarPhotoCount, setSidebarPhotoCount] = useState(0);
@@ -127,6 +139,19 @@ function App() {
         : tab;
     setActiveTab(target);
     setTabHash(target);
+    // Glass box lives outside the AppTab union (see showGlassBox above), so
+    // it isn't cleared by setActiveTab — without this, a sidebar/bottom-nav
+    // click while on #glassbox would update the hash but leave the Glass
+    // box page rendered on top of it.
+    setShowGlassBox(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  const navigateToGlassBox = useCallback(() => {
+    setShowGlassBox(true);
+    if (typeof window !== 'undefined' && window.location.hash !== '#glassbox') {
+      window.history.replaceState(null, '', `${window.location.pathname}#glassbox`);
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
@@ -148,7 +173,10 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const onHash = () => setShowLogoCompare(window.location.hash === '#logo-compare');
+    const onHash = () => {
+      setShowLogoCompare(window.location.hash === '#logo-compare');
+      setShowGlassBox(window.location.hash === '#glassbox');
+    };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
@@ -387,12 +415,22 @@ function App() {
               }}
             />
           )}
-          {personaError && activeTab === 'settings' && (
+          {personaError && activeTab === 'settings' && !showGlassBox && (
             <p className="mb-4 text-sm text-amber-400" role="alert">
               Could not save your profile mode ({personaError}).
             </p>
           )}
 
+          {/* Glass box (#glassbox) takes over <main> entirely, independent
+              of activeTab — see showGlassBox above for why it's a sibling
+              flag rather than an AppTab member. Without this early branch,
+              the activeTab-matched block below would render underneath it
+              (both share <main>), duplicating whatever tab was active
+              before the footer link was clicked. */}
+          {showGlassBox ? (
+            <GlassBoxTab />
+          ) : (
+            <>
           {activeTab === 'home' && (
             <HomeTab
               mode={userMode}
@@ -506,6 +544,8 @@ function App() {
               onThemeChange={setTheme}
             />
           )}
+            </>
+          )}
         </main>
 
         <footer className="relative z-10 border-t border-warm py-6 px-4 md:px-8 bg-canvas mb-16 lg:mb-0">
@@ -531,6 +571,17 @@ function App() {
                 className="text-brand-400 hover:text-brand-300 hover:underline transition-colors"
               >
                 How it works
+              </button>
+              <span className="text-warm" aria-hidden>
+                ·
+              </span>
+              <button
+                type="button"
+                onClick={navigateToGlassBox}
+                aria-current={showGlassBox ? 'page' : undefined}
+                className="text-brand-400 hover:text-brand-300 hover:underline transition-colors"
+              >
+                Glass box
               </button>
             </p>
             <p className="text-xs text-stone-500">
