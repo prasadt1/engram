@@ -2,7 +2,9 @@
 data/
 .git/
 docs/
-frontend/
+frontend/node_modules/
+frontend/dist/
 __pycache__/
 *.pyc
 .env
+eval/results-*.json

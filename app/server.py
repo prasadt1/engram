@@ -493,3 +493,12 @@ def memory_stats(x_user_id: str = Header(default="demo-user"), via: str | None =
             )
         return {**stats, "served_via": "engram-mcp"}
     return _store().get_memory_stats(user_id=x_user_id)
+
+
+# --- SPA (built frontend), mounted LAST so every API route above wins ---
+# The Docker image builds the Vite bundle into frontend/dist (same-origin:
+# no CORS, no mixed-content, one judge URL). Absent in dev, where Vite's
+# own server on :5173 proxies /media and calls the API by absolute URL.
+_SPA_DIST = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "dist")
+if os.path.isdir(_SPA_DIST):
+    app.mount("/", StaticFiles(directory=_SPA_DIST, html=True), name="spa")
