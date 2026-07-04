@@ -1,0 +1,405 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Newsreader", Georgia, "Times New Roman", serif;
+  --color-canvas: #1a1816;
+  --color-canvas-elevated: #242120;
+  --color-surface-1: #2a2724;
+  --color-surface-2: #332f2b;
+  --color-surface-3: #3d3834;
+  --color-warm-border: #44403c;
+  --color-brand-50: #fffbeb;
+  --color-brand-100: #fef3c7;
+  --color-brand-200: #fde68a;
+  --color-brand-300: #fcd34d;
+  --color-brand-400: #fbbf24;
+  --color-brand-500: #f59e0b;
+  --color-brand-600: #d97706;
+  --color-brand-700: #b45309;
+  --transition-timing-function-out-expo: cubic-bezier(0.23, 1, 0.32, 1);
+  --transition-timing-function-in-out-expo: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes fadeIn {
+  from {
+    transform: translateY(8px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.4s var(--ease-out-expo) forwards;
+}
+
+/* Spring-based animations for sheets and modals */
+@keyframes springIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes springOut {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+}
+
+@keyframes overlayFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-springIn {
+  animation: springIn 0.4s var(--ease-spring) forwards;
+}
+
+.animate-springOut {
+  animation: springOut 0.3s var(--ease-spring) forwards;
+}
+
+.animate-overlayFadeIn {
+  animation: overlayFadeIn 0.3s ease-out forwards;
+}
+
+@keyframes badgeIn {
+  from {
+    transform: scale(0.9);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.score-badge {
+  animation: badgeIn 150ms var(--ease-out-expo) backwards;
+}
+
+.score-badge:nth-child(1) { animation-delay: 0ms; }
+.score-badge:nth-child(2) { animation-delay: 50ms; }
+.score-badge:nth-child(3) { animation-delay: 100ms; }
+.score-badge:nth-child(4) { animation-delay: 150ms; }
+.score-badge:nth-child(5) { animation-delay: 200ms; }
+
+@keyframes tabEnter {
+  from {
+    transform: translateY(6px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-tabEnter {
+  animation: tabEnter 0.28s var(--ease-out-expo) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fadeIn,
+  .animate-tabEnter,
+  .animate-springIn,
+  .score-badge {
+    animation: none !important;
+  }
+}
+
+body {
+  background-color: var(--color-canvas);
+  color: #e7e5e4;
+  font-family: var(--font-sans);
+}
+
+.font-serif {
+  font-family: var(--font-serif);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-serif);
+}
+
+/* Warm gallery surfaces (Pass 3) */
+.bg-canvas {
+  background-color: var(--color-canvas);
+}
+.bg-canvas-elevated {
+  background-color: var(--color-canvas-elevated);
+}
+.bg-surface-1 {
+  background-color: color-mix(in srgb, var(--color-surface-1) 90%, transparent);
+}
+.bg-surface-2 {
+  background-color: var(--color-surface-2);
+}
+.bg-surface-3 {
+  background-color: var(--color-surface-3);
+}
+.border-warm {
+  border-color: var(--color-warm-border);
+}
+.text-muted {
+  color: #a8a29e;
+}
+.bg-photo-black {
+  background-color: #0a0908;
+}
+.text-on-brand {
+  color: #1a1816;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.sr-only:focus {
+  position: fixed;
+  width: auto;
+  height: auto;
+  padding: 0.75rem 1rem;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 200;
+  background: var(--color-surface-2);
+  color: var(--color-brand-400);
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  outline: 2px solid var(--color-brand-400);
+}
+
+::selection {
+  background-color: rgb(245 158 11 / 0.35);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-canvas);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-warm-border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #57534e;
+}
+
+:root {
+  --ease-out-expo: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-expo: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Clean background */
+body {
+  background-color: var(--color-canvas);
+}
+
+button:not(:disabled),
+[role="button"]:not(:disabled) {
+  transition: transform 150ms var(--ease-out-expo);
+}
+
+button:active:not(:disabled),
+[role="button"]:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+[role="tab"]:focus-visible {
+  outline: 2px solid var(--color-brand-400);
+  outline-offset: 2px;
+}
+
+/* Tab navigation transitions */
+[role="tab"] {
+  transition: all 150ms var(--ease-out-expo);
+}
+
+/* Aperture Loader - Photography equipment-inspired loading indicator */
+@keyframes aperturePulse {
+  0%, 100% {
+    transform: translateY(0) scaleY(0.7);
+    opacity: 0.8;
+  }
+  50% {
+    transform: translateY(0) scaleY(1);
+    opacity: 1;
+  }
+}
+
+.aperture-loader {
+  position: relative;
+  width: var(--aperture-size);
+  height: var(--aperture-size);
+  display: inline-block;
+}
+
+.aperture-blade-rotator {
+  position: absolute;
+  inset: 0;
+  transform-origin: center center;
+}
+
+.aperture-blade {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20%;
+  height: 50%;
+  background: linear-gradient(
+    to bottom,
+    var(--color-brand-500),
+    var(--color-brand-400)
+  );
+  transform-origin: center bottom;
+  margin-left: -10%;
+  margin-top: -50%;
+  border-radius: 40% 40% 0 0;
+  animation: aperturePulse 1.5s var(--ease-in-out-expo) infinite;
+  animation-delay: calc(var(--blade-index) * (1.5s / var(--blade-count)));
+  opacity: 0.85;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aperture-blade {
+    animation: none;
+    opacity: 1;
+    transform: scaleY(0.85);
+  }
+}
+
+/* Viewfinder Frame - Camera focusing frame corners */
+.viewfinder-frame-container {
+  position: relative;
+  display: inline-block;
+}
+
+.viewfinder-corners {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.viewfinder-corner {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-brand-400);
+  opacity: 0.6;
+  transition: all 300ms var(--ease-out-expo);
+}
+
+.viewfinder-corners-active .viewfinder-corner {
+  opacity: 1;
+  width: 20px;
+  height: 20px;
+  border-color: var(--color-brand-500);
+  box-shadow: 0 0 8px var(--color-brand-500);
+}
+
+.viewfinder-corner-tl {
+  top: -2px;
+  left: -2px;
+  border-right: none;
+  border-bottom: none;
+  border-top-left-radius: 2px;
+}
+
+.viewfinder-corner-tr {
+  top: -2px;
+  right: -2px;
+  border-left: none;
+  border-bottom: none;
+  border-top-right-radius: 2px;
+}
+
+.viewfinder-corner-bl {
+  bottom: -2px;
+  left: -2px;
+  border-right: none;
+  border-top: none;
+  border-bottom-left-radius: 2px;
+}
+
+.viewfinder-corner-br {
+  bottom: -2px;
+  right: -2px;
+  border-left: none;
+  border-top: none;
+  border-bottom-right-radius: 2px;
+}
+
+/* Sidebar logo zone — solid canvas, no blur/grain overlay */
+.sidebar-logo-zone {
+  background: var(--color-canvas);
+}
+
+/* Light mode (E6) — warm paper gallery */
+html[data-theme='light'] {
+  --color-canvas: #f5f0ea;
+  --color-canvas-elevated: #ebe4db;
+  --color-surface-1: #e8e0d6;
+  --color-surface-2: #ddd4c8;
+  --color-surface-3: #d0c6b8;
+  --color-warm-border: #c4b8a8;
+}
+
+html[data-theme='light'] body {
+  color: #292524;
+}
+
+html[data-theme='light'] .text-white {
+  color: #1c1917;
+}
+
+html[data-theme='light'] .text-stone-200,
+html[data-theme='light'] .text-stone-300 {
+  color: #44403c;
+}
+
+html[data-theme='light'] .text-muted {
+  color: #78716c;
+}
+
+html[data-theme='light'] .bg-photo-black {
+  background-color: #1c1917;
+}
+
+html[data-theme='light'] .text-on-brand {
+  color: #1a1816;
+}
