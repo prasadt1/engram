@@ -581,6 +581,16 @@ def test_portfolio_similar_404_when_entry_not_found_or_not_owned():
     assert resp.status_code == 404
 
 
+def test_portfolio_similar_404_when_entry_id_is_malformed():
+    store = _seed_portfolio_store()
+    with patch("app.server._store", return_value=store):
+        resp = _client().get(
+            "/api/v1/portfolio/not-a-valid-object-id/similar",
+            headers={"X-User-Id": "u1"},
+        )
+    assert resp.status_code == 404
+
+
 def test_portfolio_similar_404_when_owned_by_different_user():
     store = _seed_portfolio_store()
     source_doc = store.db.portfolio_entries.find_one({"aesthetic_tags": "moody"})
