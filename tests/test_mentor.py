@@ -62,6 +62,29 @@ def test_chat_persists_turns_scoped_to_user_and_session():
     assert find_filter == {"user_id": "u1", "session_id": "s1"}
 
 
+def test_chat_stream_yields_deltas_and_persists_full_reply_once_exhausted():
+    from app.mentor import chat_stream
+
+    store = _mock_store()
+
+    with patch("app.mentor.qwen_client.chat_fast_stream", return_value=iter(["Great ", "shot!"])):
+        receipt, tokens = chat_stream(
+            message="How's this photo?", user_id="u1", memory_store=store,
+            photo_id="p123", session_id="s1", persona="hobbyist",
+        )
+        # Receipt is available immediately, before the generator is touched.
+        assert "recalled" in receipt
+        store.db.chat_turns.insert_one.assert_not_called()
+
+        collected = list(tokens)
+
+    assert collected == ["Great ", "shot!"]
+    assert store.db.chat_turns.insert_one.call_count == 2
+    assistant_doc = store.db.chat_turns.insert_one.call_args_list[1].args[0]
+    assert assistant_doc["content"] == "Great shot!"
+    assert assistant_doc["role"] == "assistant"
+
+
 def test_chat_reply_context_includes_cleared_and_watching_skills():
     from app.mentor import chat
     from app.memory_engine import Skill, SkillStatus

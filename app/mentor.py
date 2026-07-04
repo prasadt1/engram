@@ -33,10 +33,10 @@ def _persist_turn(memory_store, user_id: str, session_id: str, role: str, conten
     })
 
 
-def chat(
+def _prepare(
     *, message: str, user_id: str, memory_store,
-    photo_id: str | None = None, session_id: str, persona: str = "hobbyist",
-) -> dict:
+    photo_id: str | None, session_id: str, persona: str,
+) -> tuple[str, str, dict]:
     system = PROMPT_PATH.read_text(encoding="utf-8")
 
     # Hand the builder the full candidate pool (incl. archived); IT does the
@@ -59,6 +59,17 @@ def chat(
         f"## Currently watching\n{', '.join(watching) or 'none yet'}\n\n"
         f"## User's message\n{message}"
     )
+    return system, context, ctx.receipt()
+
+
+def chat(
+    *, message: str, user_id: str, memory_store,
+    photo_id: str | None = None, session_id: str, persona: str = "hobbyist",
+) -> dict:
+    system, context, receipt = _prepare(
+        message=message, user_id=user_id, memory_store=memory_store,
+        photo_id=photo_id, session_id=session_id, persona=persona,
+    )
 
     # Fast tier: this is a conversational reply, not a task needing the
     # reasoning model's extended thinking (which ran 70-80s in testing —
@@ -68,4 +79,29 @@ def chat(
     _persist_turn(memory_store, user_id, session_id, "user", message)
     _persist_turn(memory_store, user_id, session_id, "assistant", result.content)
 
-    return {"reply": result.content, "receipt": ctx.receipt()}
+    return {"reply": result.content, "receipt": receipt}
+
+
+def chat_stream(
+    *, message: str, user_id: str, memory_store,
+    photo_id: str | None = None, session_id: str, persona: str = "hobbyist",
+) -> tuple[dict, "Iterator[str]"]:
+    """Same recall/prompt as chat(), but returns the receipt immediately
+    (it doesn't depend on the model call) alongside a generator of text
+    deltas. Turns are persisted once the generator is fully consumed.
+    """
+    system, context, receipt = _prepare(
+        message=message, user_id=user_id, memory_store=memory_store,
+        photo_id=photo_id, session_id=session_id, persona=persona,
+    )
+
+    def token_gen():
+        chunks: list[str] = []
+        for delta in qwen_client.chat_fast_stream(context, system=system):
+            chunks.append(delta)
+            yield delta
+        full_reply = "".join(chunks)
+        _persist_turn(memory_store, user_id, session_id, "user", message)
+        _persist_turn(memory_store, user_id, session_id, "assistant", full_reply)
+
+    return receipt, token_gen()

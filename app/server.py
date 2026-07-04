@@ -22,7 +22,7 @@ from typing import Any
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from openai import APIStatusError, APITimeoutError
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -32,6 +32,7 @@ load_dotenv()
 from app.coach import analyze_photo  # noqa: E402
 from app.db import get_db  # noqa: E402
 from app.mentor import chat as mentor_chat  # noqa: E402
+from app.mentor import chat_stream as mentor_chat_stream  # noqa: E402
 from app.memory_engine import compute_delta  # noqa: E402
 from app.memory_store import MemoryStore  # noqa: E402
 from app.reflection import summarize_progress  # noqa: E402
@@ -422,6 +423,44 @@ def agent_chat(body: ChatRequest, x_user_id: str = Header(default="demo-user")) 
         "reply": result["reply"], "persona": body.persona, "sessionId": session_id,
         "userId": x_user_id, "memoryReceipt": result["receipt"],
     }
+
+
+@app.post("/api/v1/agent/chat/stream")
+def agent_chat_stream(body: ChatRequest, x_user_id: str = Header(default="demo-user")) -> StreamingResponse:
+    session_id = body.session_id or str(uuid.uuid4())
+    receipt, tokens = mentor_chat_stream(
+        message=body.message, user_id=x_user_id, memory_store=_store(),
+        photo_id=body.photo_id, session_id=session_id, persona=body.persona,
+    )
+
+    def sse(event: str | None, data: dict) -> str:
+        prefix = f"event: {event}\n" if event else ""
+        return f"{prefix}data: {json.dumps(data)}\n\n"
+
+    def event_stream():
+        try:
+            for delta in tokens:
+                yield sse(None, {"delta": delta})
+        except APIStatusError:
+            logger.warning("upstream model error mid-stream")
+            yield sse("error", {"detail": "The photography model is temporarily unavailable. Please try again."})
+            return
+        except APITimeoutError:
+            logger.warning("upstream model timeout mid-stream")
+            yield sse("error", {"detail": "The photography model took too long to respond. Please try again."})
+            return
+        except Exception:
+            # Never leave the client hanging on a dropped connection — an
+            # unhandled exception here otherwise crashes the ASGI response
+            # mid-stream with no event ever reaching the browser.
+            logger.exception("unexpected error mid-stream")
+            yield sse("error", {"detail": "Something went wrong generating the reply. Please try again."})
+            return
+        yield sse("done", {
+            "sessionId": session_id, "userId": x_user_id, "persona": body.persona, "memoryReceipt": receipt,
+        })
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @app.get("/api/v1/journey")
