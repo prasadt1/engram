@@ -194,6 +194,12 @@ def _serialize_portfolio_entry(doc: dict[str, Any]) -> dict[str, Any]:
         "userId": str(doc.get("user_id", "")),
         "shootId": str(doc.get("shoot_id", "")),
         "imageUrl": image_url,
+        # The chat route scopes photo-specific memory by this exact key
+        # (agent/chat's photo_id -> mentor.chat's scope= -> memory_store.recall
+        # scope filter, matching what app.coach.analyze_photo wrote as the
+        # memory's scope). PhotoDetailView.tsx sends it back as photoId so the
+        # split-view chat only recalls memories tied to the photo on screen.
+        "storageKey": storage_key,
         "createdAt": created_iso,
         "scores": scores,
         "overallAverage": round(_avg_score(scores), 1),

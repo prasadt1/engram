@@ -318,7 +318,7 @@ def test_portfolio_list_sorted_by_date_desc_matches_frontend_contract():
 
     # exact key names from PortfolioListItem (frontend/src/types/memory.ts)
     for key in (
-        "id", "userId", "shootId", "imageUrl", "createdAt", "scores",
+        "id", "userId", "shootId", "imageUrl", "storageKey", "createdAt", "scores",
         "overallAverage", "aestheticTags", "userTags", "sceneDescription",
         "colourNotes", "glassBoxSummary",
     ):
@@ -326,6 +326,10 @@ def test_portfolio_list_sorted_by_date_desc_matches_frontend_contract():
 
     assert isinstance(first["id"], str) and first["id"]  # id casing: lowercase "id", not "_id"
     assert first["imageUrl"] == "https://signed.example/photos/c.jpg"  # computed via signed_url, not the stale stored image_url
+    # storageKey is the RAW stored key (not signed/proxied) — PhotoDetailView's
+    # chat sends this back as photo_id so mentor.chat's scope= recall matches
+    # the same scope the critique was written under (app.coach.analyze_photo).
+    assert first["storageKey"] == "photos/c.jpg"
     assert first["userId"] == "u1"
     assert first["overallAverage"] == 7.0
     assert first["aestheticTags"] == ["candid"]

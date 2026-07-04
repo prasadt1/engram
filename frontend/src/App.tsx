@@ -377,6 +377,7 @@ function App() {
 
           {activeTab === 'work' && (
             <MyWorkTab
+              mode={userMode}
               activeAssignment={activeAssignment}
               onAssignmentComplete={refreshActiveAssignment}
               onPortfolioChanged={refreshSidebarDashboard}
