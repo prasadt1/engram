@@ -104,3 +104,13 @@ def test_chat_reply_context_includes_cleared_and_watching_skills():
     assert "horizon_tilt" in sent_context  # cleared list
     assert "exposure" in sent_context      # watching list
     assert "hobbyist" in sent_context      # persona block
+
+
+def test_mentor_prompt_states_the_structured_reply_contract():
+    from app.mentor import PROMPT_PATH
+
+    text = PROMPT_PATH.read_text(encoding="utf-8")
+    assert "Working:" in text
+    assert "Watch:" in text
+    assert "Next:" in text
+    assert "---" in text
