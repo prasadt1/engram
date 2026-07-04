@@ -46,6 +46,7 @@ A longitudinal photography coach with a real memory:
 - [ ] candidates to watch for: whether Qwen-VL populates `spatialMetadata.annotations` on flawed photos (zero on a clean test shot — inconclusive) · MCP registration path (Responses API vs Qwen-Agent)
 
 ### Accomplishments that I'm proud of 🔄
+- ✅ (Jul 4) **Deployed to Alibaba ECS while identity verification was still stuck in review.** The verification queue rejected my Indian passport against my German residence and quoted multi-day review cycles — so instead of waiting, I tested whether pay-as-you-go provisioning was gated at all. It wasn't. One Economy-e instance in Singapore later, the full stack (SPA + API + engram-mcp, one Docker image) was serving judges over the public internet, with the whole app on one URL and one origin.
 - ✅ (Jul 4) **Engram's first live critique.** A terracotta pot on a wooden table: scored 7.5/8.0/8.5/6.5/7.0, called the shot "well-executed... though compositionally conservative," suggested a rule-of-thirds reposition with a leading line, cited three principle docs from the grounding corpus, and correctly classified the genre it had taught *us* the day before. 26 seconds end-to-end through prompt → Qwen-VL → validation → storage.
 - [ ] the benchmark table (fill with real numbers)
 - [ ] the graduation moment working end-to-end in the live demo
@@ -81,9 +82,9 @@ Docker
 ```
 (Full detail with exact model IDs and version numbers lives in "How I built it" above — this field is just searchable tech tags.)
 
-### "Try it out" links ⬜
-- [ ] Live demo (SAS box URL) — after day-1 deploy
-- [ ] GitHub repo — `https://github.com/prasadt1/engram` (Prasad runs the provided `gh repo create` command, then I push)
+### "Try it out" links ✅
+- Live demo (judge mode): `http://8.222.253.211:8080/?judge=1`
+- GitHub repo: `https://github.com/prasadt1/engram`
 
 ### Image gallery 🔄 (3:2 ratio, up to 15)
 - [ ] Journey page with a graduation moment · glass-box critique with "why this advice" · inline photo chat · benchmark table · architecture diagram · before/after coaching pair
