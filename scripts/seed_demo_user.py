@@ -362,9 +362,32 @@ def seed_sessions(store: MemoryStore) -> dict:
                 })
 
         # --- memory item (mirrors write_memory's shape, backdated) -----
-        weak = [d for d, s in staged_scores.items() if s < BAR]
-        focus = f" — working on {', '.join(weak)}" if weak else ""
-        summary = f"{genre} photo: {scene_description[:120]}{focus}"
+        # Same grounding logic as coach.py's own write_memory call: dimension
+        # scores plus a concrete "why" (top priority fix, or critique prose
+        # for the weakest dimension), not just dimension names — otherwise a
+        # photo-scoped "why is this rated low?" has nothing real to answer
+        # from, seeded demo photos included.
+        critique = payload.get("critique") or {}
+        critique_dims = {"composition", "lighting", "technique"}
+        weak = sorted(
+            ((d, s) for d, s in staged_scores.items() if s < BAR),
+            key=lambda pair: pair[1],
+        )
+        focus = f" — working on {', '.join(f'{d} {s:.1f}' for d, s in weak)}" if weak else ""
+
+        priority_fixes = glass_box.get("priority_fixes") or []
+        top_issue = priority_fixes[0].get("issue") if priority_fixes and isinstance(priority_fixes[0], dict) else None
+        if top_issue:
+            why = f" Key issue: {top_issue}"
+        elif weak:
+            lowest_dim = weak[0][0]
+            critique_text = critique.get(lowest_dim) if lowest_dim in critique_dims else critique.get("overall")
+            why = f" Why: {critique_text}" if critique_text else ""
+        else:
+            why = ""
+
+        overall_score = sum(staged_scores.values()) / len(staged_scores)
+        summary = f"{genre} photo (overall {overall_score:.1f}/10): {scene_description[:120]}{focus}.{why}"
         store.db.memory_items.insert_one({
             "user_id": DEMO_USER, "content": summary,
             "importance": 0.75 if weak else 0.55,

@@ -132,6 +132,10 @@ def test_analyze_photo_records_skill_sessions_and_persists_portfolio_entry():
     assert "working on" in wm["content"]
     assert "technique" in wm["content"]
     assert wm["importance"] == 0.75
+    # Grounding for "why is this rated low" -- not just dimension names.
+    assert "overall" in wm["content"]  # e.g. "(overall 7.0/10)"
+    assert "technique 6.0" in wm["content"]  # weakest dimension's actual score
+    assert "Why:" in wm["content"] or "Key issue:" in wm["content"]
 
     mock_store.db.portfolio_entries.insert_one.assert_called_once()
     entry_doc = mock_store.db.portfolio_entries.insert_one.call_args.args[0]
@@ -139,6 +143,31 @@ def test_analyze_photo_records_skill_sessions_and_persists_portfolio_entry():
     assert entry_doc["genre"] == "landscape"
     assert entry_doc["storage_key"] == "photos/fake.jpg"
     assert "portfolioEntryId" in result
+
+
+def test_memory_content_prefers_top_priority_fix_over_critique_prose():
+    from app.coach import analyze_photo
+
+    photo_json = VALID_COACH_JSON.replace(
+        '"priority_fixes": []',
+        '"priority_fixes": [{"severity": "critical", "issue": "highlights blown on the subject\'s face"}]',
+    )
+    fake_call_result = MagicMock(content=photo_json, model="qwen-vl-max", latency_ms=500, input_tokens=100, output_tokens=200)
+    mock_store = MagicMock()
+    mock_store.recall.return_value = []
+
+    with patch("app.coach.qwen_client.chat_vision", return_value=fake_call_result), \
+         patch("app.coach.get_storage") as mock_get_storage:
+        mock_get_storage.return_value.save.return_value = "photos/fake.jpg"
+        mock_get_storage.return_value.signed_url.return_value = "https://x/fake.jpg"
+
+        analyze_photo(
+            image_bytes=b"fake", content_type="image/jpeg", filename="x.jpg",
+            user_id="u1", memory_store=mock_store, weakness_bar=7.5,
+        )
+
+    wm = mock_store.write_memory.call_args.kwargs
+    assert "Key issue: highlights blown on the subject's face" in wm["content"]
 
 
 def test_analyze_photo_without_store_still_returns_payload():

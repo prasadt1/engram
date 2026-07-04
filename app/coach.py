@@ -158,9 +158,31 @@ def analyze_photo(
             memory_store.record_skill_session(
                 user_id=user_id, skill=dim, bar=weakness_bar, score=score, evidence_id=evidence_id,
             )
-        weak = [d for d, s in payload["scores"].items() if s < weakness_bar]
-        focus = f" — working on {', '.join(weak)}" if weak else ""
-        summary = f"{output.genre} photo: {output.scene_description[:120]}{focus}"
+        weak = sorted(
+            ((d, s) for d, s in payload["scores"].items() if s < weakness_bar),
+            key=lambda pair: pair[1],
+        )
+        focus = f" — working on {', '.join(f'{d} {s:.1f}' for d, s in weak)}" if weak else ""
+
+        # Ground the "why" a mentor can later answer with: the model's own
+        # top priority fix if it named one, else the critique prose for the
+        # weakest-scoring dimension (falling back to the overall critique for
+        # dimensions CritiqueBreakdown doesn't cover individually).
+        critique_dims = {"composition", "lighting", "technique"}
+        if output.glass_box.priority_fixes:
+            why = f" Key issue: {output.glass_box.priority_fixes[0].issue}"
+        elif weak:
+            lowest_dim = weak[0][0]
+            critique_text = (
+                getattr(output.critique, lowest_dim) if lowest_dim in critique_dims
+                else output.critique.overall
+            )
+            why = f" Why: {critique_text}" if critique_text else ""
+        else:
+            why = ""
+
+        overall_score = sum(payload["scores"].values()) / len(payload["scores"])
+        summary = f"{output.genre} photo (overall {overall_score:.1f}/10): {output.scene_description[:120]}{focus}.{why}"
         memory_store.write_memory(
             user_id=user_id, content=summary,
             importance=0.75 if weak else 0.55,  # weak-dimension photos are more consequential to recall
