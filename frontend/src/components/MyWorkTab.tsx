@@ -49,6 +49,7 @@ import { isListedForSale, LISTED_FOR_SALE_TAG, listedForSaleLabel } from '../lib
 import { MemoryGridSkeleton } from './SkeletonBlocks';
 import PhotoUploader from './studio/PhotoUploader';
 import StudioAnalysisResults from './studio/StudioAnalysisResults';
+import { MemoryReceipt } from './MemoryReceipt';
 import { ActivePracticeBanner } from './studio/ActivePracticeBanner';
 import { fetchAestheticProfile, fetchPortfolio, fetchPortfolioTrends, deletePortfolioEntries, deletePortfolioEntry, type SortField, type SortOrder } from '../services/memoryClient';
 import { analyzePhoto } from '../services/agentClient';
@@ -421,6 +422,7 @@ export const MyWorkTab: React.FC<MyWorkTabProps> = ({
             onReset={handleReset}
           />
         </div>
+        <MemoryReceipt receipt={result.memoryReceipt} />
       </div>
     );
   }

@@ -81,6 +81,7 @@ export function mapAnalysisResult(result: AnalysisResult): StudioAnalysis {
   return {
     sceneDescription: result.sceneDescription,
     colourNotes: result.colourNotes ?? null,
+    genre: result.genre,
     scores: {
       composition: scores.composition,
       lighting: scores.lighting,

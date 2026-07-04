@@ -43,6 +43,8 @@ export interface StudioCritique {
 export interface StudioAnalysis {
   sceneDescription?: string;
   colourNotes?: string | null;
+  /** Primary subject genre classification (Coach agent), e.g. "landscape" */
+  genre?: string;
   scores: StudioScores;
   critique: StudioCritique;
   strengths: string[];
