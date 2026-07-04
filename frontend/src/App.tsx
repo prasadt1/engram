@@ -95,9 +95,13 @@ function App() {
     // Single choke point for every onNavigate/CTA in the tree (sidebar,
     // bottom nav, HomeTab's "Go to Practice" buttons, MyWorkTab's
     // onGoToPractice). Practice has no nav entry while FEATURES.practice
-    // is off, so a stray CTA landing here must not strand the user on an
+    // is off, and Print Sales has none while FEATURES.printSales is off,
+    // so a stray CTA landing here must not strand the user on an
     // unrendered tab — fall back to home instead.
-    const target = tab === 'practice' && !FEATURES.practice ? 'home' : tab;
+    const target =
+      (tab === 'practice' && !FEATURES.practice) || (tab === 'print' && !FEATURES.printSales)
+        ? 'home'
+        : tab;
     setActiveTab(target);
     setTabHash(target);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -180,7 +184,11 @@ function App() {
         FEATURES.triage
           ? fetchPendingApprovals('triage').catch(() => ({ items: [], total: 0 }))
           : Promise.resolve({ items: [], total: 0 }),
-        userMode === 'working_pro'
+        // FEATURES.printSales is off in this build — same missing
+        // /api/v1/pending-approvals* routes as triage above — so skip the
+        // guaranteed-404 poll entirely rather than firing then falling
+        // back on the .catch.
+        userMode === 'working_pro' && FEATURES.printSales
           ? fetchPrintPending().catch(() => ({ items: [], total: 0 }))
           : Promise.resolve({ items: [], total: 0 }),
       ]);
@@ -302,7 +310,7 @@ function App() {
             <MobileHeaderMark />
           </button>
           <div className="flex items-center gap-1 shrink-0">
-            {userMode === 'working_pro' && (
+            {userMode === 'working_pro' && FEATURES.printSales && (
               <button
                 type="button"
                 onClick={() => navigate('print')}
@@ -425,7 +433,12 @@ function App() {
             <MentorTab mode={userMode} onGoToWork={() => navigate('work')} />
           )}
 
-          {activeTab === 'print' && (
+          {/* Print Sales tab is deferred in this build — FEATURES.printSales
+              is false because the /api/v1/pending-approvals* routes it
+              needs don't exist on the backend yet. Gating the render (not
+              just the nav entry) covers stray entry points like the mobile
+              header icon and the sidebar's own tab list. */}
+          {activeTab === 'print' && FEATURES.printSales && (
             <PrintSalesTab
               mode={userMode}
               onGoToMentor={() => navigate('mentor')}

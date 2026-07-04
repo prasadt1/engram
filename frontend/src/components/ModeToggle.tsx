@@ -66,7 +66,7 @@ export const ModeToggle: React.FC<Props> = ({
       <p className="text-xs text-muted">
         {saving
           ? 'Saving your mode…'
-          : 'Working pro unlocks print listing drafts. Everything else stays in sync.'}
+          : 'Working pro tunes coaching for client work — advanced pro tools coming soon.'}
       </p>
     </div>
   );
