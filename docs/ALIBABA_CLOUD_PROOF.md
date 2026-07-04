@@ -13,8 +13,12 @@ The backend ships as a Docker image ([`Dockerfile`](../Dockerfile), [`docker-com
 
 ## 3. Live instance (ECS/SAS, Singapore)
 
-> **Status: deployment in progress.** The Alibaba Cloud account's identity verification is under review; this section receives the console screenshot ("Running" state, `ap-southeast-1`), the public endpoint URL, and the deploy timestamp the moment the instance is live. Everything above is independent of that gate and verifiable in this repository today.
+Deployed **July 4, 2026** on a pay-as-you-go ECS instance.
 
-- Console screenshot: _pending_
-- Public endpoint: _pending_
-- Region: ap-southeast-1 (Singapore)
+- Instance: `i-t4nefbdogtkjqbvvyxsn` (Economy e, 2 vCPU / 2 GiB, Ubuntu 24.04)
+- Region: **ap-southeast-1 (Singapore)** — co-located with the DashScope intl endpoint
+- Public endpoint: **http://8.222.253.211:8080** — the full app (built SPA served same-origin) and API
+  - Live app / judge mode: `http://8.222.253.211:8080/?judge=1`
+  - Health: `http://8.222.253.211:8080/health`
+  - Live MCP path: `http://8.222.253.211:8080/api/v1/memory-stats?via=mcp` → `"served_via": "engram-mcp"`
+- Console screenshot: ![ECS console — instance running](alibaba-console-running.png) *(slot — added with the captured screenshot)*
