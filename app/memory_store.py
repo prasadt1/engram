@@ -29,6 +29,21 @@ def _as_utc(dt: datetime | None) -> datetime | None:
     return dt
 
 
+# Small, curated synonym map from generic category words to this codebase's
+# controlled `genre` taxonomy (see CoachAnalysisOutput.genre in app/schema.py).
+# Used by MemoryStore.search_portfolio() below so a generic term like "person"
+# also matches a doc whose genre is "portrait", even when the AI-generated
+# scene_description/tags never use that literal word (they say "woman"/"man").
+# Deliberately NOT exhaustive -- just the clear generic-word-vs-specific-word
+# gaps for genres that already exist in the taxonomy.
+GENRE_SEARCH_SYNONYMS: dict[str, set[str]] = {
+    "portrait": {"person", "people", "human"},
+    "wildlife": {"animal", "animals"},
+    "architecture": {"building", "buildings"},
+    "landscape": {"nature", "scenery"},
+}
+
+
 class MemoryStore:
     def __init__(self, db) -> None:
         self.db = db
@@ -211,7 +226,8 @@ class MemoryStore:
                 *([t for t in doc.get("user_tags") or []]),
             ]
             haystack = " ".join(str(f) for f in haystack_fields).lower()
-            matched_terms = {t for t in terms if t in haystack}
+            doc_genre_synonyms = GENRE_SEARCH_SYNONYMS.get((doc.get("genre") or "").lower(), set())
+            matched_terms = {t for t in terms if t in haystack or t in doc_genre_synonyms}
             if matched_terms:
                 scored.append((len(matched_terms), doc))
 

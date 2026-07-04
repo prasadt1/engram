@@ -36,7 +36,7 @@ from app.identity import build_identity_line  # noqa: E402
 from app.mentor import chat as mentor_chat  # noqa: E402
 from app.mentor import chat_stream as mentor_chat_stream  # noqa: E402
 from app.memory_engine import SkillStatus, compute_delta  # noqa: E402
-from app.memory_store import MemoryStore  # noqa: E402
+from app.memory_store import GENRE_SEARCH_SYNONYMS, MemoryStore  # noqa: E402
 from app.reflection import summarize_progress  # noqa: E402
 from app.storage import get_storage  # noqa: E402
 
@@ -352,6 +352,10 @@ def portfolio_search(q: str = "", limit: int = 8, x_user_id: str = Header(defaul
                 snippet = value if kind == "tag" else (value[:100] + ("…" if len(value) > 100 else ""))
                 if snippet:
                     matched_observations.append(snippet)
+        if not matched_observations:
+            doc_genre = (doc.get("genre") or "").lower()
+            if any(term in GENRE_SEARCH_SYNONYMS.get(doc_genre, set()) for term in terms):
+                matched_observations.append(f"Genre: {doc.get('genre')}")
         entry["matchedObservations"] = matched_observations
         matches.append(entry)
 

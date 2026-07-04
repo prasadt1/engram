@@ -244,6 +244,51 @@ def test_search_portfolio_respects_limit():
     assert len(docs) == 2
 
 
+def test_search_portfolio_matches_portrait_genre_via_person_synonym():
+    # "person" never literally appears anywhere in this doc's text/tags --
+    # only genre="portrait" ties it to the generic search term.
+    store = _store()
+    now = datetime.now(timezone.utc)
+    store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "genre": "portrait", "aesthetic_tags": ["vibrant"],
+        "scene_description": "Backlit woman, golden hour.", "created_at": now,
+    })
+    store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "genre": "landscape", "aesthetic_tags": ["moody"],
+        "scene_description": "A quiet valley at dusk.", "created_at": now,
+    })
+    docs, terms = store.search_portfolio(user_id="u1", query="person", limit=8)
+    assert terms == ["person"]
+    assert len(docs) == 1
+    assert docs[0]["genre"] == "portrait"
+
+
+def test_search_portfolio_literal_matching_still_works_alongside_synonyms():
+    store = _store()
+    now = datetime.now(timezone.utc)
+    store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "aesthetic_tags": ["tiger"], "genre": "wildlife", "created_at": now,
+    })
+    docs, terms = store.search_portfolio(user_id="u1", query="tiger", limit=8)
+    assert terms == ["tiger"]
+    assert len(docs) == 1
+    assert docs[0]["aesthetic_tags"] == ["tiger"]
+
+
+def test_search_portfolio_genre_without_synonym_entry_not_spuriously_matched():
+    # "macro" has no entry in GENRE_SEARCH_SYNONYMS, so a generic term like
+    # "person" must not match a macro-genre doc just because it exists.
+    store = _store()
+    now = datetime.now(timezone.utc)
+    store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "genre": "macro", "aesthetic_tags": ["dew"],
+        "scene_description": "Close-up of a dew drop on a leaf.", "created_at": now,
+    })
+    docs, terms = store.search_portfolio(user_id="u1", query="person", limit=8)
+    assert terms == ["person"]
+    assert docs == []
+
+
 def test_search_portfolio_scoped_to_user():
     store = _store()
     now = datetime.now(timezone.utc)
