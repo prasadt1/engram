@@ -492,3 +492,138 @@ def test_aesthetic_profile_endpoint_minimal_shape():
     assert isinstance(body["dominantTags"], list)
     assert isinstance(body["averageScores"], dict)
     assert "stylisticConsistencyScore" in body
+
+
+# --- Portfolio search / similar routes ------------------------------------
+# frontend/src/services/portfolioInsightsClient.ts's searchPortfolioLibrary()
+# and fetchSimilarPhotos() -- structured-metadata matching, no embeddings
+# (see app/coach.py's header comment).
+
+
+def test_portfolio_search_returns_matches_shaped_for_frontend_contract():
+    store = _seed_portfolio_store()
+    tiger_doc = store.db.portfolio_entries.find_one({"aesthetic_tags": "vibrant"})
+    with patch("app.server._store", return_value=store), \
+         patch("app.server.get_storage") as mock_gs:
+        _patch_signed_urls(mock_gs)
+        resp = _client().get(
+            "/api/v1/portfolio/search",
+            params={"q": "vibrant", "limit": 8},
+            headers={"X-User-Id": "u1"},
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["query"] == "vibrant"
+    assert body["mode"] == "regex_fallback"
+    assert body["searchTerms"] == ["vibrant"]
+    assert body["message"] is None
+    assert len(body["matches"]) == 1
+    match = body["matches"][0]
+    assert match["id"] == str(tiger_doc["_id"])
+    assert match["matchedObservations"] == ["vibrant"]
+    # still a full PortfolioListItem shape
+    for key in ("id", "userId", "shootId", "imageUrl", "createdAt", "scores", "overallAverage"):
+        assert key in match
+
+
+def test_portfolio_search_empty_query_returns_message_no_error():
+    store = _seed_portfolio_store()
+    with patch("app.server._store", return_value=store), \
+         patch("app.server.get_storage"):
+        resp = _client().get("/api/v1/portfolio/search", params={"q": ""}, headers={"X-User-Id": "u1"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["matches"] == []
+    assert body["searchTerms"] == []
+    assert body["message"]
+
+
+def test_portfolio_search_no_match_returns_200_with_message():
+    store = _seed_portfolio_store()
+    with patch("app.server._store", return_value=store), \
+         patch("app.server.get_storage"):
+        resp = _client().get(
+            "/api/v1/portfolio/search", params={"q": "dinosaur"}, headers={"X-User-Id": "u1"},
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["matches"] == []
+    assert 'dinosaur' in body["message"]
+
+
+def test_portfolio_similar_returns_matches_with_similarity_score():
+    store = _seed_portfolio_store()
+    source_doc = store.db.portfolio_entries.find_one({"aesthetic_tags": "moody"})
+    with patch("app.server._store", return_value=store), \
+         patch("app.server.get_storage") as mock_gs:
+        _patch_signed_urls(mock_gs)
+        resp = _client().get(
+            f"/api/v1/portfolio/{source_doc['_id']}/similar",
+            params={"limit": 4},
+            headers={"X-User-Id": "u1"},
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["sourceId"] == str(source_doc["_id"])
+    assert body["mode"] == "tag_overlap"
+    # seeded docs share no tags/genre with each other -- expect no matches, with a message
+    assert body["matches"] == []
+    assert body["message"]
+
+
+def test_portfolio_similar_404_when_entry_not_found_or_not_owned():
+    store = _seed_portfolio_store()
+    with patch("app.server._store", return_value=store):
+        resp = _client().get(
+            "/api/v1/portfolio/000000000000000000000000/similar",
+            headers={"X-User-Id": "u1"},
+        )
+    assert resp.status_code == 404
+
+
+def test_portfolio_similar_404_when_entry_id_is_malformed():
+    store = _seed_portfolio_store()
+    with patch("app.server._store", return_value=store):
+        resp = _client().get(
+            "/api/v1/portfolio/not-a-valid-object-id/similar",
+            headers={"X-User-Id": "u1"},
+        )
+    assert resp.status_code == 404
+
+
+def test_portfolio_similar_404_when_owned_by_different_user():
+    store = _seed_portfolio_store()
+    source_doc = store.db.portfolio_entries.find_one({"aesthetic_tags": "moody"})
+    with patch("app.server._store", return_value=store):
+        resp = _client().get(
+            f"/api/v1/portfolio/{source_doc['_id']}/similar",
+            headers={"X-User-Id": "someone-else"},
+        )
+    assert resp.status_code == 404
+
+
+def test_portfolio_similar_finds_real_shared_tag_match():
+    store = _seed_portfolio_store()
+    # add a 4th doc sharing the "moody" tag with entry A, so a real match exists
+    store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "storage_key": "photos/d.jpg", "image_url": "http://stale/d.jpg",
+        "scores": _score_set(6.0), "genre": "landscape", "aesthetic_tags": ["moody"],
+        "scene_description": "Foggy forest.", "colour_notes": None,
+        "glass_box": {"observations": [], "reasoning_steps": [], "priority_fixes": []},
+        "spatial_metadata": {}, "created_at": datetime.now(timezone.utc),
+    })
+    source_doc = store.db.portfolio_entries.find_one({"aesthetic_tags": "moody", "scene_description": {"$ne": "Foggy forest."}})
+    with patch("app.server._store", return_value=store), \
+         patch("app.server.get_storage") as mock_gs:
+        _patch_signed_urls(mock_gs)
+        resp = _client().get(
+            f"/api/v1/portfolio/{source_doc['_id']}/similar",
+            headers={"X-User-Id": "u1"},
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["message"] is None
+    assert len(body["matches"]) == 1
+    match = body["matches"][0]
+    assert match["sceneDescription"] == "Foggy forest."
+    assert match["similarityScore"] == 3.0  # shared "moody" tag (+2) and shared "landscape" genre (+1)

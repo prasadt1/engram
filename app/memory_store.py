@@ -187,3 +187,60 @@ class MemoryStore:
         if not counts:
             return None
         return max(counts.items(), key=lambda pair: (pair[1], -most_recent_rank[pair[0]]))[0]
+
+    # --- portfolio search / similarity (structured metadata, no embeddings --
+    # see app/coach.py's header comment on why vector search isn't ported) --
+
+    def search_portfolio(self, *, user_id: str, query: str, limit: int = 8) -> tuple[list[dict], list[str]]:
+        """Structured-metadata search (no embeddings, by design -- see
+        coach.py's header comment). Returns (matching docs sorted by
+        term-match count desc then recency desc, the lowercased search terms
+        actually used)."""
+        terms = [t for t in query.lower().split() if len(t) >= 2]
+        if not terms:
+            return [], []
+
+        docs = list(self.db.portfolio_entries.find({"user_id": user_id}))
+        scored = []
+        for doc in docs:
+            haystack_fields = [
+                (doc.get("scene_description") or ""),
+                (doc.get("colour_notes") or ""),
+                (doc.get("genre") or ""),
+                *([t for t in doc.get("aesthetic_tags") or []]),
+                *([t for t in doc.get("user_tags") or []]),
+            ]
+            haystack = " ".join(str(f) for f in haystack_fields).lower()
+            matched_terms = {t for t in terms if t in haystack}
+            if matched_terms:
+                scored.append((len(matched_terms), doc))
+
+        scored.sort(
+            key=lambda pair: (pair[0], _as_utc(pair[1].get("created_at")) or datetime.min.replace(tzinfo=timezone.utc)),
+            reverse=True,
+        )
+        return [doc for _, doc in scored[:limit]], terms
+
+    def similar_portfolio_entries(self, *, user_id: str, source_doc: dict, limit: int = 4) -> list[tuple[dict, float]]:
+        """Tag/genre overlap similarity (no embeddings, by design). Returns
+        (doc, score) pairs for the same user, excluding the source doc, sorted
+        by score desc then recency desc, zero-score entries excluded."""
+        source_tags = {t.lower() for t in (source_doc.get("aesthetic_tags") or [])}
+        source_genre = source_doc.get("genre")
+
+        docs = self.db.portfolio_entries.find({"user_id": user_id, "_id": {"$ne": source_doc["_id"]}})
+        scored = []
+        for doc in docs:
+            doc_tags = {t.lower() for t in (doc.get("aesthetic_tags") or [])}
+            shared_tags = source_tags & doc_tags
+            score = 2.0 * len(shared_tags)
+            if source_genre and doc.get("genre") == source_genre:
+                score += 1.0
+            if score > 0:
+                scored.append((score, doc))
+
+        scored.sort(
+            key=lambda pair: (pair[0], _as_utc(pair[1].get("created_at")) or datetime.min.replace(tzinfo=timezone.utc)),
+            reverse=True,
+        )
+        return [(doc, score) for score, doc in scored[:limit]]

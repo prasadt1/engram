@@ -143,3 +143,223 @@ def test_dominant_genre_respects_limit_window():
     # full history -> landscape wins 3-1; limit=1 (most recent doc only) -> portrait
     assert store.dominant_genre(user_id="u1", limit=None) == "landscape"
     assert store.dominant_genre(user_id="u1", limit=1) == "portrait"
+
+
+# --- search_portfolio / similar_portfolio_entries (structured-metadata,
+# no embeddings by design -- see app/coach.py's header comment) -----------
+
+
+def test_search_portfolio_matches_a_tag():
+    store = _store()
+    now = datetime.now(timezone.utc)
+    store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "aesthetic_tags": ["tiger"], "created_at": now,
+    })
+    store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "aesthetic_tags": ["lake"], "created_at": now,
+    })
+    docs, terms = store.search_portfolio(user_id="u1", query="tiger", limit=8)
+    assert terms == ["tiger"]
+    assert len(docs) == 1
+    assert docs[0]["aesthetic_tags"] == ["tiger"]
+
+
+def test_search_portfolio_matches_scene_description_text():
+    store = _store()
+    now = datetime.now(timezone.utc)
+    store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "scene_description": "Backlit portrait, golden hour.",
+        "created_at": now,
+    })
+    store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "scene_description": "Busy crosswalk, midday.",
+        "created_at": now,
+    })
+    docs, terms = store.search_portfolio(user_id="u1", query="backlit portrait", limit=8)
+    assert terms == ["backlit", "portrait"]
+    assert len(docs) == 1
+    assert docs[0]["scene_description"] == "Backlit portrait, golden hour."
+
+
+def test_search_portfolio_no_match_returns_empty():
+    store = _store()
+    store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "aesthetic_tags": ["lake"], "created_at": datetime.now(timezone.utc),
+    })
+    docs, terms = store.search_portfolio(user_id="u1", query="dinosaur", limit=8)
+    assert docs == []
+    assert terms == ["dinosaur"]
+
+
+def test_search_portfolio_empty_query_returns_empty_without_crash():
+    store = _store()
+    store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "aesthetic_tags": ["lake"], "created_at": datetime.now(timezone.utc),
+    })
+    docs, terms = store.search_portfolio(user_id="u1", query="   ", limit=8)
+    assert docs == []
+    assert terms == []
+
+
+def test_search_portfolio_ranks_more_matching_terms_higher():
+    store = _store()
+    now = datetime.now(timezone.utc)
+    # doc A matches only "tiger"; doc B matches both "tiger" and "backlit" -- B must rank first.
+    store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "aesthetic_tags": ["tiger"], "scene_description": "",
+        "created_at": now - timedelta(days=1),
+    })
+    store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "aesthetic_tags": ["tiger"], "scene_description": "Backlit shot.",
+        "created_at": now - timedelta(days=2),
+    })
+    docs, terms = store.search_portfolio(user_id="u1", query="tiger backlit", limit=8)
+    assert terms == ["tiger", "backlit"]
+    assert len(docs) == 2
+    assert docs[0]["scene_description"] == "Backlit shot."  # matched 2 terms, ranks first despite being older
+
+
+def test_search_portfolio_ties_broken_by_recency():
+    store = _store()
+    now = datetime.now(timezone.utc)
+    store.db.portfolio_entries.insert_one({
+        "_id": "old", "user_id": "u1", "aesthetic_tags": ["tiger"], "created_at": now - timedelta(days=5),
+    })
+    store.db.portfolio_entries.insert_one({
+        "_id": "new", "user_id": "u1", "aesthetic_tags": ["tiger"], "created_at": now,
+    })
+    docs, _ = store.search_portfolio(user_id="u1", query="tiger", limit=8)
+    assert len(docs) == 2
+    assert docs[0]["_id"] == "new"  # more recent doc ranks first on a tie
+
+
+def test_search_portfolio_respects_limit():
+    store = _store()
+    now = datetime.now(timezone.utc)
+    for i in range(5):
+        store.db.portfolio_entries.insert_one({
+            "user_id": "u1", "aesthetic_tags": ["tiger"], "created_at": now - timedelta(days=i),
+        })
+    docs, _ = store.search_portfolio(user_id="u1", query="tiger", limit=2)
+    assert len(docs) == 2
+
+
+def test_search_portfolio_scoped_to_user():
+    store = _store()
+    now = datetime.now(timezone.utc)
+    store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "aesthetic_tags": ["tiger"], "created_at": now,
+    })
+    store.db.portfolio_entries.insert_one({
+        "user_id": "u2", "aesthetic_tags": ["tiger"], "created_at": now,
+    })
+    docs, _ = store.search_portfolio(user_id="u1", query="tiger", limit=8)
+    assert len(docs) == 1
+
+
+def test_similar_portfolio_entries_finds_shared_tag_match():
+    store = _store()
+    now = datetime.now(timezone.utc)
+    source = store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "aesthetic_tags": ["moody", "backlit"], "genre": "portrait", "created_at": now,
+    })
+    other = store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "aesthetic_tags": ["moody"], "genre": "landscape", "created_at": now,
+    })
+    source_doc = store.db.portfolio_entries.find_one({"_id": source.inserted_id})
+    scored = store.similar_portfolio_entries(user_id="u1", source_doc=source_doc, limit=4)
+    assert len(scored) == 1
+    doc, score = scored[0]
+    assert doc["_id"] == other.inserted_id
+    assert score == 2.0  # one shared tag * weight 2, genre differs
+
+
+def test_similar_portfolio_entries_excludes_source_doc_itself():
+    store = _store()
+    now = datetime.now(timezone.utc)
+    source = store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "aesthetic_tags": ["moody"], "genre": "portrait", "created_at": now,
+    })
+    source_doc = store.db.portfolio_entries.find_one({"_id": source.inserted_id})
+    scored = store.similar_portfolio_entries(user_id="u1", source_doc=source_doc, limit=4)
+    assert scored == []
+
+
+def test_similar_portfolio_entries_empty_when_nothing_shares_tags_or_genre():
+    store = _store()
+    now = datetime.now(timezone.utc)
+    source = store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "aesthetic_tags": ["moody"], "genre": "portrait", "created_at": now,
+    })
+    store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "aesthetic_tags": ["bright"], "genre": "landscape", "created_at": now,
+    })
+    source_doc = store.db.portfolio_entries.find_one({"_id": source.inserted_id})
+    scored = store.similar_portfolio_entries(user_id="u1", source_doc=source_doc, limit=4)
+    assert scored == []
+
+
+def test_similar_portfolio_entries_genre_match_adds_weight_without_shared_tags():
+    store = _store()
+    now = datetime.now(timezone.utc)
+    source = store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "aesthetic_tags": ["moody"], "genre": "portrait", "created_at": now,
+    })
+    other = store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "aesthetic_tags": ["bright"], "genre": "portrait", "created_at": now,
+    })
+    source_doc = store.db.portfolio_entries.find_one({"_id": source.inserted_id})
+    scored = store.similar_portfolio_entries(user_id="u1", source_doc=source_doc, limit=4)
+    assert len(scored) == 1
+    doc, score = scored[0]
+    assert doc["_id"] == other.inserted_id
+    assert score == 1.0  # genre match only
+
+
+def test_similar_portfolio_entries_sorted_by_score_desc_then_recency():
+    store = _store()
+    now = datetime.now(timezone.utc)
+    source = store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "aesthetic_tags": ["moody", "backlit"], "genre": "portrait", "created_at": now,
+    })
+    weak = store.db.portfolio_entries.insert_one({
+        "_id": "weak", "user_id": "u1", "aesthetic_tags": ["moody"], "genre": "landscape",
+        "created_at": now - timedelta(days=1),
+    })
+    strong = store.db.portfolio_entries.insert_one({
+        "_id": "strong", "user_id": "u1", "aesthetic_tags": ["moody", "backlit"], "genre": "portrait",
+        "created_at": now - timedelta(days=2),
+    })
+    source_doc = store.db.portfolio_entries.find_one({"_id": source.inserted_id})
+    scored = store.similar_portfolio_entries(user_id="u1", source_doc=source_doc, limit=4)
+    assert [doc["_id"] for doc, _ in scored] == ["strong", "weak"]
+
+
+def test_similar_portfolio_entries_scoped_to_user():
+    store = _store()
+    now = datetime.now(timezone.utc)
+    source = store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "aesthetic_tags": ["moody"], "genre": "portrait", "created_at": now,
+    })
+    store.db.portfolio_entries.insert_one({
+        "user_id": "u2", "aesthetic_tags": ["moody"], "genre": "portrait", "created_at": now,
+    })
+    source_doc = store.db.portfolio_entries.find_one({"_id": source.inserted_id})
+    scored = store.similar_portfolio_entries(user_id="u1", source_doc=source_doc, limit=4)
+    assert scored == []
+
+
+def test_similar_portfolio_entries_respects_limit():
+    store = _store()
+    now = datetime.now(timezone.utc)
+    source = store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "aesthetic_tags": ["moody"], "genre": "portrait", "created_at": now,
+    })
+    for i in range(5):
+        store.db.portfolio_entries.insert_one({
+            "user_id": "u1", "aesthetic_tags": ["moody"], "genre": "landscape",
+            "created_at": now - timedelta(days=i),
+        })
+    source_doc = store.db.portfolio_entries.find_one({"_id": source.inserted_id})
+    scored = store.similar_portfolio_entries(user_id="u1", source_doc=source_doc, limit=2)
+    assert len(scored) == 2

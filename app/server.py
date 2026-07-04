@@ -19,6 +19,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any
 
+from bson import ObjectId
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -328,6 +329,63 @@ def portfolio_trends(limit: int = 12, x_user_id: str = Header(default="demo-user
         "dimensions": dimensions,
         "insufficientData": len(points) < 4,
     }
+
+
+@app.get("/api/v1/portfolio/search")
+def portfolio_search(q: str = "", limit: int = 8, x_user_id: str = Header(default="demo-user")) -> dict:
+    """PortfolioSearchResponse (frontend/src/services/portfolioInsightsClient.ts).
+    Structured-metadata search -- no embeddings, see coach.py's header comment."""
+    capped_limit = max(1, min(limit, 24))
+    docs, terms = _store().search_portfolio(user_id=x_user_id, query=q, limit=capped_limit)
+    matches = []
+    for doc in docs:
+        entry = _serialize_portfolio_entry(doc)
+        matched_observations = []
+        haystack_pairs = [
+            ("tag", t) for t in (doc.get("aesthetic_tags") or []) + (doc.get("user_tags") or [])
+        ] + [("scene", doc.get("scene_description") or ""), ("colour", doc.get("colour_notes") or "")]
+        for kind, value in haystack_pairs:
+            if len(matched_observations) >= 2:
+                break
+            value_lower = str(value).lower()
+            if any(term in value_lower for term in terms):
+                snippet = value if kind == "tag" else (value[:100] + ("…" if len(value) > 100 else ""))
+                if snippet:
+                    matched_observations.append(snippet)
+        entry["matchedObservations"] = matched_observations
+        matches.append(entry)
+
+    message = None
+    if not q.strip():
+        message = "Type a word or phrase to search your library."
+    elif not matches:
+        message = f'No photos matched "{q}" — try a different word or phrase.'
+
+    return {"query": q, "mode": "regex_fallback", "matches": matches, "searchTerms": terms, "message": message}
+
+
+@app.get("/api/v1/portfolio/{entry_id}/similar")
+def portfolio_similar(entry_id: str, limit: int = 4, x_user_id: str = Header(default="demo-user")) -> dict:
+    """SimilarPhotosResponse (frontend/src/services/portfolioInsightsClient.ts).
+    Tag/genre overlap -- no embeddings, see coach.py's header comment."""
+    coll = _store().db.portfolio_entries
+    try:
+        source_doc = coll.find_one({"_id": ObjectId(entry_id), "user_id": x_user_id})
+    except Exception:
+        source_doc = None
+    if source_doc is None:
+        raise HTTPException(status_code=404, detail="Photo not found.")
+
+    capped_limit = max(1, min(limit, 12))
+    scored = _store().similar_portfolio_entries(user_id=x_user_id, source_doc=source_doc, limit=capped_limit)
+    matches = []
+    for doc, score in scored:
+        entry = _serialize_portfolio_entry(doc)
+        entry["similarityScore"] = score
+        matches.append(entry)
+
+    message = None if matches else "Not enough shared tags or genre yet to suggest similar photos."
+    return {"sourceId": entry_id, "matches": matches, "mode": "tag_overlap", "message": message}
 
 
 @app.get("/api/v1/aesthetic-profile")
