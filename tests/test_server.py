@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
@@ -198,6 +199,67 @@ def test_chat_endpoint_generates_session_id_when_absent():
         resp = _client().post("/api/v1/agent/chat", json={"message": "Hello"}, headers={"X-User-Id": "u1"})
     assert resp.status_code == 200
     assert resp.json()["sessionId"]  # non-empty, generated
+
+
+def _sse_events(raw_text: str) -> list[tuple[str | None, dict]]:
+    events = []
+    for block in raw_text.strip("\n").split("\n\n"):
+        event = None
+        data = None
+        for line in block.split("\n"):
+            if line.startswith("event:"):
+                event = line[len("event:"):].strip()
+            elif line.startswith("data:"):
+                data = json.loads(line[len("data:"):].strip())
+        if data is not None:
+            events.append((event, data))
+    return events
+
+
+def test_chat_stream_endpoint_emits_deltas_then_done_with_receipt():
+    def fake_tokens():
+        yield "Hello"
+        yield " there"
+
+    with patch("app.server.mentor_chat_stream", return_value=({"recalled": []}, fake_tokens())) as mock_chat, \
+         patch("app.server._store"):
+        resp = _client().post(
+            "/api/v1/agent/chat/stream",
+            json={"message": "How am I doing?", "sessionId": "s1", "persona": "hobbyist", "photo_id": "p1"},
+            headers={"X-User-Id": "u1"},
+        )
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/event-stream")
+    events = _sse_events(resp.text)
+    assert events[0] == (None, {"delta": "Hello"})
+    assert events[1] == (None, {"delta": " there"})
+    done_event, done_data = events[-1]
+    assert done_event == "done"
+    assert done_data == {"sessionId": "s1", "userId": "u1", "persona": "hobbyist", "memoryReceipt": {"recalled": []}}
+    kw = mock_chat.call_args.kwargs
+    assert kw["photo_id"] == "p1" and kw["session_id"] == "s1" and kw["persona"] == "hobbyist"
+
+
+def test_chat_stream_endpoint_emits_error_event_on_upstream_timeout():
+    from openai import APITimeoutError
+
+    def fake_tokens():
+        yield "partial"
+        raise APITimeoutError(request=MagicMock())
+
+    with patch("app.server.mentor_chat_stream", return_value=({}, fake_tokens())), \
+         patch("app.server._store"):
+        resp = _client().post(
+            "/api/v1/agent/chat/stream",
+            json={"message": "Hi"},
+            headers={"X-User-Id": "u1"},
+        )
+    assert resp.status_code == 200
+    events = _sse_events(resp.text)
+    assert events[0] == (None, {"delta": "partial"})
+    error_event, error_data = events[-1]
+    assert error_event == "error"
+    assert "detail" in error_data
 
 
 def test_analyze_photo_endpoint_rejects_oversized_upload_with_413():

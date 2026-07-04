@@ -88,6 +88,40 @@ def chat_text(prompt: str, system: str | None = None, json_mode: bool = False) -
     return _call(messages, config.MODEL_REASONING, config.MODEL_REASONING_FALLBACK, json_mode=json_mode, timeout=40.0)
 
 
+def chat_fast_stream(prompt: str, system: str | None = None):
+    """Yield text deltas for a fast-tier chat completion (mentor chat's SSE path).
+
+    No retry-on-timeout here: once tokens have started reaching the client,
+    silently restarting the whole call would duplicate output. A stalled
+    stream just surfaces as a client-side abort, same as any dropped feed.
+    """
+    messages = []
+    if system:
+        messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": prompt})
+
+    client = _client(config.QWEN_BASE_URL, timeout=60.0)
+    model = config.MODEL_FAST
+    try:
+        stream = client.chat.completions.create(model=model, messages=messages, stream=True)
+    except APIStatusError as e:
+        if e.status_code == 404:
+            stream = client.chat.completions.create(
+                model=config.MODEL_FAST_FALLBACK, messages=messages, stream=True,
+            )
+        else:
+            raise
+
+    for chunk in stream:
+        # DashScope sends a trailing usage-only chunk (empty choices) after
+        # the final content delta when usage accounting is enabled.
+        if not chunk.choices:
+            continue
+        delta = chunk.choices[0].delta.content
+        if delta:
+            yield delta
+
+
 def chat_fast(prompt: str, system: str | None = None, json_mode: bool = False) -> CallResult:
     messages = []
     if system:
