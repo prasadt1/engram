@@ -27,7 +27,7 @@ export function BrandLogo({
   className = '',
 }: {
   size?: number;
-  variant?: 'horizontal' | 'tittle' | 'mark';
+  variant?: 'horizontal' | 'tittle' | 'mark' | 'stacked';
   direction?: LogoDirection;
   markSize?: number;
   markScale?: number;
@@ -92,6 +92,33 @@ export function BrandLogo({
         </span>
         <span>ris</span>
         <span className="sr-only">Iris</span>
+      </span>
+    );
+  }
+
+  if (variant === 'stacked') {
+    const iconSize = markSize ?? 88;
+    const textSize = size ?? 20;
+    return (
+      <span className={`inline-flex flex-col items-center leading-none ${className}`} style={{ gap: '10px' }}>
+        <img
+          src="/engram-icon-detailed-176.png"
+          alt=""
+          width={iconSize}
+          height={iconSize}
+          style={{ borderRadius: '20%' }}
+        />
+        <span
+          style={{
+            fontFamily: "'Newsreader', Georgia, serif",
+            fontWeight: 600,
+            fontSize: textSize,
+            color: textColor,
+            letterSpacing: '-0.01em',
+          }}
+        >
+          Engram
+        </span>
       </span>
     );
   }

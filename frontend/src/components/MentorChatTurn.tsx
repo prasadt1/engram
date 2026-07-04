@@ -1,10 +1,8 @@
 import React from 'react';
 import { ChevronDown, Loader2 } from 'lucide-react';
-import { IrisMark } from './IrisMark';
 import { MentorMarkdown } from './MentorMarkdown';
 import { MentorStructuredReply } from './MentorStructuredReply';
 import { VoiceoverButton } from './VoiceoverButton';
-import { useThemeMode } from '../lib/ThemeContext';
 import { turnPreview, type ChatTurn } from '../lib/mentorChatTurns';
 
 interface Props {
@@ -31,10 +29,6 @@ export const MentorChatTurn: React.FC<Props> = ({
 }) => {
   const hasReply = Boolean(turn.assistant);
   const canToggle = hasReply || loading;
-  const isLight = useThemeMode() === 'light';
-  const markColor = isLight ? '#b45309' : '#f5a623';
-  const markRim = isLight ? '#b45309' : '#fbbf24';
-  const markProps = { size: 22, color: markColor, pupilRim: markRim } as const;
 
   return (
     <article
@@ -83,7 +77,13 @@ export const MentorChatTurn: React.FC<Props> = ({
         <div className="border-t border-warm/60 px-5 pb-5 pt-4">
           <div className="flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2 min-w-0">
-              <IrisMark {...markProps} />
+              <img
+                src="/engram-icon-192.png"
+                alt=""
+                width={22}
+                height={22}
+                style={{ borderRadius: '20%' }}
+              />
               <p className="text-[10px] uppercase tracking-widest text-brand-400">From Engram</p>
             </div>
             <VoiceoverButton
@@ -112,7 +112,14 @@ export const MentorChatTurn: React.FC<Props> = ({
           aria-busy="true"
         >
           <div className="flex items-center gap-2 mb-3">
-            <IrisMark {...markProps} className="animate-pulse" />
+            <img
+              src="/engram-icon-192.png"
+              alt=""
+              width={22}
+              height={22}
+              style={{ borderRadius: '20%' }}
+              className="animate-pulse"
+            />
             <span className="text-[10px] uppercase tracking-widest text-brand-400">From Engram</span>
           </div>
           <div className="flex items-center justify-between gap-2 mb-2">
