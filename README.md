@@ -59,7 +59,7 @@ Browser (React)
 FastAPI app (app/server.py)
    │
    ├─ Coach ───────► grounding (principles corpus) ─► qwen_client ─► qwen-vl-max
-   ├─ Mentor ──────► context_builder (recall + pack) ─► qwen_client ─► qwen3.7-max
+   ├─ Mentor ──────► context_builder (recall + pack) ─► qwen_client ─► qwen3.6-flash (SSE stream)
    ├─ Reflection ──► context_builder ─► qwen_client ─► qwen3.6-flash
    │
    ├─ memory_engine (pure Python: salience recall, graduation, packing)
@@ -71,6 +71,8 @@ FastAPI app (app/server.py)
 
 Photo storage: local disk (dev) or Alibaba OSS with signed URLs (prod), via app/storage.py
 ```
+
+**Why it's built this way:** [`docs/architecture/`](docs/architecture/README.md) has the Architecture Decision Records behind the non-obvious calls — porting Iris instead of rebuilding, keeping MongoDB Atlas, shipping a real MCP server instead of a REST-only API, deploying on Alibaba PAYG around a stuck verification queue, serving the SPA same-origin, moving mentor chat off the reasoning tier after a live 78s-latency finding, HTTPS via Caddy, and streaming chat over SSE.
 
 ---
 
