@@ -57,7 +57,7 @@ export const MentorChatTurn: React.FC<Props> = ({
           <p className="text-sm text-stone-200 leading-relaxed line-clamp-2">{turn.user.content}</p>
           {!expanded && hasReply && turn.assistant && (
             <p className="text-xs text-muted mt-2 line-clamp-2 leading-relaxed">
-              <span className="text-brand-400/90 font-medium">Iris: </span>
+              <span className="text-brand-400/90 font-medium">Engram: </span>
               {turnPreview(turn.assistant.content)}
             </p>
           )}
@@ -83,18 +83,18 @@ export const MentorChatTurn: React.FC<Props> = ({
           <div className="flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2 min-w-0">
               <IrisMark {...markProps} />
-              <p className="text-[10px] uppercase tracking-widest text-brand-400">From Iris</p>
+              <p className="text-[10px] uppercase tracking-widest text-brand-400">From Engram</p>
             </div>
             <VoiceoverButton
               speechId={`mentor-${turn.id}`}
               text={turn.assistant.content}
-              label="Iris reply"
+              label="Engram reply"
               size="sm"
             />
           </div>
           <div
             className="font-serif text-stone-100 text-sm leading-relaxed"
-            aria-label="Iris mentor reply"
+            aria-label="Engram mentor reply"
           >
             <MentorMarkdown content={turn.assistant.content} />
           </div>
@@ -110,7 +110,7 @@ export const MentorChatTurn: React.FC<Props> = ({
         >
           <div className="flex items-center gap-2 mb-3">
             <IrisMark {...markProps} className="animate-pulse" />
-            <span className="text-[10px] uppercase tracking-widest text-brand-400">From Iris</span>
+            <span className="text-[10px] uppercase tracking-widest text-brand-400">From Engram</span>
           </div>
           <div className="flex items-center justify-between gap-2 mb-2">
             <span className="font-serif text-brand-300 animate-pulse text-sm">Reading your library…</span>

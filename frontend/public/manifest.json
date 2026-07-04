@@ -1,6 +1,6 @@
 {
-  "name": "Iris",
-  "short_name": "Iris",
+  "name": "Engram",
+  "short_name": "Engram",
   "description": "AI photography mentor with persistent portfolio memory",
   "start_url": "/",
   "display": "standalone",

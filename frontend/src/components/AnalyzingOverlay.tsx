@@ -86,7 +86,7 @@ export const AnalyzingOverlay: React.FC<Props> = ({
           </div>
           <div className="flex items-center gap-3">
             <h2 id="analyzing-overlay-title" className="text-xl font-bold text-white">
-              Iris is analyzing…
+              Engram is analyzing…
             </h2>
             {onCancel && waitSec >= 8 && (
               <button

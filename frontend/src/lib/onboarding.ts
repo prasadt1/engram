@@ -1,4 +1,4 @@
-const ONBOARDING_KEY = 'iris_onboarding_done';
+const ONBOARDING_KEY = 'engram_onboarding_done';
 
 export function isOnboardingComplete(): boolean {
   return localStorage.getItem(ONBOARDING_KEY) === 'true';

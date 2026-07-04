@@ -52,7 +52,7 @@ export function BrandLogo({
     return (
       <span className={`inline-flex items-center leading-none ${className}`}>
         <IrisMark size={soloMark} {...markProps} />
-        <span className="sr-only">Iris</span>
+        <span className="sr-only">Engram</span>
       </span>
     );
   }
@@ -115,7 +115,7 @@ export function BrandLogo({
           letterSpacing: preset.letterSpacing,
         }}
       >
-        Iris
+        Engram
       </span>
     </span>
   );

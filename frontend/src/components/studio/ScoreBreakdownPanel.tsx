@@ -141,7 +141,7 @@ export const ScoreBreakdownPanel: React.FC<Props> = ({
           </>
         ) : (
           <p className="text-sm text-muted leading-relaxed">
-            Hover or tap a dimension to see how Iris scored it and what to improve.
+            Hover or tap a dimension to see how Engram scored it and what to improve.
           </p>
         )}
       </div>

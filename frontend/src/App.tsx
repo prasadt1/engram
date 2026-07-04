@@ -428,7 +428,7 @@ function App() {
         <footer className="relative z-10 border-t border-warm py-6 px-4 md:px-8 bg-canvas mb-16 lg:mb-0">
           <div className="max-w-4xl mx-auto text-center space-y-2">
             <p className="text-sm text-stone-300">
-              Iris — your AI photography mentor that remembers every shot you upload.
+              Engram — your AI photography mentor that remembers every shot you upload.
             </p>
             <p className="text-xs text-stone-400 flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
               <span>Your photos stay in your private library. You approve every tag and listing.</span>

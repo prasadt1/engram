@@ -41,7 +41,7 @@ function generateDescription(analysis: StudioAnalysis): string {
   const scene = analysis.sceneDescription
     ? `What I see: ${analysis.sceneDescription}\n\n`
     : '';
-  return `${stars} Iris Critique\n\n${scene}${analysis.critique.overall}\n\nScores: Composition ${analysis.scores.composition}/10, Lighting ${analysis.scores.lighting}/10`;
+  return `${stars} Engram Critique\n\n${scene}${analysis.critique.overall}\n\nScores: Composition ${analysis.scores.composition}/10, Lighting ${analysis.scores.lighting}/10`;
 }
 
 function generateXMP(analysis: StudioAnalysis, originalFilename: string): string {
@@ -68,7 +68,7 @@ function generateXMP(analysis: StudioAnalysis, originalFilename: string): string
       <xmp:Rating>${rating}</xmp:Rating>
       <xmp:Label>${colorLabel}</xmp:Label>
       <xmp:ModifyDate>${timestamp}</xmp:ModifyDate>
-      <xmp:CreatorTool>Iris</xmp:CreatorTool>
+      <xmp:CreatorTool>Engram</xmp:CreatorTool>
       <dc:description>
         <rdf:Alt>
           <rdf:li xml:lang="x-default">${escapeXML(description)}</rdf:li>

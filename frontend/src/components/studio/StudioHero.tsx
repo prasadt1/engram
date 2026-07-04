@@ -142,7 +142,7 @@ export const StudioHero: React.FC<StudioHeroProps> = ({
                   <p className="text-[10px] text-muted">
                     {isReturningUser
                       ? `From ${photoCount} photo${photoCount === 1 ? '' : 's'} in your library`
-                      : 'This is what Iris sees'}
+                      : 'This is what Engram sees'}
                   </p>
                 </div>
                 <div className="ml-auto flex items-center gap-1 px-2 py-1 rounded-full bg-brand-500/20 border border-brand-500/30">
@@ -189,7 +189,7 @@ export const StudioHero: React.FC<StudioHeroProps> = ({
         <p className="text-stone-400 text-sm">
           {isReturningUser
             ? 'Ready for another critique?'
-            : 'This is what Iris sees in a photo.'}
+            : 'This is what Engram sees in a photo.'}
         </p>
         <div className="flex items-center gap-3">
           <button

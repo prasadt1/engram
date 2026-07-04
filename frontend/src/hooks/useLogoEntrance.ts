@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-const STORAGE_KEY = 'iris-logo-focused';
+const STORAGE_KEY = 'engram-logo-focused';
 
 /** True once per browser session — drives the one-time aperture focus spin. */
 export function useLogoEntrance(): boolean {

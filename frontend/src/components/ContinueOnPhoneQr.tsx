@@ -38,7 +38,7 @@ export const ContinueOnPhoneQr: React.FC = () => {
         <p className="text-xs text-muted leading-relaxed mb-2">
           Scan to open <strong className="text-stone-300 font-medium">Practice</strong> on your phone
           (Safari). Sign in with the same Google account — or use demo mode — then use the{' '}
-          <strong className="text-stone-300 font-medium">Iris</strong> native app for live field coach
+          <strong className="text-stone-300 font-medium">Engram</strong> native app for live field coach
           cues while you shoot.
         </p>
         <p className="text-[10px] text-muted break-all font-mono">{continueUrl}</p>

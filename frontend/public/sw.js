@@ -1,5 +1,5 @@
 /* Minimal PWA shell — offline navigation fallback + runtime font cache. */
-const CACHE = 'iris-shell-v3';
+const CACHE = 'engram-shell-v3';
 
 function isSameOriginFont(url) {
   return (

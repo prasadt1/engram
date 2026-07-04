@@ -1,6 +1,6 @@
 export type ThemeMode = 'dark' | 'light';
 
-const STORAGE_KEY = 'iris-theme';
+const STORAGE_KEY = 'engram-theme';
 
 export function getStoredTheme(): ThemeMode {
   if (typeof window === 'undefined') return 'dark';

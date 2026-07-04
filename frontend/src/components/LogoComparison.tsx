@@ -9,7 +9,7 @@ const OPTIONS: {
   {
     direction: 'current',
     label: 'A — Current',
-    subtitle: 'Detailed mark + horizontal Iris',
+    subtitle: 'Detailed mark + horizontal Engram',
     luxury: 'Confident, but mark reads busy at sidebar size',
   },
   {

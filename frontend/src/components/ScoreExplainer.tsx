@@ -60,7 +60,7 @@ export const ScoreExplainer: React.FC<Props> = ({ isOpen, onClose }) => {
         <div className="sticky top-0 bg-canvas border-b border-warm p-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <HelpCircle className="w-5 h-5 text-brand-400" />
-            <h2 className="font-serif text-lg text-white">How Iris Scores Photos</h2>
+            <h2 className="font-serif text-lg text-white">How Engram Scores Photos</h2>
           </div>
           <button
             type="button"
@@ -77,7 +77,7 @@ export const ScoreExplainer: React.FC<Props> = ({ isOpen, onClose }) => {
           {/* Intro */}
           <div className="rounded-xl bg-surface-1 border border-warm p-4">
             <p className="text-sm text-stone-300 leading-relaxed">
-              Iris evaluates your photos across five dimensions, each scored from 1-10.
+              Engram evaluates your photos across five dimensions, each scored from 1-10.
               The scores reflect photographic principles, not personal taste. A score of
               <span className="text-amber-400 font-semibold"> 7+ </span>
               indicates strong work in that dimension.
@@ -154,7 +154,7 @@ export const ScoreExplainer: React.FC<Props> = ({ isOpen, onClose }) => {
               Why "Glass Box"?
             </h3>
             <p className="text-sm text-stone-300 leading-relaxed">
-              Unlike black-box AI that just outputs numbers, Iris shows you exactly
+              Unlike black-box AI that just outputs numbers, Engram shows you exactly
               <em> why </em> it scored each dimension the way it did. The Glass Box panel
               reveals the reasoning step-by-step, so you can learn and improve.
             </p>

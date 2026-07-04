@@ -55,7 +55,7 @@ export function IrisMark({
       fill="none"
       className={`shrink-0 ${className}`}
       role="img"
-      aria-label="Iris"
+      aria-label="Engram"
     >
       <g
         style={{

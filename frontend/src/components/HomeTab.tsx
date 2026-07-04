@@ -568,7 +568,7 @@ export const HomeTab: React.FC<Props> = ({
         {/* First visit: capabilities grid */}
         {isFirstVisit && (
           <section className="max-w-4xl mx-auto">
-            <h2 className="font-serif text-2xl text-white mb-6">What Iris can do</h2>
+            <h2 className="font-serif text-2xl text-white mb-6">What Engram can do</h2>
             <div className="grid sm:grid-cols-2 gap-4">
               {CAPABILITIES.map((cap) => (
                 <Card key={cap.title}>

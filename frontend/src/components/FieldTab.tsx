@@ -163,8 +163,8 @@ export const FieldTab: React.FC<Props> = ({
         </h2>
         <p className="text-stone-400 text-sm">
           {preferUpload && !useCamera
-            ? 'Use your phone or DSLR to shoot, then upload the frame here. Iris will critique it against your assignment brief.'
-            : 'Capture with your camera — Iris will critique the frame against your brief right away.'}
+            ? 'Use your phone or DSLR to shoot, then upload the frame here. Engram will critique it against your assignment brief.'
+            : 'Capture with your camera — Engram will critique the frame against your brief right away.'}
         </p>
       </div>
 

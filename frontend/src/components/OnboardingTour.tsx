@@ -72,7 +72,7 @@ const TOUR_STEPS: TourStep[] = [
   },
 ];
 
-const STORAGE_KEY = 'iris-tour-completed-v2';
+const STORAGE_KEY = 'engram-tour-completed-v2';
 
 interface Props {
   forceShow?: boolean;
@@ -208,5 +208,5 @@ export function isTourCompleted(): boolean {
 export function resetTour(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(STORAGE_KEY);
-  localStorage.removeItem('iris-tour-completed');
+  localStorage.removeItem('engram-tour-completed');
 }
