@@ -307,11 +307,26 @@ def test_journey_endpoint_shape():
             Skill(name="exposure", bar=7, status=SkillStatus.WATCHING, consecutive_above_bar=1),
         ]
         mock_store.return_value.get_memory_stats.return_value = {"total_memories": 3}
+        mock_store.return_value.dominant_genre.return_value = "landscape"
+        mock_store.return_value.top_aesthetic_tags.return_value = ["moody"]
         resp = _client().get("/api/v1/journey", headers={"X-User-Id": "u1"})
     body = resp.json()
     assert body["summary"] == "Nice progress."
     assert body["skills"][0] == {"name": "exposure", "status": "watching", "consecutive": 1}
     assert body["stats"]["total_memories"] == 3
+    assert body["identity"] == "You're a moody landscape shooter — working toward your first cleared skill, now sharpening exposure."
+
+
+def test_journey_endpoint_identity_none_when_no_portfolio_data():
+    from app.memory_engine import Skill, SkillStatus
+    with patch("app.server._store") as mock_store, \
+         patch("app.server.summarize_progress", return_value="Welcome!"):
+        mock_store.return_value.list_skills.return_value = []
+        mock_store.return_value.get_memory_stats.return_value = {"total_memories": 0}
+        mock_store.return_value.dominant_genre.return_value = None
+        mock_store.return_value.top_aesthetic_tags.return_value = []
+        resp = _client().get("/api/v1/journey", headers={"X-User-Id": "u1"})
+    assert resp.json()["identity"] is None
 
 
 @pytest.mark.skipif(not os.environ.get("MONGODB_URI"), reason="requires a real MongoDB (MONGODB_URI) for the live MCP subprocess round trip")

@@ -151,3 +151,39 @@ class MemoryStore:
             "skills_watching": sum(1 for s in skills if s.status == SkillStatus.WATCHING),
             "skills_cleared": sum(1 for s in skills if s.status == SkillStatus.CLEARED),
         }
+
+    # --- portfolio aggregations (aesthetic identity, not memory recall) --
+
+    def top_aesthetic_tags(self, *, user_id: str, limit: int | None = 20, top_n: int = 8) -> list[str]:
+        """Most frequent aesthetic_tags across the user's portfolio_entries,
+        most-recent-first before counting (limit=None means the whole history).
+        Extracted from the aesthetic-profile route so the journey route can
+        reuse the same logic with a different window."""
+        cursor = self.db.portfolio_entries.find({"user_id": user_id}).sort("created_at", -1)
+        if limit is not None:
+            cursor = cursor.limit(limit)
+        tag_counts: dict[str, int] = {}
+        for doc in cursor:
+            for tag in doc.get("aesthetic_tags") or []:
+                tag_counts[tag] = tag_counts.get(tag, 0) + 1
+        ranked = sorted(tag_counts.items(), key=lambda pair: -pair[1])
+        return [tag for tag, _ in ranked[:top_n]]
+
+    def dominant_genre(self, *, user_id: str, limit: int | None = None) -> str | None:
+        """Most frequent genre across portfolio_entries; ties broken by
+        whichever genre was shot most recently (docs are read most-recent
+        first, so the first occurrence of a genre IS its most recent)."""
+        cursor = self.db.portfolio_entries.find({"user_id": user_id}).sort("created_at", -1)
+        if limit is not None:
+            cursor = cursor.limit(limit)
+        counts: dict[str, int] = {}
+        most_recent_rank: dict[str, int] = {}
+        for idx, doc in enumerate(cursor):
+            genre = doc.get("genre")
+            if not genre:
+                continue
+            counts[genre] = counts.get(genre, 0) + 1
+            most_recent_rank.setdefault(genre, idx)
+        if not counts:
+            return None
+        return max(counts.items(), key=lambda pair: (pair[1], -most_recent_rank[pair[0]]))[0]

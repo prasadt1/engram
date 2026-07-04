@@ -1,4 +1,5 @@
 import type { ChatMessage } from '../services/mentorClient';
+import { splitMentorReply } from './mentorReplyStructure';
 
 export interface ChatTurn {
   id: string;
@@ -38,7 +39,9 @@ export function groupMessagesIntoTurns(messages: ChatMessage[]): ChatTurn[] {
 }
 
 export function turnPreview(text: string, maxLen = 140): string {
-  const flat = text.replace(/\s+/g, ' ').trim();
+  const { headline, beats, hasStructure } = splitMentorReply(text);
+  const source = hasStructure ? (headline || beats[0]?.text || text) : text;
+  const flat = source.replace(/\s+/g, ' ').trim();
   if (flat.length <= maxLen) return flat;
   return `${flat.slice(0, maxLen).trim()}…`;
 }

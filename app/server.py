@@ -31,9 +31,10 @@ load_dotenv()
 
 from app.coach import analyze_photo  # noqa: E402
 from app.db import get_db  # noqa: E402
+from app.identity import build_identity_line  # noqa: E402
 from app.mentor import chat as mentor_chat  # noqa: E402
 from app.mentor import chat_stream as mentor_chat_stream  # noqa: E402
-from app.memory_engine import compute_delta  # noqa: E402
+from app.memory_engine import SkillStatus, compute_delta  # noqa: E402
 from app.memory_store import MemoryStore  # noqa: E402
 from app.reflection import summarize_progress  # noqa: E402
 from app.storage import get_storage  # noqa: E402
@@ -348,11 +349,8 @@ def aesthetic_profile(x_user_id: str = Header(default="demo-user")) -> dict:
             "stylisticConsistencyScore": None,
         }
 
-    tag_counts: dict[str, int] = {}
     sums = {k: 0.0 for k in _SCORE_DIMS}
     for doc in docs:
-        for tag in doc.get("aesthetic_tags") or []:
-            tag_counts[tag] = tag_counts.get(tag, 0) + 1
         scores = doc.get("scores") or {}
         for k in _SCORE_DIMS:
             sums[k] += float(scores.get(k, 0))
@@ -363,11 +361,9 @@ def aesthetic_profile(x_user_id: str = Header(default="demo-user")) -> dict:
     variance = sum((x - mean) ** 2 for x in avg_scores.values()) / len(avg_scores)
     consistency = max(0.0, min(1.0, 1.0 - (variance / 25.0)))
 
-    dominant = sorted(tag_counts.items(), key=lambda x: -x[1])[:8]
-
     return {
         "photoCount": coll.count_documents(query),
-        "dominantTags": [t for t, _ in dominant],
+        "dominantTags": _store().top_aesthetic_tags(user_id=x_user_id, limit=20, top_n=8),
         "averageScores": avg_scores,
         "stylisticConsistencyScore": round(consistency, 2),
     }
@@ -467,6 +463,19 @@ def agent_chat_stream(body: ChatRequest, x_user_id: str = Header(default="demo-u
 def journey(x_user_id: str = Header(default="demo-user")) -> dict:
     store = _store()
     skills = store.list_skills(user_id=x_user_id)
+    cleared = [s.name for s in skills if s.status == SkillStatus.CLEARED]
+    watching_skills = [s for s in skills if s.status == SkillStatus.WATCHING]
+    # Same "closest to clearing" tie-break JourneySection.tsx uses on the
+    # frontend for its own "current focus" highlight, kept in sync here so
+    # the identity line names the same skill the Watching card highlights.
+    current_focus = (
+        max(watching_skills, key=lambda s: s.consecutive_above_bar).name
+        if watching_skills else None
+    )
+    genre = store.dominant_genre(user_id=x_user_id, limit=None)
+    top_tags = store.top_aesthetic_tags(user_id=x_user_id, limit=None, top_n=1)
+    tag = top_tags[0] if top_tags else None
+
     return {
         "summary": summarize_progress(user_id=x_user_id, memory_store=store),
         "skills": [
@@ -474,6 +483,7 @@ def journey(x_user_id: str = Header(default="demo-user")) -> dict:
             for s in skills
         ],
         "stats": store.get_memory_stats(user_id=x_user_id),
+        "identity": build_identity_line(genre, tag, cleared, current_focus),
     }
 
 

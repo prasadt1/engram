@@ -2,6 +2,7 @@ import React from 'react';
 import { ChevronDown, Loader2 } from 'lucide-react';
 import { IrisMark } from './IrisMark';
 import { MentorMarkdown } from './MentorMarkdown';
+import { MentorStructuredReply } from './MentorStructuredReply';
 import { VoiceoverButton } from './VoiceoverButton';
 import { useThemeMode } from '../lib/ThemeContext';
 import { turnPreview, type ChatTurn } from '../lib/mentorChatTurns';
@@ -96,7 +97,9 @@ export const MentorChatTurn: React.FC<Props> = ({
             className="font-serif text-stone-100 text-sm leading-relaxed"
             aria-label="Engram mentor reply"
           >
-            <MentorMarkdown content={turn.assistant.content} />
+            {turn.assistant.streaming
+              ? <MentorMarkdown content={turn.assistant.content} />
+              : <MentorStructuredReply content={turn.assistant.content} />}
           </div>
         </div>
       )}
