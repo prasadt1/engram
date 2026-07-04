@@ -88,9 +88,13 @@ def chat_text(prompt: str, system: str | None = None, json_mode: bool = False) -
     return _call(messages, config.MODEL_REASONING, config.MODEL_REASONING_FALLBACK, json_mode=json_mode, timeout=40.0)
 
 
-def chat_fast(prompt: str, json_mode: bool = False) -> CallResult:
+def chat_fast(prompt: str, system: str | None = None, json_mode: bool = False) -> CallResult:
+    messages = []
+    if system:
+        messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": prompt})
     return _call(
-        [{"role": "user", "content": prompt}],
+        messages,
         config.MODEL_FAST,
         config.MODEL_FAST_FALLBACK,
         json_mode=json_mode,
