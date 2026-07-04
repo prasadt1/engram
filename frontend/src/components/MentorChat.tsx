@@ -156,7 +156,10 @@ export const MentorChat = forwardRef<MentorChatHandle, Props>(
               accumulated += delta;
               if (!assistantStarted) {
                 assistantStarted = true;
-                setMessages((prev) => [...prev, { id: assistantId, role: 'assistant', content: accumulated }]);
+                setMessages((prev) => [
+                  ...prev,
+                  { id: assistantId, role: 'assistant', content: accumulated, streaming: true },
+                ]);
               } else {
                 setMessages((prev) =>
                   prev.map((m) => (m.id === assistantId ? { ...m, content: accumulated } : m)),
@@ -164,6 +167,9 @@ export const MentorChat = forwardRef<MentorChatHandle, Props>(
               }
             },
           });
+          setMessages((prev) =>
+            prev.map((m) => (m.id === assistantId ? { ...m, streaming: false } : m)),
+          );
           setLatestReceipt(res.memoryReceipt ?? null);
         } catch (e) {
           const msg = friendlyErrorMessage(e);

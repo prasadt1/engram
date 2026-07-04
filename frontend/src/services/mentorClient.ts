@@ -11,6 +11,10 @@ export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  /** True while an assistant message's text is still arriving via SSE.
+   * Absent/false means it's final -- MentorChatTurn uses this to decide
+   * between raw live rendering and the structured headline/beats layout. */
+  streaming?: boolean;
 }
 
 export interface ChatResponse {
