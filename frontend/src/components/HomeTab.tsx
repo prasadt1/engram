@@ -32,6 +32,7 @@ import { useAuth } from '../auth/useAuth';
 import { analyzePhoto } from '../services/agentClient';
 import { fetchAssignments } from '../services/practiceClient';
 import { fetchJourney } from '../services/journeyClient';
+import { FEATURES } from '../config/features';
 import type { AppTab } from '../config/navConfig';
 import type { AnalysisResult } from '../types';
 import type { Assignment, UserMode } from '../types/practice';
@@ -537,14 +538,16 @@ export const HomeTab: React.FC<Props> = ({
                 >
                   Upload photo
                 </Button>
-                <Button
-                  variant="secondary"
-                  iconRight={<ArrowRight className="w-4 h-4" />}
-                  onClick={() => onNavigate('practice')}
-                  fullWidth
-                >
-                  Continue practice
-                </Button>
+                {FEATURES.practice && (
+                  <Button
+                    variant="secondary"
+                    iconRight={<ArrowRight className="w-4 h-4" />}
+                    onClick={() => onNavigate('practice')}
+                    fullWidth
+                  >
+                    Continue practice
+                  </Button>
+                )}
               </div>
             </div>
           </div>
