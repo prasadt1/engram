@@ -12,6 +12,7 @@ import { PracticeTab } from './components/PracticeTab';
 import { PrintSalesTab } from './components/PrintSalesTab';
 import { SettingsTab } from './components/SettingsTab';
 import { FieldTab } from './components/FieldTab';
+import { InlineAlertBanner } from './components/InlineAlertBanner';
 import { ScoreExplainer, ScoreExplainerTrigger } from './components/ScoreExplainer';
 import { OnboardingTour, resetTour } from './components/OnboardingTour';
 import { getStoredTheme, type ThemeMode } from './lib/theme';
@@ -44,8 +45,12 @@ import {
   setOnboardingComplete,
   clearOnboardingComplete,
 } from './lib/onboarding';
+import { isJudgeModeRequested, JUDGE_DEMO_USER_ID } from './lib/judgeMode';
 import type { AnalysisResult } from './types';
 import type { Assignment, UserMode } from './types/practice';
+
+const JUDGE_TOUR_STORAGE_KEYS = ['engram-tour-completed-v2', 'engram-tour-completed'];
+const JUDGE_BANNER_DISMISSED_KEY = 'engram_judge_banner_dismissed';
 
 function MobileHeaderMark() {
   return <BrandLogo variant="mark" markSize={30} />;
@@ -59,10 +64,28 @@ interface PendingAnalysis {
 }
 
 function App() {
+  // Judge mode (?judge=1 or #judge): computed once from the URL at mount —
+  // it never changes mid-session, so a plain lazy initializer (not a
+  // useEffect) is enough, and lets showOnboarding's own initializer below
+  // see the flags as already-set on the very first render (no onboarding
+  // flash before the skip effect would otherwise fire).
+  const [judgeMode] = useState<boolean>(() => {
+    const requested = isJudgeModeRequested();
+    if (requested) {
+      setOnboardingComplete();
+      JUDGE_TOUR_STORAGE_KEYS.forEach((key) => {
+        if (typeof window !== 'undefined') localStorage.setItem(key, 'true');
+      });
+    }
+    return requested;
+  });
   const [ready, setReady] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(!isOnboardingComplete());
   const [activeTab, setActiveTab] = useState<AppTab>('home');
   const [userMode, setUserMode] = useState<UserMode>('hobbyist');
+  const [showJudgeBanner, setShowJudgeBanner] = useState(
+    () => judgeMode && typeof window !== 'undefined' && localStorage.getItem(JUDGE_BANNER_DISMISSED_KEY) !== 'true',
+  );
   const [personaError, setPersonaError] = useState<string | null>(null);
   const [activeAssignment, setActiveAssignment] = useState<Assignment | null>(null);
   // Sub-views within Practice tab
@@ -140,11 +163,15 @@ function App() {
 
   useEffect(() => {
     if (auth.loading) return;
-    setApiUserScope(auth.userId);
-    void fetchUserProfile(auth.userId ?? undefined)
+    // Judge mode always wins: it must scope to the seeded demo-user even if
+    // a real auth session is (or later becomes) signed in, so a judge
+    // opening ?judge=1 never sees — or contaminates — a real account.
+    const scopedUserId = judgeMode ? JUDGE_DEMO_USER_ID : auth.userId;
+    setApiUserScope(scopedUserId);
+    void fetchUserProfile(scopedUserId ?? undefined)
       .then((p) => setUserMode(personaToUserMode(p.persona)))
       .catch(() => {});
-  }, [auth.loading, auth.userId]);
+  }, [auth.loading, auth.userId, judgeMode]);
 
   useEffect(() => {
     if (!ready || auth.loading || isOnboardingComplete() || onboardingBusy) return;
@@ -347,6 +374,19 @@ function App() {
           className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-3 py-4 md:py-6 animate-tabEnter"
         >
           {!online && <OfflineBanner />}
+          {showJudgeBanner && (
+            <InlineAlertBanner
+              variant="info"
+              className="mb-4"
+              message="Demo mode — viewing a seeded photographer's journey. Explore: Home · Work · Mentor."
+              onDismiss={() => {
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem(JUDGE_BANNER_DISMISSED_KEY, 'true');
+                }
+                setShowJudgeBanner(false);
+              }}
+            />
+          )}
           {personaError && activeTab === 'settings' && (
             <p className="mb-4 text-sm text-amber-400" role="alert">
               Could not save your profile mode ({personaError}).
