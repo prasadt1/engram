@@ -24,7 +24,7 @@ from fastapi import FastAPI, File, Form, Header, HTTPException, Query, UploadFil
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from openai import APIStatusError
+from openai import APIStatusError, APITimeoutError
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 load_dotenv()
@@ -70,6 +70,12 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 async def _model_unavailable(request, exc):
     logger.warning("upstream model error: %s", exc)
     return JSONResponse(status_code=502, content={"detail": "The photography model is temporarily unavailable. Your photo was saved — please try again."})
+
+
+@app.exception_handler(APITimeoutError)
+async def _model_timeout(request, exc):
+    logger.warning("upstream model timeout: %s", exc)
+    return JSONResponse(status_code=502, content={"detail": "The photography model took too long to respond. Please try again."})
 
 
 @app.exception_handler(ValidationError)

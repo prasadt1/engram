@@ -13,7 +13,7 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
-from openai import APIStatusError, OpenAI
+from openai import APIStatusError, APITimeoutError, OpenAI
 
 from app import config
 
@@ -27,8 +27,8 @@ class CallResult:
     output_tokens: int
 
 
-def _client(base_url: str) -> OpenAI:
-    return OpenAI(api_key=config.DASHSCOPE_API_KEY, base_url=base_url)
+def _client(base_url: str, timeout: float) -> OpenAI:
+    return OpenAI(api_key=config.DASHSCOPE_API_KEY, base_url=base_url, timeout=timeout)
 
 
 def _call(
@@ -38,8 +38,9 @@ def _call(
     base_url: str = config.QWEN_BASE_URL,
     json_mode: bool = False,
     max_retries: int = 2,
+    timeout: float = 60.0,
 ) -> CallResult:
-    client = _client(base_url)
+    client = _client(base_url, timeout)
     kwargs: dict[str, Any] = {"model": model, "messages": messages}
     if json_mode:
         kwargs["response_format"] = {"type": "json_object"}
@@ -67,6 +68,13 @@ def _call(
                 time.sleep(0.5 * (attempt + 1))
                 continue
             raise
+        except APITimeoutError as e:
+            # A wedged upstream call; retrying costs another full `timeout`
+            # window, so only retry once regardless of max_retries.
+            last_err = e
+            if attempt == 0:
+                continue
+            raise
     raise last_err  # pragma: no cover
 
 
@@ -75,7 +83,9 @@ def chat_text(prompt: str, system: str | None = None, json_mode: bool = False) -
     if system:
         messages.append({"role": "system", "content": system})
     messages.append({"role": "user", "content": prompt})
-    return _call(messages, config.MODEL_REASONING, config.MODEL_REASONING_FALLBACK, json_mode=json_mode)
+    # Callers (mentor chat) budget 90s client-side; a 40s per-attempt ceiling
+    # leaves room for one timeout retry (80s worst case) plus recall/DB time.
+    return _call(messages, config.MODEL_REASONING, config.MODEL_REASONING_FALLBACK, json_mode=json_mode, timeout=40.0)
 
 
 def chat_fast(prompt: str, json_mode: bool = False) -> CallResult:
