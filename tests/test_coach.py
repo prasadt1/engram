@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 VALID_COACH_JSON = """{
@@ -101,6 +102,7 @@ def test_analyze_photo_records_skill_sessions_and_persists_portfolio_entry():
 
     fake_call_result = MagicMock(content=VALID_COACH_JSON, model="qwen-vl-max", latency_ms=500, input_tokens=100, output_tokens=200)
     mock_store = MagicMock()
+    mock_store.recall.return_value = []  # empty memory -> ctx.packed empty -> no prompt block, existing prompt assertions hold
 
     with patch("app.coach.qwen_client.chat_vision", return_value=fake_call_result), \
          patch("app.coach.get_storage") as mock_get_storage:
@@ -172,3 +174,64 @@ def test_analyze_photo_with_stored_key_skips_internal_save():
     mock_storage.save.assert_not_called()
     assert result["storageKey"] == "photos/given.jpg"
     mock_storage.signed_url.assert_called_once_with("photos/given.jpg")
+
+
+def _memory_items_one_live_one_superseded():
+    from app.memory_engine import MemoryItem
+
+    now = datetime.now(timezone.utc)
+    live = MemoryItem(
+        id="mem_live", content="prefers wide apertures for subject separation",
+        importance=0.8, created_at=now - timedelta(days=1), genre="landscape",
+    )
+    superseded = MemoryItem(
+        id="mem_old", content="used to shoot everything at f/8",
+        importance=0.7, created_at=now - timedelta(days=30), genre="landscape",
+        superseded_by="mem_live",
+    )
+    return [live, superseded]
+
+
+def test_analyze_photo_recalls_memory_into_prompt_and_returns_truthful_receipt():
+    from app.coach import analyze_photo
+
+    fake_call_result = MagicMock(content=VALID_COACH_JSON, model="qwen-vl-max", latency_ms=500, input_tokens=100, output_tokens=200)
+    mock_store = MagicMock()
+    mock_store.recall.return_value = _memory_items_one_live_one_superseded()
+
+    with patch("app.coach.qwen_client.chat_vision", return_value=fake_call_result) as mock_vision, \
+         patch("app.coach.get_storage") as mock_get_storage:
+        mock_get_storage.return_value.save.return_value = "photos/fake.jpg"
+        mock_get_storage.return_value.signed_url.return_value = "https://x/fake.jpg"
+
+        result = analyze_photo(
+            image_bytes=b"fake", content_type="image/jpeg", filename="x.jpg",
+            user_id="u1", memory_store=mock_store,
+        )
+
+    sent_prompt = mock_vision.call_args.args[1]
+    assert "What I remember about this photographer" in sent_prompt
+    assert "prefers wide apertures for subject separation" in sent_prompt
+
+    assert result["memoryReceipt"] is not None
+    assert len(result["memoryReceipt"]["recalled"]) > 0
+    recalled_ids = [m["id"] for m in result["memoryReceipt"]["recalled"]]
+    assert "mem_live" in recalled_ids
+    retired_ids = [m["id"] for m in result["memoryReceipt"]["retired_excluded"]]
+    assert "mem_old" in retired_ids  # the visible face of forgetting
+
+
+def test_analyze_photo_without_store_has_no_memory_prompt_block_or_receipt():
+    from app.coach import analyze_photo
+
+    fake_call_result = MagicMock(content=VALID_COACH_JSON, model="qwen-vl-max", latency_ms=500, input_tokens=100, output_tokens=200)
+    with patch("app.coach.qwen_client.chat_vision", return_value=fake_call_result) as mock_vision, \
+         patch("app.coach.get_storage") as mock_get_storage:
+        mock_get_storage.return_value.save.return_value = "photos/fake.jpg"
+        mock_get_storage.return_value.signed_url.return_value = "https://x/fake.jpg"
+
+        result = analyze_photo(image_bytes=b"fake", content_type="image/jpeg", filename="x.jpg")
+
+    sent_prompt = mock_vision.call_args.args[1]
+    assert "What I remember about this photographer" not in sent_prompt
+    assert "memoryReceipt" not in result or result["memoryReceipt"] is None

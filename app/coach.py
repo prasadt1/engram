@@ -31,13 +31,22 @@ def _principles_block(citations) -> str:
     return "\n\n".join(f"### {c.title} ({c.id})\n{c.excerpt}" for c in citations)
 
 
-def _run_coach_model(image_bytes: bytes, mime_type: str, citations) -> CoachAnalysisOutput:
+def _run_coach_model(
+    image_bytes: bytes, mime_type: str, citations, photographer_context: str | None = None,
+) -> CoachAnalysisOutput:
     system = PROMPT_PATH.read_text(encoding="utf-8")
     principles = _principles_block(citations)
     b64 = base64.b64encode(image_bytes).decode("ascii")
     data_uri = f"data:{mime_type};base64,{b64}"
 
     prompt = f"{system}\n\n## Photography principles\n{principles}\n\nAnalyze this photograph."
+    if photographer_context:
+        prompt += (
+            "\n\n## What I remember about this photographer\n"
+            f"{photographer_context}\n"
+            "Adapt the critique: acknowledge improvement on skills they've been working on; "
+            "don't repeat advice for strengths they've already demonstrated."
+        )
     result = qwen_client.chat_vision(data_uri, prompt, json_mode=True)
 
     def _repair(raw: str) -> str:
@@ -93,7 +102,21 @@ def analyze_photo(
         logger.warning(
             "principles block thinned: scene=%s expected=%d got=%d", scene, expected, len(citations)
         )
-    output = _run_coach_model(image_bytes, content_type, citations)
+
+    # Recall the photographer's own memory BEFORE the model call so the
+    # critique is genuinely memory-aware, not just principles-grounded — and
+    # so the receipt we hand back is truthful (it reports what was actually
+    # in the prompt, not a decorative afterthought).
+    ctx = None
+    if memory_store is not None and user_id is not None:
+        from app.context_builder import build_memory_context
+        candidates = memory_store.recall(user_id=user_id, k=200, query=None, include_archived=True)
+        ctx = build_memory_context(candidates, query=f"{scene} photography", k=5, token_budget=400)
+
+    output = _run_coach_model(
+        image_bytes, content_type, citations,
+        photographer_context=ctx.context_block() if ctx and ctx.packed else None,
+    )
 
     storage = get_storage()
     key = stored_key if stored_key is not None else storage.save(image_bytes, filename=filename, content_type=content_type)
@@ -124,6 +147,7 @@ def analyze_photo(
         },
         "imageUrl": image_url,
         "storageKey": key,
+        "memoryReceipt": ctx.receipt() if ctx else None,
     }
     # NOTE: the frontend AnalysisResult type (copied in a later task) will
     # require portfolioEntryId and spatialMetadata — spatialMetadata is set
