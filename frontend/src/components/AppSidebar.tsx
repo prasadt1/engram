@@ -58,10 +58,10 @@ export const AppSidebar: React.FC<Props> = ({
       <button
         type="button"
         onClick={() => onNavigate('home')}
-        className="sidebar-logo-zone shrink-0 flex items-center p-4 text-left hover:bg-surface-1/50 transition-all duration-200 border-b border-warm focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400 focus-visible:outline-offset-2"
+        className="sidebar-logo-zone shrink-0 flex flex-col items-center justify-center py-6 px-4 text-left hover:bg-surface-1/50 transition-all duration-200 border-b border-warm focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400 focus-visible:outline-offset-2"
         style={{ transitionTimingFunction: 'var(--ease-out-expo)' }}
       >
-        <BrandLogo variant="horizontal" animate={logoAnimate} />
+        <BrandLogo variant="stacked" animate={logoAnimate} />
       </button>
 
       <nav
