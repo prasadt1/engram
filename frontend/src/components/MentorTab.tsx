@@ -35,6 +35,7 @@ import {
 import { HitlHistoryPanel } from './HitlHistoryPanel';
 import { Button, Card, Eyebrow, IconButton, SegmentedControl } from './primitives';
 import { fetchPortfolio, fetchPortfolioStats } from '../services/memoryClient';
+import { FEATURES } from '../config/features';
 import type { UserMode } from '../types/practice';
 import type { PendingApproval } from '../types/triage';
 import type { PortfolioListItem } from '../types/memory';
@@ -290,6 +291,10 @@ export const MentorTab: React.FC<Props> = ({ mode, onGoToWork }) => {
 
   useEffect(() => {
     setStarters(STARTERS_BY_MODE[mode]);
+    // No /api/v1/mentor/suggested-questions route exists on the backend
+    // yet — skip the guaranteed-404 call; STARTERS_BY_MODE above is
+    // already the fallback this .catch would have landed on anyway.
+    if (!FEATURES.mentorSuggestedQuestions) return;
     void fetchMentorSuggestedQuestions(mode)
       .then((res) => {
         if (res.questions.length > 0) setStarters(res.questions);
@@ -388,6 +393,15 @@ export const MentorTab: React.FC<Props> = ({ mode, onGoToWork }) => {
   }, []);
 
   const refreshLabelItems = useCallback(async () => {
+    // Fires on every MentorTab mount (see the useEffect below), i.e. every
+    // time the user navigates back to Mentor — this is the repeated
+    // /api/v1/pending-approvals?...agent_name=triage poll. FEATURES.triage
+    // is off in this build (no matching backend route), so skip the call
+    // rather than firing a guaranteed 404 on every tab visit.
+    if (!FEATURES.triage) {
+      setLabelItems([]);
+      return;
+    }
     setLabelLoading(true);
     setLabelError(null);
     try {

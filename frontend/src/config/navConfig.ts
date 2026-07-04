@@ -7,6 +7,7 @@ import {
   Store,
 } from 'lucide-react';
 import type { UserMode } from '../types/practice';
+import { FEATURES } from './features';
 
 /**
  * Navigation structure (v2 — photo-first restructure)
@@ -14,7 +15,12 @@ import type { UserMode } from '../types/practice';
  * Consolidated from 8 tabs to 5:
  * - home: Photo-first dashboard with progress + assignment context
  * - work: Merged Studio + Memory (upload + gallery)
- * - practice: Merged Practice + Field (assignments + capture)
+ * - practice: Merged Practice + Field (assignments + capture) — deferred
+ *   in this build (FEATURES.practice=false, see ./features.ts): no
+ *   backend routes for /api/v1/assignments* exist yet. `AppTab` keeps the
+ *   'practice' member so legacy hash routing and App.tsx's switch stay
+ *   simple; the gate lives entirely in which nav items are offered and in
+ *   tabFromHash() falling back away from it.
  * - mentor: Merged Mentor + Triage (AI chat + batch labeling)
  * - print: Pro-only print sales
  * - settings: App settings
@@ -34,17 +40,15 @@ const PRACTICE: NavItem = { id: 'practice', label: 'Practice', icon: Target };
 const MENTOR: NavItem = { id: 'mentor', label: 'Mentor', icon: MessageCircle };
 const PRINT: NavItem = { id: 'print', label: 'Print Sales', icon: Store };
 
-/** Mobile bottom bar — 4 core items. */
+/** Mobile bottom bar — 4 core items (3 while Practice is deferred). */
 export function bottomNavItems(_mode: UserMode): NavItem[] {
-  return [HOME, WORK, PRACTICE, MENTOR];
+  return [HOME, WORK, ...(FEATURES.practice ? [PRACTICE] : []), MENTOR];
 }
 
-/** Desktop sidebar — working pro gets Print Sales. */
+/** Desktop sidebar — working pro gets Print Sales; Practice deferred for all. */
 export function sidebarNavItems(mode: UserMode): NavItem[] {
-  if (mode === 'working_pro') {
-    return [HOME, WORK, PRACTICE, MENTOR, PRINT];
-  }
-  return [HOME, WORK, PRACTICE, MENTOR];
+  const base = [HOME, WORK, ...(FEATURES.practice ? [PRACTICE] : []), MENTOR];
+  return mode === 'working_pro' ? [...base, PRINT] : base;
 }
 
 export function isAppTab(value: string): value is AppTab {
@@ -68,7 +72,12 @@ export function tabFromHash(): AppTab | null {
   const raw = window.location.hash.replace(/^#/, '');
   if (!raw) return null;
   // Try direct match first, then legacy migration
-  return isAppTab(raw) ? raw : migrateLegacyTab(raw);
+  const tab = isAppTab(raw) ? raw : migrateLegacyTab(raw);
+  // A stale #practice/#field hash (bookmark, or carried over from a prior
+  // session before this build deferred the tab) must not strand the user
+  // on a tab with no nav entry pointing back at it.
+  if (tab === 'practice' && !FEATURES.practice) return null;
+  return tab;
 }
 
 export function setTabHash(tab: AppTab): void {
