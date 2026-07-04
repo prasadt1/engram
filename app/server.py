@@ -97,6 +97,55 @@ def health() -> dict:
     return {"status": "ok"}
 
 
+# --- Users/me routes (persona persistence) --------------------------------
+# Mirrors Iris's app/memory/users.py::get_user_profile / set_persona wire
+# contract exactly — { userId, persona, preferences } — see
+# frontend/src/services/userClient.ts::UserProfile. The frontend calls GET
+# on every boot (App.tsx, up to 3x: userMode sync, onboarding-complete
+# check, and again after auth.userId stabilises) and PATCH on persona
+# selection (OnboardingScreen / SettingsTab).
+
+VALID_PERSONAS = ("hobbyist", "working_pro", "vision_impairment")
+
+
+class PersonaUpdate(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    persona: str
+    user_id: str | None = Field(default=None, alias="userId")
+
+
+@app.get("/api/v1/users/me")
+def users_me(user_id: str | None = None, x_user_id: str = Header(default="demo-user")) -> dict:
+    """user_id query param (Iris parity + frontend's ?userId= for signed-in
+    users) wins over the X-User-Id header when both are present, matching
+    every other route's X-User-Id-as-fallback convention in this file."""
+    uid = user_id or x_user_id
+    doc = _store().db.users.find_one({"_id": uid})
+    if not doc:
+        # No user doc yet: return the default shape rather than 404 — the
+        # frontend's first-boot GET (before onboarding/persona selection)
+        # must never error, same tolerance as the portfolio read routes.
+        return {"userId": uid, "persona": "hobbyist", "preferences": {}}
+    return {
+        "userId": uid,
+        "persona": doc.get("persona") or "hobbyist",
+        "preferences": doc.get("preferences") or {},
+    }
+
+
+@app.patch("/api/v1/users/me")
+def users_me_patch(body: PersonaUpdate, x_user_id: str = Header(default="demo-user")) -> dict:
+    if body.persona not in VALID_PERSONAS:
+        raise HTTPException(status_code=400, detail=f"persona must be one of {VALID_PERSONAS}")
+    uid = body.user_id or x_user_id
+    _store().db.users.update_one(
+        {"_id": uid},
+        {"$set": {"persona": body.persona, "preferences.onboardingComplete": True}},
+        upsert=True,
+    )
+    return {"userId": uid, "persona": body.persona}
+
+
 # --- Portfolio read routes (Task 13b) ------------------------------------
 # Mirrors the wire contract of Iris's app/memory/portfolio.py + trends.py
 # (see frontend/src/services/memoryClient.ts and types/memory.ts).
