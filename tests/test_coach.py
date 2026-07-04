@@ -444,6 +444,153 @@ def test_validation_error_log_includes_field_level_detail(caplog):
 
 
 # ---------------------------------------------------------------------------
+# Part 1b: local validation salvage wired into _run_coach_model
+# ---------------------------------------------------------------------------
+# The production incident: qwen-vl-max returns a good critique with ONE
+# cosmetic enum near-miss ("medium" instead of "moderate"). That must be
+# salvaged locally in ~0ms with ZERO model calls — not by firing the ~93s
+# chat_text/chat_fast shape-repair chain that ends in a 502.
+
+NEAR_MISS_ENUM_JSON = VALID_COACH_JSON.replace(
+    '"spatialMetadata": {}',
+    '"spatialMetadata": {"lighting_map": {"fill_light_strength": "medium"}}',
+)
+
+# Core damage local salvage must NOT fix (a score that isn't a number at all):
+# this is the only class of failure that still legitimately reaches the
+# model-based shape-repair chain.
+CORE_DAMAGED_COACH_JSON = VALID_COACH_JSON.replace(
+    '"composition": 7,', '"composition": "excellent",'
+)
+
+# A "successful" model repair that itself reintroduces a near-miss enum — the
+# second validate site must apply the same local salvage instead of 502ing.
+CORE_REPAIRED_WITH_NEAR_MISS_JSON = NEAR_MISS_ENUM_JSON
+
+
+def test_near_miss_enum_is_salvaged_locally_with_zero_model_calls():
+    from app.coach import analyze_photo
+
+    fake_call_result = MagicMock(
+        content=NEAR_MISS_ENUM_JSON, model="qwen-vl-max", latency_ms=500, input_tokens=100, output_tokens=200
+    )
+    with patch("app.coach.qwen_client.chat_vision", return_value=fake_call_result), \
+         patch("app.coach.qwen_client.chat_text") as mock_chat_text, \
+         patch("app.coach.qwen_client.chat_fast") as mock_chat_fast, \
+         patch("app.coach.get_storage") as mock_get_storage:
+        mock_get_storage.return_value.save.return_value = "photos/fake.jpg"
+        mock_get_storage.return_value.signed_url.return_value = "https://x/fake.jpg"
+
+        result = analyze_photo(image_bytes=b"fake", content_type="image/jpeg", filename="x.jpg")
+
+    # the near-miss enum was snapped locally, never via the model repair chain
+    mock_chat_text.assert_not_called()
+    mock_chat_fast.assert_not_called()
+    assert result["spatialMetadata"]["lighting_map"]["fill_light_strength"] == "moderate"
+    assert result["genre"] == "landscape"
+
+
+def test_core_damage_still_reaches_model_repair_chain():
+    from app.coach import analyze_photo
+
+    damaged = MagicMock(
+        content=CORE_DAMAGED_COACH_JSON, model="qwen-vl-max", latency_ms=500, input_tokens=100, output_tokens=200
+    )
+    repaired = MagicMock(
+        content=VALID_COACH_JSON, model="qwen-max", latency_ms=300, input_tokens=150, output_tokens=180
+    )
+    with patch("app.coach.qwen_client.chat_vision", return_value=damaged), \
+         patch("app.coach.qwen_client.chat_text", return_value=repaired) as mock_chat_text, \
+         patch("app.coach.get_storage") as mock_get_storage:
+        mock_get_storage.return_value.save.return_value = "photos/fake.jpg"
+        mock_get_storage.return_value.signed_url.return_value = "https://x/fake.jpg"
+
+        result = analyze_photo(image_bytes=b"fake", content_type="image/jpeg", filename="x.jpg")
+
+    mock_chat_text.assert_called_once()  # unparseable core score -> model chain still fires
+    assert result["scores"]["composition"] == 7
+
+
+def test_model_repair_output_with_near_miss_enum_is_salvaged_not_failed():
+    # Covers the second validate site: the repair model routinely reintroduces
+    # near-miss enums; local salvage must catch those too instead of raising.
+    from app.coach import analyze_photo
+
+    damaged = MagicMock(
+        content=CORE_DAMAGED_COACH_JSON, model="qwen-vl-max", latency_ms=500, input_tokens=100, output_tokens=200
+    )
+    repaired = MagicMock(
+        content=CORE_REPAIRED_WITH_NEAR_MISS_JSON, model="qwen-max", latency_ms=300, input_tokens=150, output_tokens=180
+    )
+    with patch("app.coach.qwen_client.chat_vision", return_value=damaged), \
+         patch("app.coach.qwen_client.chat_text", return_value=repaired) as mock_chat_text, \
+         patch("app.coach.get_storage") as mock_get_storage:
+        mock_get_storage.return_value.save.return_value = "photos/fake.jpg"
+        mock_get_storage.return_value.signed_url.return_value = "https://x/fake.jpg"
+
+        result = analyze_photo(image_bytes=b"fake", content_type="image/jpeg", filename="x.jpg")
+
+    mock_chat_text.assert_called_once()
+    assert result["spatialMetadata"]["lighting_map"]["fill_light_strength"] == "moderate"
+
+
+def test_non_core_shape_drift_no_longer_fires_model_chain():
+    # MALFORMED_COACH_JSON's glassBox is missing reasoning_steps/priority_fixes
+    # (non-core -> honest-empty fills) but its scores are also missing two keys
+    # (core -> model chain). This variant keeps ONLY the non-core damage: with
+    # local salvage in place it must validate with zero model calls.
+    from app.coach import analyze_photo
+
+    non_core_drift = VALID_COACH_JSON.replace(
+        '"glassBox": {"observations": ["a"], "reasoning_steps": ["b"], "priority_fixes": []}',
+        '"glassBox": {"observations": ["a"]}',
+    )
+    fake_call_result = MagicMock(
+        content=non_core_drift, model="qwen-vl-max", latency_ms=500, input_tokens=100, output_tokens=200
+    )
+    with patch("app.coach.qwen_client.chat_vision", return_value=fake_call_result), \
+         patch("app.coach.qwen_client.chat_text") as mock_chat_text, \
+         patch("app.coach.get_storage") as mock_get_storage:
+        mock_get_storage.return_value.save.return_value = "photos/fake.jpg"
+        mock_get_storage.return_value.signed_url.return_value = "https://x/fake.jpg"
+
+        result = analyze_photo(image_bytes=b"fake", content_type="image/jpeg", filename="x.jpg")
+
+    mock_chat_text.assert_not_called()
+    assert result["glassBox"]["observations"] == ["a"]
+    assert result["glassBox"]["reasoning_steps"] == []
+    assert result["glassBox"]["priority_fixes"] == []
+
+
+def test_truncated_vision_json_is_repaired_locally_without_chat_fast():
+    # qwen-vl-plus's observed failure mode: JSON cut off mid-string with
+    # trailing whitespace. parse_json_with_repair must recover it locally;
+    # chat_fast (the model-based JSON repair) must never fire.
+    from app.coach import analyze_photo
+
+    truncated = VALID_COACH_JSON.rsplit('"genre"', 1)[0].rstrip().rstrip(",") + "   \n\t  "
+    # drop the closing "}" so braces are genuinely unbalanced
+    assert not truncated.rstrip().endswith("}")
+
+    fake_call_result = MagicMock(
+        content=truncated, model="qwen-vl-plus", latency_ms=500, input_tokens=100, output_tokens=200
+    )
+    with patch("app.coach.qwen_client.chat_vision", return_value=fake_call_result), \
+         patch("app.coach.qwen_client.chat_fast") as mock_chat_fast, \
+         patch("app.coach.qwen_client.chat_text") as mock_chat_text, \
+         patch("app.coach.get_storage") as mock_get_storage:
+        mock_get_storage.return_value.save.return_value = "photos/fake.jpg"
+        mock_get_storage.return_value.signed_url.return_value = "https://x/fake.jpg"
+
+        result = analyze_photo(image_bytes=b"fake", content_type="image/jpeg", filename="x.jpg")
+
+    mock_chat_fast.assert_not_called()
+    mock_chat_text.assert_not_called()
+    assert result["sceneDescription"] == "A lone tree on a hill at sunset."
+    assert result["genre"] == "other"  # genre was truncated away -> schema default
+
+
+# ---------------------------------------------------------------------------
 # Part 2: image resizing before the vision call
 # ---------------------------------------------------------------------------
 
