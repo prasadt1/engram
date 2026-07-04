@@ -83,7 +83,7 @@ Docker
 (Full detail with exact model IDs and version numbers lives in "How I built it" above — this field is just searchable tech tags.)
 
 ### "Try it out" links ✅
-- Live demo (judge mode): `http://8.222.253.211:8080/?judge=1`
+- Live demo (judge mode): `https://engram.prasadtilloo.com/?judge=1`
 - GitHub repo: `https://github.com/prasadt1/engram`
 
 ### Image gallery 🔄 (3:2 ratio, up to 15)
