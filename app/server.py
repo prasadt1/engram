@@ -348,11 +348,8 @@ def aesthetic_profile(x_user_id: str = Header(default="demo-user")) -> dict:
             "stylisticConsistencyScore": None,
         }
 
-    tag_counts: dict[str, int] = {}
     sums = {k: 0.0 for k in _SCORE_DIMS}
     for doc in docs:
-        for tag in doc.get("aesthetic_tags") or []:
-            tag_counts[tag] = tag_counts.get(tag, 0) + 1
         scores = doc.get("scores") or {}
         for k in _SCORE_DIMS:
             sums[k] += float(scores.get(k, 0))
@@ -363,11 +360,9 @@ def aesthetic_profile(x_user_id: str = Header(default="demo-user")) -> dict:
     variance = sum((x - mean) ** 2 for x in avg_scores.values()) / len(avg_scores)
     consistency = max(0.0, min(1.0, 1.0 - (variance / 25.0)))
 
-    dominant = sorted(tag_counts.items(), key=lambda x: -x[1])[:8]
-
     return {
         "photoCount": coll.count_documents(query),
-        "dominantTags": [t for t, _ in dominant],
+        "dominantTags": _store().top_aesthetic_tags(user_id=x_user_id, limit=20, top_n=8),
         "averageScores": avg_scores,
         "stylisticConsistencyScore": round(consistency, 2),
     }

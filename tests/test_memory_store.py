@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 import mongomock
 import pytest
 
@@ -61,3 +63,39 @@ def test_supersede_memory_retires_old_content_and_is_user_scoped():
 
     with pytest.raises(ValueError):
         store.supersede_memory(old_id=old_id, user_id="u2", new_content="hijacked", importance=0.5)
+
+
+def test_top_aesthetic_tags_ranks_by_frequency_within_window():
+    store = _store()
+    now = datetime.now(timezone.utc)
+    # 3 docs tagged "moody", 1 tagged "bright" -- moody must rank first
+    for i, tags in enumerate([["moody"], ["moody", "bright"], ["moody"]]):
+        store.db.portfolio_entries.insert_one({
+            "user_id": "u1", "aesthetic_tags": tags,
+            "created_at": now - timedelta(days=i),
+        })
+    result = store.top_aesthetic_tags(user_id="u1", limit=20, top_n=8)
+    assert result[0] == "moody"
+    assert "bright" in result
+
+
+def test_top_aesthetic_tags_respects_limit_window():
+    store = _store()
+    now = datetime.now(timezone.utc)
+    # 1 recent doc tagged "bright", 5 OLDER docs tagged "moody" -- with
+    # limit=1 (most recent doc only), only "bright" should show up.
+    store.db.portfolio_entries.insert_one({
+        "user_id": "u1", "aesthetic_tags": ["bright"], "created_at": now,
+    })
+    for i in range(1, 6):
+        store.db.portfolio_entries.insert_one({
+            "user_id": "u1", "aesthetic_tags": ["moody"],
+            "created_at": now - timedelta(days=i),
+        })
+    result = store.top_aesthetic_tags(user_id="u1", limit=1, top_n=8)
+    assert result == ["bright"]
+
+
+def test_top_aesthetic_tags_empty_when_no_portfolio():
+    store = _store()
+    assert store.top_aesthetic_tags(user_id="u1", limit=20, top_n=8) == []

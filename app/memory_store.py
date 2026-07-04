@@ -151,3 +151,20 @@ class MemoryStore:
             "skills_watching": sum(1 for s in skills if s.status == SkillStatus.WATCHING),
             "skills_cleared": sum(1 for s in skills if s.status == SkillStatus.CLEARED),
         }
+
+    # --- portfolio aggregations (aesthetic identity, not memory recall) --
+
+    def top_aesthetic_tags(self, *, user_id: str, limit: int | None = 20, top_n: int = 8) -> list[str]:
+        """Most frequent aesthetic_tags across the user's portfolio_entries,
+        most-recent-first before counting (limit=None means the whole history).
+        Extracted from the aesthetic-profile route so the journey route can
+        reuse the same logic with a different window."""
+        cursor = self.db.portfolio_entries.find({"user_id": user_id}).sort("created_at", -1)
+        if limit is not None:
+            cursor = cursor.limit(limit)
+        tag_counts: dict[str, int] = {}
+        for doc in cursor:
+            for tag in doc.get("aesthetic_tags") or []:
+                tag_counts[tag] = tag_counts.get(tag, 0) + 1
+        ranked = sorted(tag_counts.items(), key=lambda pair: -pair[1])
+        return [tag for tag, _ in ranked[:top_n]]
