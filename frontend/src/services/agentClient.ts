@@ -135,12 +135,19 @@ export async function analyzePhoto(request: AnalyzePhotoRequest): Promise<Analyz
     body: form,
     signal: request.signal,
     // Cloud Run Coach pipeline (Gemini + GCS + embeddings) often exceeds 45s.
-    // Backend now bounds this explicitly: chat_vision is 60s (+1 timeout-retry
-    // = 120s worst case), chained JSON-repair calls add chat_fast's 30s
-    // (+retry = 60s) and chat_text's 40s (+retry = 80s). 170s gives headroom
-    // over the common single-vision-call case while still failing well before
-    // the 260s absolute worst-case chain.
-    timeoutMs: 170_000,
+    // Backend now bounds this explicitly, but the true worst case is a
+    // sequential chain, not just one vision call:
+    //   1. chat_vision runs once: 60s (+1 timeout-retry) = 120s worst case.
+    //   2. parse_json_with_repair on the vision output: if malformed, _repair
+    //      calls chat_fast once: 30s (+1 retry) = 60s worst case.
+    //   3. If pydantic validation then fails, chat_text does a shape-repair
+    //      pass: 40s (+1 retry) = 80s worst case.
+    //   4. parse_json_with_repair runs again on the shape-repair output: if
+    //      that JSON is also malformed, _repair can call chat_fast a SECOND
+    //      time: 30s (+1 retry) = 60s worst case.
+    // 120 + 60 + 80 + 60 = 320s true worst case. 350s gives ~30s of margin
+    // for network/processing overhead on top of that.
+    timeoutMs: 350_000,
   });
 
   if (!response.ok) {
