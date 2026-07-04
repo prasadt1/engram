@@ -17,8 +17,9 @@ Deployed **July 4, 2026** on a pay-as-you-go ECS instance.
 
 - Instance: `i-t4nefbdogtkjqbvvyxsn` (Economy e, 2 vCPU / 2 GiB, Ubuntu 24.04)
 - Region: **ap-southeast-1 (Singapore)** — co-located with the DashScope intl endpoint
-- Public endpoint: **http://8.222.253.211:8080** — the full app (built SPA served same-origin) and API
-  - Live app / judge mode: `http://8.222.253.211:8080/?judge=1`
-  - Health: `http://8.222.253.211:8080/health`
-  - Live MCP path: `http://8.222.253.211:8080/api/v1/memory-stats?via=mcp` → `"served_via": "engram-mcp"`
+- Public endpoint: **https://engram.prasadtilloo.com** — the full app (built SPA served same-origin) and API, behind a Caddy reverse proxy with an auto-provisioned Let's Encrypt certificate (HTTP auto-redirects to HTTPS)
+  - Live app / judge mode: `https://engram.prasadtilloo.com/?judge=1`
+  - Health: `https://engram.prasadtilloo.com/health`
+  - Live MCP path: `https://engram.prasadtilloo.com/api/v1/memory-stats?via=mcp` → `"served_via": "engram-mcp"`
+  - Fallback (no DNS/TLS dependency): `http://8.222.253.211:8080/?judge=1`
 - Console screenshot: ![ECS console — instance running](alibaba-console-running.png) *(slot — added with the captured screenshot)*
