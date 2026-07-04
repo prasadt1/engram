@@ -71,6 +71,9 @@ export async function sendMentorMessage(
       photo_id: options?.photoId ?? null,
     }),
     signal: options?.signal,
+    // Memory recall + a Qwen reasoning-model call; the 45s default (tuned for
+    // plain CRUD routes) fires before a healthy reply lands.
+    timeoutMs: 90_000,
   });
   if (!res.ok) {
     const detail = await res.text();
