@@ -470,9 +470,10 @@ export const GlassBoxTab: React.FC = () => {
             What happens when a mentor never forgets
           </h2>
           <p className="text-sm text-stone-400 leading-relaxed max-w-2xl">
-            We scripted {defaultResults.summary.trace_count} photographer histories in which facts
-            change over time — a gear switch, a habit that improved — then asked the memory a question
-            about each and scored the answer. The score is{' '}
+            We scripted {defaultResults.summary.trace_count} photographer histories — in most of
+            them a fact changes over time (a gear switch, a habit that improved), while a few are
+            controls where nothing changes — then asked the memory a question about each and scored
+            the answer. The score is{' '}
             <span className="text-stone-200 font-medium">FAMA</span> (Forgetting-Aware Memory
             Accuracy): it rewards recalling every still-true fact and penalizes surfacing outdated
             ones — higher is better, 1.00 is perfect.
