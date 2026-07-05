@@ -16,6 +16,9 @@ interface Props {
   skills: JourneySkill[];
   stats: JourneyStats;
   identity: string | null;
+  /** Optional user-set name — the section header becomes "{name}'s journey";
+   * absent, it renders exactly the anonymous "Your journey" it always did. */
+  displayName?: string | null;
 }
 
 const STREAK_TARGET = 3;
@@ -31,11 +34,13 @@ function orderWatchingByStreak(watching: JourneySkill[]): JourneySkill[] {
   );
 }
 
-export const JourneySection: React.FC<Props> = ({ summary, skills, identity }) => {
+export const JourneySection: React.FC<Props> = ({ summary, skills, identity, displayName }) => {
+  const heading = displayName ? `${displayName}'s journey` : 'Your journey';
+
   if (skills.length === 0) {
     return (
       <section className="max-w-4xl mx-auto px-1">
-        <Eyebrow className="mb-3">Your journey</Eyebrow>
+        <Eyebrow className="mb-3">{heading}</Eyebrow>
         <EmptyState
           icon={<Sparkles className="w-6 h-6" />}
           description="Upload your first photos and I'll start learning your strengths."
@@ -49,7 +54,7 @@ export const JourneySection: React.FC<Props> = ({ summary, skills, identity }) =
 
   return (
     <section className="max-w-4xl mx-auto px-1 space-y-4">
-      <Eyebrow>Your journey</Eyebrow>
+      <Eyebrow>{heading}</Eyebrow>
 
       {identity && (
         <p className="font-serif text-xl md:text-2xl text-white leading-snug">{identity}</p>

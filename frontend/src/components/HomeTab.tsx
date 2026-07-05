@@ -568,7 +568,13 @@ export const HomeTab: React.FC<Props> = ({
             streaks. Returning users only: a first-visit user already gets
             this same "upload to start" message in the pitch hero above. */}
         {isReturning && journey && (
-          <JourneySection summary={journey.summary} skills={journey.skills} stats={journey.stats} identity={journey.identity} />
+          <JourneySection
+            summary={journey.summary}
+            skills={journey.skills}
+            stats={journey.stats}
+            identity={journey.identity}
+            displayName={journey.displayName ?? null}
+          />
         )}
 
         {/* First visit: example Glass Box */}

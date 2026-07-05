@@ -106,20 +106,27 @@ def health() -> dict:
     return {"status": "ok"}
 
 
-# --- Users/me routes (persona persistence) --------------------------------
+# --- Users/me routes (persona + display name persistence) -----------------
 # Mirrors Iris's app/memory/users.py::get_user_profile / set_persona wire
-# contract exactly — { userId, persona, preferences } — see
-# frontend/src/services/userClient.ts::UserProfile. The frontend calls GET
-# on every boot (App.tsx, up to 3x: userMode sync, onboarding-complete
+# contract — { userId, persona, preferences } — see
+# frontend/src/services/userClient.ts::UserProfile, extended additively with
+# an optional displayName (Home greets by name when set). The frontend calls
+# GET on every boot (App.tsx, up to 3x: userMode sync, onboarding-complete
 # check, and again after auth.userId stabilises) and PATCH on persona
-# selection (OnboardingScreen / SettingsTab).
+# selection (OnboardingScreen / SettingsTab) or name save (SettingsTab).
 
 VALID_PERSONAS = ("hobbyist", "working_pro", "vision_impairment")
 
+MAX_DISPLAY_NAME_LEN = 80
 
-class PersonaUpdate(BaseModel):
+
+class UserUpdate(BaseModel):
+    """PATCH body: each field is optional and only applied when present, so
+    a persona switch never touches the name and vice versa."""
+
     model_config = ConfigDict(populate_by_name=True)
-    persona: str
+    persona: str | None = None
+    display_name: str | None = Field(default=None, alias="displayName")
     user_id: str | None = Field(default=None, alias="userId")
 
 
@@ -140,25 +147,47 @@ def users_me(
         # No user doc yet: return the default shape rather than 404 — the
         # frontend's first-boot GET (before onboarding/persona selection)
         # must never error, same tolerance as the portfolio read routes.
-        return {"userId": uid, "persona": "hobbyist", "preferences": {}}
+        return {"userId": uid, "persona": "hobbyist", "preferences": {}, "displayName": None}
     return {
         "userId": uid,
         "persona": doc.get("persona") or "hobbyist",
         "preferences": doc.get("preferences") or {},
+        # .get() is deliberate: user docs written before displayName existed
+        # simply return null here, no migration needed.
+        "displayName": doc.get("displayName"),
     }
 
 
 @app.patch("/api/v1/users/me")
-def users_me_patch(body: PersonaUpdate, x_user_id: str = Header(default="demo-user")) -> dict:
-    if body.persona not in VALID_PERSONAS:
-        raise HTTPException(status_code=400, detail=f"persona must be one of {VALID_PERSONAS}")
+def users_me_patch(body: UserUpdate, x_user_id: str = Header(default="demo-user")) -> dict:
     uid = body.user_id or x_user_id
-    _store().db.users.update_one(
-        {"_id": uid},
-        {"$set": {"persona": body.persona, "preferences.onboardingComplete": True}},
-        upsert=True,
-    )
-    return {"userId": uid, "persona": body.persona}
+    updates: dict[str, Any] = {}
+    # Response echoes only the fields this PATCH actually set — the persona
+    # switcher's existing contract ({userId, persona}) stays byte-identical.
+    response: dict[str, Any] = {"userId": uid}
+
+    if "persona" in body.model_fields_set:
+        if body.persona not in VALID_PERSONAS:
+            raise HTTPException(status_code=400, detail=f"persona must be one of {VALID_PERSONAS}")
+        updates["persona"] = body.persona
+        updates["preferences.onboardingComplete"] = True
+        response["persona"] = body.persona
+
+    if "display_name" in body.model_fields_set:
+        name = (body.display_name or "").strip() or None
+        if name and len(name) > MAX_DISPLAY_NAME_LEN:
+            raise HTTPException(
+                status_code=400,
+                detail=f"displayName must be {MAX_DISPLAY_NAME_LEN} characters or fewer",
+            )
+        updates["displayName"] = name  # blank/whitespace clears the name
+        response["displayName"] = name
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="provide persona and/or displayName to update")
+
+    _store().db.users.update_one({"_id": uid}, {"$set": updates}, upsert=True)
+    return response
 
 
 # --- Portfolio read routes (Task 13b) ------------------------------------
@@ -544,6 +573,9 @@ def journey(x_user_id: str = Header(default="demo-user")) -> dict:
     genre = store.dominant_genre(user_id=x_user_id, limit=None)
     top_tags = store.top_aesthetic_tags(user_id=x_user_id, limit=None, top_n=1)
     tag = top_tags[0] if top_tags else None
+    # Same null-safe read as /users/me: users without a doc (or with a doc
+    # predating displayName) get null, and Home renders exactly as before.
+    user_doc = store.db.users.find_one({"_id": x_user_id}) or {}
 
     return {
         "summary": summarize_progress(user_id=x_user_id, memory_store=store),
@@ -553,6 +585,7 @@ def journey(x_user_id: str = Header(default="demo-user")) -> dict:
         ],
         "stats": store.get_memory_stats(user_id=x_user_id),
         "identity": build_identity_line(genre, tag, cleared, current_focus),
+        "displayName": user_doc.get("displayName"),
     }
 
 

@@ -1,13 +1,14 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { LogIn, LogOut, Settings } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
 import { firebaseAuthEnabled } from '../auth/firebaseConfig';
 import { ModeToggle } from './ModeToggle';
 import { ThemeToggle } from './ThemeToggle';
-import { Button, Card, Eyebrow } from './primitives';
+import { Button, Card, Eyebrow, TextInput } from './primitives';
 import { clearOnboardingComplete } from '../lib/onboarding';
 import { applyTheme, type ThemeMode } from '../lib/theme';
 import { isLocalDevHost } from '../lib/apiHelp';
+import { fetchUserProfile, updateDisplayName } from '../services/userClient';
 import type { UserMode } from '../types/practice';
 
 interface Props {
@@ -33,6 +34,45 @@ export const SettingsTab: React.FC<Props> = ({
 }) => {
   const isLocal = isLocalDevHost();
   const auth = useAuth();
+
+  // "Your name" — same save pattern as the persona switcher (ModeToggle):
+  // local saving state, failures surfaced through onPersistError.
+  const [displayName, setDisplayName] = useState('');
+  const [nameLoaded, setNameLoaded] = useState(false);
+  const [savingName, setSavingName] = useState(false);
+  const [nameSaved, setNameSaved] = useState(false);
+
+  useEffect(() => {
+    if (auth.loading) return;
+    let cancelled = false;
+    fetchUserProfile(auth.userId)
+      .then((profile) => {
+        if (cancelled) return;
+        setDisplayName(profile.displayName ?? '');
+        setNameLoaded(true);
+      })
+      .catch(() => {
+        // Profile fetch failing shouldn't lock the field — start blank.
+        if (!cancelled) setNameLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [auth.loading, auth.userId]);
+
+  const saveName = async () => {
+    setSavingName(true);
+    setNameSaved(false);
+    try {
+      const result = await updateDisplayName(displayName.trim(), auth.userId);
+      setDisplayName(result.displayName ?? '');
+      setNameSaved(true);
+    } catch (e) {
+      onPersistError(e instanceof Error ? e.message : 'Could not save your name');
+    } finally {
+      setSavingName(false);
+    }
+  };
 
   return (
     <div className="animate-fadeIn max-w-lg space-y-8">
@@ -95,6 +135,41 @@ export const SettingsTab: React.FC<Props> = ({
           <p className="text-sm text-muted leading-relaxed">
             Firebase web keys are not configured for this build — the API uses the shared demo user.
             Add <code className="text-brand-400 text-xs">VITE_FIREBASE_*</code> for sign-in.
+          </p>
+        )}
+      </Card>
+
+      <Card>
+        <h2 className="text-sm font-semibold text-white mb-1">Your name</h2>
+        <p className="text-sm text-muted mb-3">
+          I&apos;ll greet you by name on your Home page. Leave it blank to stay anonymous.
+        </p>
+        <form
+          className="flex items-stretch gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void saveName();
+          }}
+        >
+          <TextInput
+            value={displayName}
+            onChange={(e) => {
+              setDisplayName(e.target.value);
+              setNameSaved(false);
+            }}
+            placeholder="e.g. Asha"
+            maxLength={80}
+            aria-label="Your name"
+            disabled={!nameLoaded || savingName}
+            className="flex-1"
+          />
+          <Button type="submit" size="sm" disabled={!nameLoaded || savingName}>
+            {savingName ? 'Saving…' : 'Save'}
+          </Button>
+        </form>
+        {nameSaved && (
+          <p className="text-xs text-brand-400 mt-2" role="status">
+            Saved — Home will greet you by name.
           </p>
         )}
       </Card>

@@ -156,6 +156,79 @@ def test_users_me_patch_then_get_round_trips_persona():
     assert body["preferences"]["onboardingComplete"] is True
 
 
+def test_users_me_patch_then_get_round_trips_display_name():
+    client = mongomock.MongoClient()
+    store = MagicMock()
+    store.db = client["t"]
+    with patch("app.server._store", return_value=store):
+        patch_resp = _client().patch(
+            "/api/v1/users/me",
+            json={"displayName": "Asha"},
+            headers={"X-User-Id": "u1"},
+        )
+        assert patch_resp.status_code == 200
+        # name-only PATCH echoes only what it set — no persona key invented
+        assert patch_resp.json() == {"userId": "u1", "displayName": "Asha"}
+
+        get_resp = _client().get("/api/v1/users/me", headers={"X-User-Id": "u1"})
+    assert get_resp.status_code == 200
+    body = get_resp.json()
+    assert body["displayName"] == "Asha"
+    assert body["persona"] == "hobbyist"  # untouched default
+
+
+def test_users_me_display_name_patch_does_not_clobber_persona():
+    client = mongomock.MongoClient()
+    store = MagicMock()
+    store.db = client["t"]
+    with patch("app.server._store", return_value=store):
+        _client().patch("/api/v1/users/me", json={"persona": "working_pro"}, headers={"X-User-Id": "u1"})
+        _client().patch("/api/v1/users/me", json={"displayName": "Asha"}, headers={"X-User-Id": "u1"})
+        get_resp = _client().get("/api/v1/users/me", headers={"X-User-Id": "u1"})
+    body = get_resp.json()
+    assert body["persona"] == "working_pro"
+    assert body["displayName"] == "Asha"
+    assert body["preferences"]["onboardingComplete"] is True
+
+
+def test_users_me_get_display_name_null_for_pre_existing_user_doc():
+    # Docs written before displayName existed must read back null, not 500.
+    client = mongomock.MongoClient()
+    store = MagicMock()
+    store.db = client["t"]
+    store.db.users.insert_one({"_id": "u1", "persona": "working_pro", "preferences": {}})
+    with patch("app.server._store", return_value=store):
+        resp = _client().get("/api/v1/users/me", headers={"X-User-Id": "u1"})
+    assert resp.status_code == 200
+    assert resp.json()["displayName"] is None
+
+
+def test_users_me_patch_blank_display_name_clears_it():
+    client = mongomock.MongoClient()
+    store = MagicMock()
+    store.db = client["t"]
+    with patch("app.server._store", return_value=store):
+        _client().patch("/api/v1/users/me", json={"displayName": "Asha"}, headers={"X-User-Id": "u1"})
+        clear_resp = _client().patch("/api/v1/users/me", json={"displayName": "   "}, headers={"X-User-Id": "u1"})
+        get_resp = _client().get("/api/v1/users/me", headers={"X-User-Id": "u1"})
+    assert clear_resp.status_code == 200
+    assert clear_resp.json() == {"userId": "u1", "displayName": None}
+    assert get_resp.json()["displayName"] is None
+
+
+def test_users_me_patch_rejects_empty_body_and_overlong_display_name():
+    client = mongomock.MongoClient()
+    store = MagicMock()
+    store.db = client["t"]
+    with patch("app.server._store", return_value=store):
+        empty = _client().patch("/api/v1/users/me", json={}, headers={"X-User-Id": "u1"})
+        too_long = _client().patch(
+            "/api/v1/users/me", json={"displayName": "x" * 81}, headers={"X-User-Id": "u1"},
+        )
+    assert empty.status_code == 400
+    assert too_long.status_code == 400
+
+
 def test_analyze_photo_endpoint_saves_before_analyze_and_uses_image_field():
     fake_payload = {"scores": {"composition": 7}, "genre": "landscape", "imageUrl": "http://x/y.jpg", "portfolioEntryId": "abc"}
     with patch("app.server.analyze_photo", return_value=fake_payload) as mock_analyze, \
@@ -309,12 +382,33 @@ def test_journey_endpoint_shape():
         mock_store.return_value.get_memory_stats.return_value = {"total_memories": 3}
         mock_store.return_value.dominant_genre.return_value = "landscape"
         mock_store.return_value.top_aesthetic_tags.return_value = ["moody"]
+        # user doc predates displayName (or doesn't exist) — the journey
+        # response must stay null-safe for every pre-existing user.
+        mock_store.return_value.db.users.find_one.return_value = None
         resp = _client().get("/api/v1/journey", headers={"X-User-Id": "u1"})
     body = resp.json()
     assert body["summary"] == "Nice progress."
     assert body["skills"][0] == {"name": "exposure", "status": "watching", "consecutive": 1}
     assert body["stats"]["total_memories"] == 3
     assert body["identity"] == "You're a moody landscape shooter — working toward your first cleared skill, now sharpening exposure."
+    assert body["displayName"] is None
+
+
+def test_journey_endpoint_includes_display_name_from_user_doc():
+    from app.memory_engine import Skill, SkillStatus
+    with patch("app.server._store") as mock_store, \
+         patch("app.server.summarize_progress", return_value="Nice progress."):
+        mock_store.return_value.list_skills.return_value = [
+            Skill(name="exposure", bar=7, status=SkillStatus.WATCHING, consecutive_above_bar=1),
+        ]
+        mock_store.return_value.get_memory_stats.return_value = {"total_memories": 3}
+        mock_store.return_value.dominant_genre.return_value = "landscape"
+        mock_store.return_value.top_aesthetic_tags.return_value = []
+        mock_store.return_value.db.users.find_one.return_value = {
+            "_id": "u1", "persona": "hobbyist", "displayName": "Asha",
+        }
+        resp = _client().get("/api/v1/journey", headers={"X-User-Id": "u1"})
+    assert resp.json()["displayName"] == "Asha"
 
 
 def test_journey_identity_focus_tie_breaks_alphabetically_on_equal_streaks():
@@ -332,6 +426,7 @@ def test_journey_identity_focus_tie_breaks_alphabetically_on_equal_streaks():
         mock_store.return_value.get_memory_stats.return_value = {"total_memories": 3}
         mock_store.return_value.dominant_genre.return_value = "landscape"
         mock_store.return_value.top_aesthetic_tags.return_value = []
+        mock_store.return_value.db.users.find_one.return_value = None
         resp = _client().get("/api/v1/journey", headers={"X-User-Id": "u1"})
     identity = resp.json()["identity"]
     assert identity.endswith("now sharpening creativity.")
@@ -345,6 +440,7 @@ def test_journey_endpoint_identity_none_when_no_portfolio_data():
         mock_store.return_value.get_memory_stats.return_value = {"total_memories": 0}
         mock_store.return_value.dominant_genre.return_value = None
         mock_store.return_value.top_aesthetic_tags.return_value = []
+        mock_store.return_value.db.users.find_one.return_value = None
         resp = _client().get("/api/v1/journey", headers={"X-User-Id": "u1"})
     assert resp.json()["identity"] is None
 

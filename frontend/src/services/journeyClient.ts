@@ -24,6 +24,8 @@ export interface JourneyResponse {
   skills: JourneySkill[];
   stats: JourneyStats;
   identity: string | null;
+  /** Optional user-set name (users.displayName) — Home greets by it when present. */
+  displayName?: string | null;
 }
 
 // The summary sentence is one live LLM call server-side (~5-10s), well
