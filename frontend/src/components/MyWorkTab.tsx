@@ -52,6 +52,7 @@ import { MemoryReceipt } from './MemoryReceipt';
 import { PhotoDetailView } from './PhotoDetailView';
 import { ActivePracticeBanner } from './studio/ActivePracticeBanner';
 import { fetchAestheticProfile, fetchPortfolio, fetchPortfolioTrends, deletePortfolioEntries, deletePortfolioEntry, type SortField, type SortOrder } from '../services/memoryClient';
+import { FEATURES } from '../config/features';
 import { analyzePhoto } from '../services/agentClient';
 import { mapAnalysisResult } from '../lib/mapAnalysisResult';
 import type { AnalysisResult } from '../types';
@@ -482,13 +483,16 @@ export const MyWorkTab: React.FC<MyWorkTabProps> = ({
             Delete from library?
           </h3>
           <p className="text-sm text-muted leading-relaxed">
+            {/* "Pending organize suggestions" only exist when the HITL
+                triage flow is live (FEATURES.triage) — with the flag off
+                the sentence would point at a hidden Organize view. */}
             {deleteConfirm === 'bulk'
               ? deleteRemovesListing
                 ? `Remove ${selectedIds.size} photo${selectedIds.size === 1 ? '' : 's'} permanently. Print Sales listings on selected photos will be removed too.`
-                : `Remove ${selectedIds.size} photo${selectedIds.size === 1 ? '' : 's'} permanently. Pending organize suggestions will be cancelled.`
+                : `Remove ${selectedIds.size} photo${selectedIds.size === 1 ? '' : 's'} permanently.${FEATURES.triage ? ' Pending organize suggestions will be cancelled.' : ''}`
               : deleteRemovesListing
                 ? 'This photo is listed on Print Sales. Deleting removes the listing and its critique from your library.'
-                : 'This removes the photo and its critique from your library. Pending organize suggestions for this photo will be cancelled.'}
+                : `This removes the photo and its critique from your library.${FEATURES.triage ? ' Pending organize suggestions for this photo will be cancelled.' : ''}`}
           </p>
           <div className="flex gap-3 justify-end">
             <Button

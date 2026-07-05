@@ -450,20 +450,27 @@ export const MentorTab: React.FC<Props> = ({ mode, onGoToWork }) => {
 
   return (
     <div className="animate-fadeIn max-w-3xl mx-auto space-y-6">
-      {/* View Toggle */}
-      <SegmentedControl
-        value={view}
-        onChange={(v) => setView(v as MentorView)}
-        options={[
-          { id: 'chat', label: 'Ask Mentor', icon: <MessageCircle className="w-4 h-4" /> },
-          {
-            id: 'label',
-            label: 'Organize',
-            icon: <Layers className="w-4 h-4" />,
-            badge: pendingOrganizeCount > 0 ? pendingOrganizeCount : undefined,
-          },
-        ]}
-      />
+      {/* View Toggle — the Organize segment fronts the HITL triage flow
+          (/api/v1/pending-approvals* + /api/v1/triage/*), which has no
+          matching backend routes on Engram yet (FEATURES.triage=false, see
+          ../config/features.ts). With Organize hidden the control would be
+          left with a single "Ask Mentor" segment, so hide the whole control
+          and render the chat view directly. */}
+      {FEATURES.triage && (
+        <SegmentedControl
+          value={view}
+          onChange={(v) => setView(v as MentorView)}
+          options={[
+            { id: 'chat', label: 'Ask Mentor', icon: <MessageCircle className="w-4 h-4" /> },
+            {
+              id: 'label',
+              label: 'Organize',
+              icon: <Layers className="w-4 h-4" />,
+              badge: pendingOrganizeCount > 0 ? pendingOrganizeCount : undefined,
+            },
+          ]}
+        />
+      )}
 
       {/* Chat View */}
       {view === 'chat' && (
@@ -490,14 +497,19 @@ export const MentorTab: React.FC<Props> = ({ mode, onGoToWork }) => {
                 <div className="px-3 py-2 border-t border-warm/80 bg-canvas-elevated/30">
                   <Eyebrow className="mb-2">Quick actions</Eyebrow>
                   <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      disabled={chatLoading}
-                      onClick={() => setView('label')}
-                      className="text-xs px-3 py-1.5 rounded-full border border-brand-500/40 bg-brand-500/10 text-brand-300 hover:bg-brand-500/20 disabled:opacity-40"
-                    >
-                      Organize library
-                    </button>
+                    {/* Second entry point into the Organize view (besides the
+                        SegmentedControl above) — gated the same way so the
+                        chat footer never routes the user to a hidden view. */}
+                    {FEATURES.triage && (
+                      <button
+                        type="button"
+                        disabled={chatLoading}
+                        onClick={() => setView('label')}
+                        className="text-xs px-3 py-1.5 rounded-full border border-brand-500/40 bg-brand-500/10 text-brand-300 hover:bg-brand-500/20 disabled:opacity-40"
+                      >
+                        Organize library
+                      </button>
+                    )}
                     <button
                       type="button"
                       disabled={chatLoading}
@@ -549,8 +561,13 @@ export const MentorTab: React.FC<Props> = ({ mode, onGoToWork }) => {
         </div>
       )}
 
-      {/* Organize View */}
-      {view === 'label' && (
+      {/* Organize View — guarded on the flag as well as the view state
+          (belt and braces, same as App.tsx's Print Sales render gate):
+          every interaction inside fires a triage route that 404s on this
+          backend ("Scan my library" → runTriageScan, "Backlog triage" →
+          runTriageBacklog, approve/reject → decideApproval, and
+          HitlHistoryPanel's fetchHitlHistory on mount). */}
+      {FEATURES.triage && view === 'label' && (
         <div className="space-y-6">
           <div>
             <h1 className="font-serif text-2xl md:text-3xl font-extrabold text-white">

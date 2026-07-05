@@ -12,6 +12,7 @@ import {
   Sparkles,
   X,
 } from 'lucide-react';
+import { FEATURES } from '../config/features';
 
 interface TourStep {
   id: string;
@@ -46,9 +47,14 @@ const TOUR_STEPS: TourStep[] = [
   {
     id: 'mentor',
     icon: MessageCircle,
-    title: 'Mentor & Organize',
-    description:
-      'Ask about your library, run organize scans, and approve every tag or delete — nothing changes without you.',
+    // The Organize half of this step (organize scans, tag/delete approvals)
+    // is the HITL triage flow, deferred in this build (FEATURES.triage=false
+    // — no /api/v1/pending-approvals* backend routes yet). Keep the tour's
+    // promise to what's reachable: chat only, until the flag flips.
+    title: FEATURES.triage ? 'Mentor & Organize' : 'Mentor',
+    description: FEATURES.triage
+      ? 'Ask about your library, run organize scans, and approve every tag or delete — nothing changes without you.'
+      : 'Ask about your library and progress — replies draw on your past critiques and portfolio.',
     tabHint: 'Mentor tab',
   },
   {
