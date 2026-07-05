@@ -317,6 +317,26 @@ def test_journey_endpoint_shape():
     assert body["identity"] == "You're a moody landscape shooter — working toward your first cleared skill, now sharpening exposure."
 
 
+def test_journey_identity_focus_tie_breaks_alphabetically_on_equal_streaks():
+    # "Current focus" = watching skill closest to clearing (highest streak);
+    # equal streaks tie-break alphabetically. Must match JourneySection.tsx's
+    # orderWatchingByStreak so the identity line names the same skill the
+    # Watching card puts on top ("technique" first in API order must NOT win).
+    from app.memory_engine import Skill, SkillStatus
+    with patch("app.server._store") as mock_store, \
+         patch("app.server.summarize_progress", return_value="Nice progress."):
+        mock_store.return_value.list_skills.return_value = [
+            Skill(name="technique", bar=7, status=SkillStatus.WATCHING, consecutive_above_bar=1),
+            Skill(name="creativity", bar=7, status=SkillStatus.WATCHING, consecutive_above_bar=1),
+        ]
+        mock_store.return_value.get_memory_stats.return_value = {"total_memories": 3}
+        mock_store.return_value.dominant_genre.return_value = "landscape"
+        mock_store.return_value.top_aesthetic_tags.return_value = []
+        resp = _client().get("/api/v1/journey", headers={"X-User-Id": "u1"})
+    identity = resp.json()["identity"]
+    assert identity.endswith("now sharpening creativity.")
+
+
 def test_journey_endpoint_identity_none_when_no_portfolio_data():
     from app.memory_engine import Skill, SkillStatus
     with patch("app.server._store") as mock_store, \

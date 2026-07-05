@@ -20,12 +20,15 @@ interface Props {
 
 const STREAK_TARGET = 3;
 
-/** The watching skill closest to graduating: highest consecutive-above-bar
- * streak. Ties (including all-zero) keep the first skill in API order —
- * this is presentation-only tie-breaking, not a backend ranking. */
-function pickCurrentFocus(watching: JourneySkill[]): JourneySkill | null {
-  if (watching.length === 0) return null;
-  return watching.reduce((best, skill) => (skill.consecutive > best.consecutive ? skill : best));
+/** Watching skills ordered closest-to-clearing first: streak descending,
+ * alphabetical by skill name on ties. The top row IS the current focus —
+ * this is the single place the ordering rule lives on the frontend, and
+ * app/server.py's /api/v1/journey route applies the same rule when the
+ * identity line names the skill it's "now sharpening". */
+function orderWatchingByStreak(watching: JourneySkill[]): JourneySkill[] {
+  return [...watching].sort(
+    (a, b) => b.consecutive - a.consecutive || a.name.localeCompare(b.name),
+  );
 }
 
 export const JourneySection: React.FC<Props> = ({ summary, skills, identity }) => {
@@ -42,8 +45,7 @@ export const JourneySection: React.FC<Props> = ({ summary, skills, identity }) =
   }
 
   const cleared = skills.filter((s) => s.status === 'cleared');
-  const watching = skills.filter((s) => s.status === 'watching');
-  const currentFocus = pickCurrentFocus(watching);
+  const watching = orderWatchingByStreak(skills.filter((s) => s.status === 'watching'));
 
   return (
     <section className="max-w-4xl mx-auto px-1 space-y-4">
@@ -82,10 +84,13 @@ export const JourneySection: React.FC<Props> = ({ summary, skills, identity }) =
 
       {watching.length > 0 && (
         <Card padding="sm">
-          <Eyebrow tone="faint" className="mb-3">Watching</Eyebrow>
+          <Eyebrow tone="faint" className="mb-1.5">Watching</Eyebrow>
+          <p className="text-xs text-stone-400 leading-relaxed mb-3">
+            Each dot is a session above the bar — three in a row and I stop coaching that skill.
+          </p>
           <ul className="space-y-2.5">
-            {watching.map((skill) => {
-              const isFocus = currentFocus?.name === skill.name;
+            {watching.map((skill, index) => {
+              const isFocus = index === 0;
               const filled = Math.max(0, Math.min(STREAK_TARGET, skill.consecutive));
               return (
                 <li
@@ -96,12 +101,17 @@ export const JourneySection: React.FC<Props> = ({ summary, skills, identity }) =
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-sm text-stone-200 truncate">{humanizeSkillName(skill.name)}</span>
-                    {isFocus && <Tag variant="brand">Current focus</Tag>}
+                    {isFocus && (
+                      <Tag variant="brand">
+                        Current focus
+                        <span className="sr-only sm:not-sr-only"> — closest to clearing</span>
+                      </Tag>
+                    )}
                   </div>
                   <div
                     className="flex items-center gap-1 shrink-0"
                     role="img"
-                    aria-label={`${skill.consecutive} of ${STREAK_TARGET} sessions above the bar`}
+                    aria-label={`${filled} of ${STREAK_TARGET} sessions above the bar`}
                   >
                     {Array.from({ length: STREAK_TARGET }, (_, i) => (
                       <span

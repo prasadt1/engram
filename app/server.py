@@ -527,11 +527,11 @@ def journey(x_user_id: str = Header(default="demo-user")) -> dict:
     skills = store.list_skills(user_id=x_user_id)
     cleared = [s.name for s in skills if s.status == SkillStatus.CLEARED]
     watching_skills = [s for s in skills if s.status == SkillStatus.WATCHING]
-    # Same "closest to clearing" tie-break JourneySection.tsx uses on the
-    # frontend for its own "current focus" highlight, kept in sync here so
-    # the identity line names the same skill the Watching card highlights.
+    # Same "closest to clearing" ordering JourneySection.tsx uses on the
+    # frontend (streak descending, alphabetical on ties), kept in sync here
+    # so the identity line names the same skill the Watching card puts on top.
     current_focus = (
-        max(watching_skills, key=lambda s: s.consecutive_above_bar).name
+        min(watching_skills, key=lambda s: (-s.consecutive_above_bar, s.name)).name
         if watching_skills else None
     )
     genre = store.dominant_genre(user_id=x_user_id, limit=None)
