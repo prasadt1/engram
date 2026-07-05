@@ -163,7 +163,7 @@ export const AppSidebar: React.FC<Props> = ({
                   }`}
                 >
                   {trendDelta > 0 ? '+' : ''}
-                  {trendDelta.toFixed(1)} this month
+                  {trendDelta.toFixed(1)} across recent uploads
                 </p>
               )}
             </>
