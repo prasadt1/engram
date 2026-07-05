@@ -1,4 +1,4 @@
-import type { AnalysisScores } from './index';
+import type { AnalysisScores, MemoryUpdate, GroundingCitation } from './index';
 
 export interface PortfolioListItem {
   id: string;
@@ -20,7 +20,12 @@ export interface PortfolioListItem {
   userTags: string[];
   sceneDescription?: string;
   colourNotes?: string | null;
+  genre?: string;
   glassBoxSummary: string[];
+  groundingCitations?: GroundingCitation[] | string[];
+  groundingPrinciples?: string[];
+  /** Present on entries analyzed after the narration slice shipped. */
+  memoryUpdate?: MemoryUpdate | null;
 }
 
 export interface PortfolioListResponse {

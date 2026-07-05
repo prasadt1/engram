@@ -394,6 +394,29 @@ def test_journey_endpoint_shape():
     assert body["displayName"] is None
 
 
+def test_journey_skips_llm_summary_when_include_summary_false():
+    from app.memory_engine import Skill, SkillStatus
+    with patch("app.server._store") as mock_store, \
+         patch("app.server.summarize_progress", return_value="Should not run.") as mock_summary:
+        mock_store.return_value.list_skills.return_value = [
+            Skill(name="technique", bar=7, status=SkillStatus.WATCHING, consecutive_above_bar=1),
+        ]
+        mock_store.return_value.get_memory_stats.return_value = {"total_memories": 3}
+        mock_store.return_value.dominant_genre.return_value = "landscape"
+        mock_store.return_value.top_aesthetic_tags.return_value = ["golden_hour"]
+        mock_store.return_value.db.users.find_one.return_value = None
+        resp = _client().get(
+            "/api/v1/journey",
+            params={"include_summary": "false"},
+            headers={"X-User-Id": "u1"},
+        )
+    body = resp.json()
+    assert resp.status_code == 200
+    assert body["summary"] == ""
+    assert body["skills"][0]["name"] == "technique"
+    mock_summary.assert_not_called()
+
+
 def test_journey_endpoint_includes_display_name_from_user_doc():
     from app.memory_engine import Skill, SkillStatus
     with patch("app.server._store") as mock_store, \
@@ -559,6 +582,33 @@ def test_portfolio_stats_endpoint_shape():
     assert body["strongest"] is not None
     assert body["strongest"]["overallAverage"] == 9.0  # entry B has the highest average score
     assert body["strongest"]["imageUrl"] == "https://signed.example/photos/b.jpg"
+
+
+def test_portfolio_delete_single_and_batch():
+    store = _seed_portfolio_store()
+    with patch("app.server._store", return_value=store):
+        list_resp = _client().get("/api/v1/portfolio", headers={"X-User-Id": "u1"})
+        assert list_resp.status_code == 200
+        ids = [e["id"] for e in list_resp.json()["entries"]]
+        assert len(ids) == 3
+
+        del_resp = _client().delete(f"/api/v1/portfolio/{ids[0]}", headers={"X-User-Id": "u1"})
+        assert del_resp.status_code == 200
+        assert del_resp.json() == {"deleted": True, "id": ids[0]}
+
+        batch_resp = _client().post(
+            "/api/v1/portfolio/delete-batch",
+            headers={"X-User-Id": "u1"},
+            json={"entryIds": ids[1:], "removeListing": False},
+        )
+        assert batch_resp.status_code == 200
+        body = batch_resp.json()
+        assert body["deletedCount"] == 2
+        assert set(body["deleted"]) == set(ids[1:])
+        assert body["skipped"] == []
+
+        remaining = _client().get("/api/v1/portfolio", headers={"X-User-Id": "u1"}).json()
+        assert remaining["total"] == 0
 
 
 def test_portfolio_trends_endpoint_shape():

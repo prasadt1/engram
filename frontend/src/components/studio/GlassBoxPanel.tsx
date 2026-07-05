@@ -3,10 +3,11 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import { Aperture, ChevronDown, ChevronUp, Eye, Target, Database } from 'lucide-react';
+import { Aperture, ChevronDown, ChevronUp, Eye, Target } from 'lucide-react';
 import { dimensionForText, textMatchesDimension } from '../../lib/glassBoxHighlight';
 import type { StudioAnalysis, EvidenceItem } from '../../types/studio';
 import EvidencePanel from './EvidencePanel';
+import { PrinciplesUsedPanel } from './PrinciplesUsedPanel';
 
 interface Props {
   rationale: StudioAnalysis['rationale'];
@@ -175,27 +176,14 @@ const GlassBoxPanel: React.FC<Props> = ({
               )}
 
               {(groundingCitations.length > 0 || groundingPrinciples.length > 0) && (
-                <div className="pt-2 border-t border-warm">
-                  <h4 className="flex items-center gap-2 text-brand-400 font-bold mb-3 uppercase text-xs tracking-wider">
-                    <Database className="w-4 h-4" aria-hidden /> Photography principles I used
-                  </h4>
-                  <div className="space-y-2">
-                    {(groundingCitations.length > 0
+                <PrinciplesUsedPanel
+                  className="pt-2 border-t border-warm !bg-transparent !border-brand-500/20"
+                  citations={
+                    groundingCitations.length > 0
                       ? groundingCitations
                       : groundingPrinciples.map((id) => ({ id, title: id, excerpt: '' }))
-                    ).map((c) => (
-                      <div
-                        key={c.id}
-                        className="text-xs rounded-lg bg-brand-500/5 border border-brand-500/20 px-3 py-2"
-                      >
-                        <span className="font-semibold text-brand-400">{c.title}</span>
-                        {c.excerpt && (
-                          <p className="text-muted mt-1 leading-relaxed">{c.excerpt}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                  }
+                />
               )}
             </div>
           )}

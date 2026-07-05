@@ -16,6 +16,9 @@ import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { DimensionBar } from './DimensionBar';
+import { MemoryDelta } from './MemoryDelta';
+import { PrinciplesUsedPanel } from './studio/PrinciplesUsedPanel';
+import { principlesFromPortfolio } from '../lib/mapAnalysisResult';
 import { MentorChat } from './MentorChat';
 import { Tag } from './primitives/Tag';
 import type { PortfolioListItem } from '../types/memory';
@@ -59,11 +62,12 @@ export const PhotoDetailView: React.FC<Props> = ({ photo, persona, judgeMode = f
   const scopedEmptyCopy = photoId
     ? 'Ask what’s working, what to try next, or how this compares to your other shots — I only recall memory scoped to this photo.'
     : 'Ask what’s working or what to try next — replies draw on your broader library memory for this frame.';
-  // genre isn't on PortfolioListItem's wire contract yet (only on
-  // AnalysisResult/MemoryReceipt items) — read it defensively so this Tag
-  // renders the moment the backend starts including it, and quietly does
-  // nothing until then, matching the task's "genre Tag if present" framing.
-  const genre = (photo as PortfolioListItem & { genre?: string }).genre;
+  const genre = photo.genre;
+  const principleCitations = principlesFromPortfolio(
+    photo.groundingCitations,
+    photo.groundingPrinciples,
+    genre,
+  );
 
   return createPortal(
     <div
@@ -115,6 +119,14 @@ export const PhotoDetailView: React.FC<Props> = ({ photo, persona, judgeMode = f
               <DimensionBar key={d.key} label={d.label} value={photo.scores[d.key]} index={i} />
             ))}
           </div>
+
+          {photo.memoryUpdate && (
+            <div className="pt-2">
+              <MemoryDelta memoryUpdate={photo.memoryUpdate} />
+            </div>
+          )}
+
+          <PrinciplesUsedPanel citations={principleCitations} />
         </div>
       </div>
 

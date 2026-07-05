@@ -245,7 +245,11 @@ def _serialize_portfolio_entry(doc: dict[str, Any]) -> dict[str, Any]:
         "userTags": doc.get("user_tags") or [],
         "sceneDescription": doc.get("scene_description"),
         "colourNotes": doc.get("colour_notes"),
+        "genre": doc.get("genre"),
         "glassBoxSummary": (doc.get("glass_box") or {}).get("observations", [])[:2],
+        "groundingCitations": (doc.get("glass_box") or {}).get("grounding_citations") or [],
+        "groundingPrinciples": (doc.get("glass_box") or {}).get("grounding_principles") or [],
+        "memoryUpdate": doc.get("memory_update"),
     }
 
 
@@ -428,6 +432,55 @@ def portfolio_similar(entry_id: str, limit: int = 4, x_user_id: str = Header(def
     return {"sourceId": entry_id, "matches": matches, "mode": "tag_overlap", "message": message}
 
 
+class PortfolioDeleteBatchBody(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    entry_ids: list[str] = Field(alias="entryIds")
+    remove_listing: bool = Field(default=False, alias="removeListing")
+
+
+def _delete_portfolio_doc(coll: Any, *, entry_id: str, user_id: str) -> dict[str, Any] | None:
+    try:
+        oid = ObjectId(entry_id)
+    except Exception:
+        return None
+    doc = coll.find_one({"_id": oid, "user_id": user_id})
+    if doc is None:
+        return None
+    coll.delete_one({"_id": oid, "user_id": user_id})
+    return doc
+
+
+@app.delete("/api/v1/portfolio/{entry_id}")
+def portfolio_delete(
+    entry_id: str,
+    removeListing: bool = Query(default=False),
+    x_user_id: str = Header(default="demo-user"),
+) -> dict:
+    """Single-photo delete — wire-compatible with memoryClient.deletePortfolioEntry."""
+    del removeListing  # print-sales unlisting not in this build; param kept for Iris compat
+    coll = _store().db.portfolio_entries
+    if _delete_portfolio_doc(coll, entry_id=entry_id, user_id=x_user_id) is None:
+        raise HTTPException(status_code=404, detail="Photo not found.")
+    return {"deleted": True, "id": entry_id}
+
+
+@app.post("/api/v1/portfolio/delete-batch")
+def portfolio_delete_batch(
+    body: PortfolioDeleteBatchBody,
+    x_user_id: str = Header(default="demo-user"),
+) -> dict:
+    """Bulk delete — wire-compatible with memoryClient.deletePortfolioEntries."""
+    coll = _store().db.portfolio_entries
+    deleted: list[str] = []
+    skipped: list[dict[str, str]] = []
+    for entry_id in body.entry_ids:
+        if _delete_portfolio_doc(coll, entry_id=entry_id, user_id=x_user_id) is None:
+            skipped.append({"id": entry_id, "reason": "Photo not found."})
+        else:
+            deleted.append(entry_id)
+    return {"deleted": deleted, "skipped": skipped, "deletedCount": len(deleted)}
+
+
 @app.get("/api/v1/aesthetic-profile")
 def aesthetic_profile(x_user_id: str = Header(default="demo-user")) -> dict:
     """AestheticProfileSummary { photoCount, dominantTags, averageScores,
@@ -558,7 +611,10 @@ def agent_chat_stream(body: ChatRequest, x_user_id: str = Header(default="demo-u
 
 
 @app.get("/api/v1/journey")
-def journey(x_user_id: str = Header(default="demo-user")) -> dict:
+def journey(
+    x_user_id: str = Header(default="demo-user"),
+    include_summary: bool = True,
+) -> dict:
     store = _store()
     skills = store.list_skills(user_id=x_user_id)
     cleared = [s.name for s in skills if s.status == SkillStatus.CLEARED]
@@ -577,8 +633,14 @@ def journey(x_user_id: str = Header(default="demo-user")) -> dict:
     # predating displayName) get null, and Home renders exactly as before.
     user_doc = store.db.users.find_one({"_id": x_user_id}) or {}
 
+    summary = (
+        summarize_progress(user_id=x_user_id, memory_store=store)
+        if include_summary
+        else ""
+    )
+
     return {
-        "summary": summarize_progress(user_id=x_user_id, memory_store=store),
+        "summary": summary,
         "skills": [
             {"name": s.name, "status": s.status.value, "consecutive": s.consecutive_above_bar}
             for s in skills

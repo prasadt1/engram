@@ -42,3 +42,10 @@ export async function fetchJourney(): Promise<JourneyResponse> {
   if (!res.ok) throw new Error(`Journey failed (${res.status})`);
   return res.json() as Promise<JourneyResponse>;
 }
+
+/** Fast path for sidebar/hero coaching fields — skips the LLM summary sentence. */
+export async function fetchCoachingSnapshot(): Promise<JourneyResponse> {
+  const res = await apiFetch('/api/v1/journey?include_summary=false', { timeoutMs: 8_000 });
+  if (!res.ok) throw new Error(`Coaching snapshot failed (${res.status})`);
+  return res.json() as Promise<JourneyResponse>;
+}

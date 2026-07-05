@@ -8,6 +8,6 @@ export function isLocalDevHost(): boolean {
 
 export function apiUnreachableMessage(): string {
   return isLocalDevHost()
-    ? "Can't reach the server. Run make api-dev in a terminal (port 8081), then retry."
+    ? "Can't reach the API. In engram/, run: uvicorn app.server:app --reload --port 8000"
     : "Can't reach the server right now. Try again in a moment.";
 }

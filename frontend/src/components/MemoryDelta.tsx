@@ -1,56 +1,40 @@
 /**
- * MemoryDelta — after a new critique, show how long-term memory changed.
+ * MemoryDelta — after a new critique, show what Engram learned (mentor voice).
+ * Copy is template-mapped from memoryUpdate; no LLM in this path.
  */
 
 import React from 'react';
 import { Card, Eyebrow } from './primitives';
-import type { MemoryReceipt } from '../types';
+import { buildUploadNarration, type MemoryUpdate } from '../lib/memoryNarration';
 
 interface Props {
-  receipt: MemoryReceipt | null | undefined;
+  memoryUpdate?: MemoryUpdate | null;
 }
 
-export const MemoryDelta: React.FC<Props> = ({ receipt }) => {
-  if (!receipt) return null;
-
-  const recalled = receipt.recalled ?? [];
-  const retired = receipt.retired_excluded ?? [];
-  const dropped = receipt.dropped_by_budget ?? [];
-
-  if (recalled.length === 0 && retired.length === 0 && dropped.length === 0) return null;
+export const MemoryDelta: React.FC<Props> = ({ memoryUpdate }) => {
+  const narration = buildUploadNarration(memoryUpdate);
+  if (!narration) return null;
 
   return (
     <Card padding="sm" className="border-brand-500/25 bg-brand-500/5">
-      <Eyebrow tone="brand" className="mb-2">
-        Memory delta
-      </Eyebrow>
-      <ul className="space-y-2 text-sm text-stone-300" role="list">
-        {recalled.length > 0 && (
-          <li>
-            <span className="text-stone-200 font-medium">Recalled for this critique:</span>{' '}
-            {recalled.slice(0, 3).map((r) => r.content).join(' · ')}
-            {recalled.length > 3 ? ` (+${recalled.length - 3} more)` : ''}
-          </li>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-2">
+        <Eyebrow tone="brand">What I learned from this photo</Eyebrow>
+        {narration.mutedLabel && (
+          <span className="text-[10px] uppercase tracking-wider text-stone-500 font-semibold">
+            {narration.mutedLabel}
+          </span>
         )}
-        {retired.length > 0 && (
-          <li>
-            <span className="text-stone-200 font-medium">Retired / skipped:</span>{' '}
-            {retired.slice(0, 2).map((r) => r.content).join(' · ')}
-            {retired.length > 2 ? ` (+${retired.length - 2} more)` : ''}
-          </li>
-        )}
-        {dropped.length > 0 && (
-          <li>
-            <span className="text-stone-200 font-medium">Over budget:</span>{' '}
-            {dropped.length} {dropped.length === 1 ? 'memory' : 'memories'} left out of the prompt
-          </li>
-        )}
-        {receipt.token_budget != null && (
-          <li className="text-xs text-muted">
-            Context packed under {receipt.token_budget} tokens
-          </li>
-        )}
-      </ul>
+      </div>
+      <p className="text-sm text-stone-200 leading-relaxed font-serif">{narration.headline}</p>
+      {narration.details.length > 0 && (
+        <ul className="mt-3 space-y-1.5 text-xs text-stone-400" role="list">
+          {narration.details.map((line) => (
+            <li key={line} className="leading-relaxed">
+              {line}
+            </li>
+          ))}
+        </ul>
+      )}
     </Card>
   );
 };

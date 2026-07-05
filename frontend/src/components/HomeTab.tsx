@@ -23,6 +23,8 @@ import { PhotoMat } from './PhotoMat';
 import { Button, Card, Tag, Eyebrow, StatCard } from './primitives';
 import { useCountUp } from '../hooks/useCountUp';
 import { formatSkillLabel } from '../lib/formatSkillLabel';
+import { formatTagLabel } from '../lib/formatTagLabel';
+import { buildHeroMentorCaption, type HeroMentorCaption } from '../lib/coachingBrief';
 import { friendlyErrorMessage } from '../lib/friendlyError';
 import { pickHomeHeroPhoto } from '../lib/pickHomeHeroPhoto';
 import { portfolioImageUrl } from '../lib/portfolioImageUrl';
@@ -106,7 +108,7 @@ interface ReturningPhotoHeroProps {
   uploading: boolean;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   onNavigate: (tab: AppTab) => void;
-  eyebrow: string;
+  mentorCaption: HeroMentorCaption;
   compact?: boolean;
 }
 
@@ -121,7 +123,7 @@ function ReturningPhotoHero({
   uploading,
   fileInputRef,
   onNavigate,
-  eyebrow,
+  mentorCaption,
   compact = false,
 }: ReturningPhotoHeroProps) {
   return (
@@ -147,7 +149,7 @@ function ReturningPhotoHero({
             {heroSrc && (
               <img
                 src={heroSrc}
-                alt={heroPhoto.sceneDescription || 'Your strongest work'}
+                alt={heroPhoto.sceneDescription || 'A frame from your library'}
                 className="absolute inset-0 w-full h-full object-cover object-[center_42%]"
               />
             )}
@@ -173,7 +175,7 @@ function ReturningPhotoHero({
         <div className="space-y-4">
           <div className="flex items-start justify-between gap-4">
             <Eyebrow tone="faint" className="tracking-[0.2em]">
-              {eyebrow}
+              {mentorCaption.eyebrow}
             </Eyebrow>
             {heroImageReady && (
               <div className="hidden lg:flex items-baseline gap-1 shrink-0">
@@ -185,13 +187,23 @@ function ReturningPhotoHero({
             )}
           </div>
 
-          <p className="font-serif text-lg md:text-xl text-white leading-snug line-clamp-4">
-            {heroPhoto.sceneDescription || 'Your photograph'}
+          <p className="font-serif text-lg md:text-xl text-white leading-snug">
+            {mentorCaption.headline}
           </p>
 
-          {heroPhoto.glassBoxSummary.length > 0 && (
-            <p className="text-sm text-stone-400 leading-relaxed line-clamp-2 border-l-2 border-brand-500/40 pl-3">
-              {heroPhoto.glassBoxSummary[0]}
+          {mentorCaption.focusLine && (
+            <p className="text-sm text-brand-400/90 leading-relaxed">{mentorCaption.focusLine}</p>
+          )}
+
+          {mentorCaption.latestLine && (
+            <p className="text-sm text-stone-400 leading-relaxed border-l-2 border-brand-500/40 pl-3">
+              {mentorCaption.latestLine}
+            </p>
+          )}
+
+          {heroPhoto.sceneDescription && (
+            <p className="text-xs text-stone-500 leading-relaxed line-clamp-2">
+              Shown: {heroPhoto.sceneDescription}
             </p>
           )}
 
@@ -205,7 +217,7 @@ function ReturningPhotoHero({
           <div className="flex flex-wrap gap-1.5">
             {heroPhoto.aestheticTags.slice(0, 4).map((tag) => (
               <Tag key={tag} variant="outline">
-                {tag.replace(/_/g, ' ')}
+                {formatTagLabel(tag)}
               </Tag>
             ))}
           </div>
@@ -547,6 +559,18 @@ export const HomeTab: React.FC<Props> = ({
 
   const showMemoryProofCard = !FEATURES.practice && Boolean(journey);
 
+  const latestUpload = contactSheet[0] ?? null;
+  const mentorCaption = useMemo(
+    () =>
+      buildHeroMentorCaption({
+        identity: journey?.identity,
+        skills: journey?.skills,
+        latestUpload,
+        portfolioTotal,
+      }),
+    [journey?.identity, journey?.skills, latestUpload, portfolioTotal],
+  );
+
   // Preload hero image; keep the current frame visible when only the signed URL
   // refreshes on a background refetch (auth scope stabilising, etc.).
   useEffect(() => {
@@ -680,7 +704,7 @@ export const HomeTab: React.FC<Props> = ({
             uploading={uploading}
             fileInputRef={fileInputRef}
             onNavigate={onNavigate}
-            eyebrow={mode === 'working_pro' ? 'Strongest in your portfolio' : 'Best in your library'}
+            mentorCaption={mentorCaption}
           />
         )}
 

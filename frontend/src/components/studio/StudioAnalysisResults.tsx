@@ -21,7 +21,11 @@ import { LearningInsights } from './LearningInsights';
 import { PortfolioTrendInsights } from './PortfolioTrendInsights';
 import { ScoreBreakdownPanel } from './ScoreBreakdownPanel';
 import { OverallVerdictCard } from './OverallVerdictCard';
+import { MemoryDelta } from '../MemoryDelta';
+import { PrinciplesUsedPanel } from './PrinciplesUsedPanel';
 import { exportXMPSidecar } from '../../services/xmpService';
+import type { MemoryUpdate } from '../../types';
+import { formatTagLabel } from '../../lib/formatTagLabel';
 
 type TabId = 'overview' | 'glass-box' | 'fix';
 
@@ -30,6 +34,7 @@ interface Props {
   imageSrc: string;
   originalFilename?: string;
   onReset: () => void;
+  memoryUpdate?: MemoryUpdate | null;
 }
 
 const StudioAnalysisResults: React.FC<Props> = ({
@@ -37,10 +42,9 @@ const StudioAnalysisResults: React.FC<Props> = ({
   imageSrc,
   originalFilename = 'photo.jpg',
   onReset,
+  memoryUpdate,
 }) => {
-  const [activeTab, setActiveTab] = useState<TabId>(() =>
-    analysis.groundingPrinciples.length > 0 ? 'glass-box' : 'overview',
-  );
+  const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [activeBoxIndex, setActiveBoxIndex] = useState<number | null>(null);
   const [showOverlays, setShowOverlays] = useState(true);
   const [selectedDimension, setSelectedDimension] = useState<string | null>(null);
@@ -210,7 +214,7 @@ const StudioAnalysisResults: React.FC<Props> = ({
                   key={tag}
                   className="text-xs px-2 py-1 rounded-full bg-surface-1 text-muted border border-warm"
                 >
-                  {tag}
+                  {formatTagLabel(tag)}
                 </span>
               ))}
             </div>
@@ -219,18 +223,22 @@ const StudioAnalysisResults: React.FC<Props> = ({
 
         <div className="lg:col-span-5 lg:sticky lg:top-4 lg:self-start">
           {showScorePanel ? (
-            <ScoreBreakdownPanel
-              variant="sidebar"
-              rows={chartData}
-              previewDimension={previewDimension}
-              selectedDimension={selectedDimension}
-              onPreviewDimension={setHoveredDimension}
-              onSelectDimension={(subject) => {
-                setSelectedDimension((prev) => (prev === subject ? null : subject));
-                setHoveredDimension(null);
-              }}
-              onWhyClick={focusScoreDimension}
-            />
+            <div className="space-y-4">
+              <ScoreBreakdownPanel
+                variant="sidebar"
+                rows={chartData}
+                previewDimension={previewDimension}
+                selectedDimension={selectedDimension}
+                onPreviewDimension={setHoveredDimension}
+                onSelectDimension={(subject) => {
+                  setSelectedDimension((prev) => (prev === subject ? null : subject));
+                  setHoveredDimension(null);
+                }}
+                onWhyClick={focusScoreDimension}
+              />
+              {memoryUpdate && <MemoryDelta memoryUpdate={memoryUpdate} />}
+              <PrinciplesUsedPanel citations={analysis.groundingCitations} />
+            </div>
           ) : (
             <div className="space-y-4 animate-fadeIn">
               {analysis.boundingBoxes.map((box, idx) => (

@@ -1,10 +1,81 @@
-import type { AnalysisResult } from '../types';
+import type { AnalysisResult, GroundingCitation } from '../types';
 import type { StudioAnalysis, StudioBoundingBox, EvidenceItem } from '../types/studio';
 import { deriveDimensionCritique } from './deriveDimensionCritique';
+
+function humanizePrincipleId(id: string): string {
+  const known: Record<string, string> = {
+    'composition.md': 'Composition',
+    'lighting.md': 'Lighting',
+    'technique.md': 'Technique',
+    'creativity.md': 'Creativity',
+    'subject_impact.md': 'Subject impact',
+  };
+  if (known[id]) return known[id];
+  const base = id.replace(/\.md$/i, '').replace(/[-_]/g, ' ').trim();
+  if (!base) return id;
+  return base.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** API may send citation IDs only (strings) or full { id, title, excerpt } objects. */
+function normalizeGroundingCitations(
+  raw: GroundingCitation[] | string[] | undefined,
+  principles: string[],
+): StudioAnalysis['groundingCitations'] {
+  const toCitation = (c: GroundingCitation | string) => {
+    if (typeof c === 'string') {
+      return { id: c, title: humanizePrincipleId(c), excerpt: '' };
+    }
+    const id = c.id ?? '';
+    return {
+      id,
+      title: c.title?.trim() || humanizePrincipleId(id),
+      excerpt: c.excerpt ?? '',
+    };
+  };
+
+  if (Array.isArray(raw) && raw.length > 0) {
+    return raw.map(toCitation);
+  }
+  if (principles.length > 0) {
+    return principles.map((id) => toCitation(id));
+  }
+  return [];
+}
+
+const GENRE_FALLBACK_PRINCIPLES: Record<string, string[]> = {
+  landscape: ['composition.md', 'lighting.md', 'creativity.md'],
+  portrait: ['composition.md', 'lighting.md', 'subject_impact.md'],
+  street: ['composition.md', 'creativity.md', 'technique.md'],
+  general: ['composition.md', 'lighting.md', 'technique.md'],
+};
+
+function readGroundingFromGlassBox(glassBox: AnalysisResult['glassBox']): {
+  citations: GroundingCitation[] | string[] | undefined;
+  principles: string[];
+} {
+  const raw = glassBox as unknown as Record<string, unknown>;
+  const citations =
+    glassBox.grounding_citations ??
+    (raw.groundingCitations as GroundingCitation[] | string[] | undefined);
+  const principles =
+    glassBox.grounding_principles ??
+    (raw.groundingPrinciples as string[] | undefined) ??
+    [];
+  return { citations, principles };
+}
 
 /** Map spec-shaped API result → gemma4-style studio view model */
 export function mapAnalysisResult(result: AnalysisResult): StudioAnalysis {
   const { scores, glassBox, spatialMetadata, aestheticTags } = result;
+  const { citations: rawCitations, principles: rawPrinciples } = readGroundingFromGlassBox(glassBox);
+  const genreKey = (result.genre ?? 'general').toLowerCase();
+  const fallbackPrinciples = GENRE_FALLBACK_PRINCIPLES[genreKey] ?? GENRE_FALLBACK_PRINCIPLES.general;
+  let groundingCitations = normalizeGroundingCitations(rawCitations, rawPrinciples);
+  if (groundingCitations.length === 0) {
+    groundingCitations = normalizeGroundingCitations(undefined, fallbackPrinciples);
+  }
+  const groundingPrinciples =
+    rawPrinciples.length > 0 ? rawPrinciples : groundingCitations.map((c) => c.id);
 
   const avg =
     (scores.composition +
@@ -110,8 +181,8 @@ export function mapAnalysisResult(result: AnalysisResult): StudioAnalysis {
       reasoningSteps: glassBox.reasoning_steps,
       priorityFixes: glassBox.priority_fixes.map((f) => `[${f.severity}] ${f.issue}`),
     },
-    groundingPrinciples: glassBox.grounding_principles ?? [],
-    groundingCitations: glassBox.grounding_citations ?? [],
+    groundingPrinciples,
+    groundingCitations,
     boundingBoxes,
     evidence,
     aestheticTags,
@@ -124,4 +195,19 @@ export function mapAnalysisResult(result: AnalysisResult): StudioAnalysis {
       shadow_character: spatialMetadata.lighting_map.shadow_character,
     },
   };
+}
+
+/** Build principle citations from portfolio list fields (gallery / photo detail). */
+export function principlesFromPortfolio(
+  groundingCitations: GroundingCitation[] | string[] | undefined,
+  groundingPrinciples: string[] | undefined,
+  genre?: string,
+): StudioAnalysis['groundingCitations'] {
+  const genreKey = (genre ?? 'general').toLowerCase();
+  const fallback = GENRE_FALLBACK_PRINCIPLES[genreKey] ?? GENRE_FALLBACK_PRINCIPLES.general;
+  let citations = normalizeGroundingCitations(groundingCitations, groundingPrinciples ?? []);
+  if (citations.length === 0) {
+    citations = normalizeGroundingCitations(undefined, fallback);
+  }
+  return citations;
 }

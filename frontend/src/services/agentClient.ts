@@ -92,6 +92,23 @@ async function analyzePhotoMock(request: AnalyzePhotoRequest): Promise<AnalyzePh
         },
       ],
       grounding_principles: ['composition.md', 'lighting.md', 'subject_impact.md'],
+      grounding_citations: [
+        {
+          id: 'composition.md',
+          title: 'Composition',
+          excerpt: 'The rule of thirds divides the frame into a 3x3 grid. Place key subjects along these lines or at their intersections.',
+        },
+        {
+          id: 'lighting.md',
+          title: 'Lighting',
+          excerpt: 'Golden hour provides warm, soft, directional light ideal for portraits and landscapes.',
+        },
+        {
+          id: 'subject_impact.md',
+          title: 'Subject impact',
+          excerpt: 'Critical focus should land on the subject\'s most important feature — usually the eyes in portraits.',
+        },
+      ],
     },
     spatialMetadata: {
       annotations: [

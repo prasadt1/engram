@@ -1,15 +1,11 @@
 import React from 'react';
-import { FlaskConical, Settings } from 'lucide-react';
+import { FlaskConical, Settings, ArrowRight } from 'lucide-react';
 import { BrandLogo } from './BrandLogo';
 import { useLogoEntrance } from '../hooks/useLogoEntrance';
+import type { SidebarFocusDisplay } from '../lib/coachingBrief';
 import type { AppTab } from '../config/navConfig';
 import { sidebarNavItems } from '../config/navConfig';
 import type { Assignment, UserMode } from '../types/practice';
-
-export interface SidebarPhoto {
-  id: string;
-  imageUrl: string;
-}
 
 interface Props {
   activeTab: AppTab;
@@ -21,8 +17,8 @@ interface Props {
   glassBoxActive: boolean;
   onNavigateGlassBox: () => void;
   photoCount: number;
-  recentPhotos: SidebarPhoto[];
-  trendDelta: number | null;
+  focusDisplay: SidebarFocusDisplay | null;
+  nextShotBrief: string | null;
   mentorOneLiner: string | null;
   activeAssignment: Assignment | null;
   pendingOrganize: number;
@@ -48,8 +44,8 @@ export const AppSidebar: React.FC<Props> = ({
   glassBoxActive,
   onNavigateGlassBox,
   photoCount,
-  recentPhotos,
-  trendDelta,
+  focusDisplay,
+  nextShotBrief,
   mentorOneLiner,
   activeAssignment,
   pendingOrganize,
@@ -137,35 +133,40 @@ export const AppSidebar: React.FC<Props> = ({
       </nav>
 
       <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
-        {/* Portfolio glimpses */}
-        <div className="px-3 py-4 border-t border-warm">
+        <div className="px-3 py-4 border-t border-warm space-y-3">
           {photoCount > 0 ? (
             <>
-              <div className="grid grid-cols-2 gap-1.5 mb-3">
-                {recentPhotos.slice(0, 4).map((photo) => (
-                  <button
-                    key={photo.id}
-                    type="button"
-                    onClick={() => onNavigate('work')}
-                    className="aspect-square rounded-md bg-surface-2 overflow-hidden hover:ring-1 hover:ring-brand-500/40"
-                  >
-                    <img src={photo.imageUrl} alt="" className="w-full h-full object-cover" />
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-stone-400 mb-2">
-                {photoCount} photo{photoCount === 1 ? '' : 's'}
+              <p className="text-xs text-stone-400">
+                {photoCount} photo{photoCount === 1 ? '' : 's'} in your library
               </p>
-              {trendDelta != null && (
-                <p
-                  className={`text-xs tabular-nums ${
-                    trendDelta > 0 ? 'text-green-400' : 'text-stone-400'
-                  }`}
-                >
-                  {trendDelta > 0 ? '+' : ''}
-                  {trendDelta.toFixed(1)} across recent uploads
-                </p>
+
+              {focusDisplay && (
+                <div className="bg-surface-2 rounded-lg p-3 border border-brand-500/25">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-brand-400/90 mb-1">
+                    Current focus
+                  </p>
+                  <p className="text-sm font-medium text-stone-100">{focusDisplay.skillLabel}</p>
+                  <p className="text-xs text-stone-400 mt-1 leading-relaxed">{focusDisplay.detail}</p>
+                </div>
               )}
+
+              {nextShotBrief && (
+                <div className="bg-surface-2 rounded-lg p-3 border border-brand-500/20">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-brand-400/90 mb-1.5">
+                    Next shot brief
+                  </p>
+                  <p className="text-xs text-stone-300 leading-relaxed">{nextShotBrief}</p>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => onNavigate('work')}
+                className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-medium text-stone-400 hover:text-stone-200 hover:bg-surface-2/60 transition-colors"
+              >
+                Open latest critique
+                <ArrowRight className="w-3.5 h-3.5 shrink-0" aria-hidden />
+              </button>
             </>
           ) : (
             <button

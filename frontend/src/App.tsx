@@ -28,14 +28,19 @@ import { clearMentorSession } from './services/mentorClient';
 import { fetchActiveAssignment } from './services/practiceClient';
 import {
   fetchAestheticProfile,
-  fetchPortfolio,
   fetchPortfolioStats,
-  fetchPortfolioTrends,
 } from './services/memoryClient';
+import { fetchCoachingSnapshot } from './services/journeyClient';
+import {
+  buildNextShotBrief,
+  buildSidebarFocusDisplay,
+  buildSidebarMentorLine,
+  currentFocusFromJourney,
+  type SidebarFocusDisplay,
+} from './lib/coachingBrief';
 import { fetchPendingApprovals } from './services/triageClient';
 import { fetchPrintPending } from './services/printSalesClient';
 import { fetchUserProfile, personaToUserMode, updatePersona } from './services/userClient';
-import type { SidebarPhoto } from './components/AppSidebar';
 import { OfflineBanner } from './components/OfflineBanner';
 import { FilmGrain } from './components/FilmGrain';
 import { Tabs } from './components/Tabs';
@@ -135,8 +140,8 @@ function App() {
   const [practiceDetailId, setPracticeDetailId] = useState<string | null>(null);
   const [onboardingBusy, setOnboardingBusy] = useState(false);
   const [sidebarPhotoCount, setSidebarPhotoCount] = useState(0);
-  const [sidebarRecentPhotos, setSidebarRecentPhotos] = useState<SidebarPhoto[]>([]);
-  const [sidebarTrendDelta, setSidebarTrendDelta] = useState<number | null>(null);
+  const [sidebarFocus, setSidebarFocus] = useState<SidebarFocusDisplay | null>(null);
+  const [sidebarNextShotBrief, setSidebarNextShotBrief] = useState<string | null>(null);
   const [sidebarMentorLine, setSidebarMentorLine] = useState<string | null>(null);
   const [pendingOrganize, setPendingOrganize] = useState(0);
   const [pendingPrintDrafts, setPendingPrintDrafts] = useState(0);
@@ -250,53 +255,35 @@ function App() {
 
   const refreshSidebarDashboard = useCallback(async () => {
     try {
-      const [stats, recent, aesthetic, trends, triagePending, printPending] = await Promise.all([
+      const [stats, aesthetic, coaching, triagePending, printPending] = await Promise.all([
         fetchPortfolioStats(),
-        fetchPortfolio({ limit: 4, sortBy: 'date', sortOrder: 'desc' }),
         fetchAestheticProfile().catch(() => null),
-        fetchPortfolioTrends(6).catch(() => null),
-        // FEATURES.triage is off in this build (no /api/v1/pending-approvals
-        // route on the backend) — this fires on every tab switch, so a
-        // guaranteed-404 here would be the single noisiest network call in
-        // judges' devtools. Skip the request entirely rather than firing
-        // then falling back on the .catch.
+        fetchCoachingSnapshot().catch(() => null),
         FEATURES.triage
           ? fetchPendingApprovals('triage').catch(() => ({ items: [], total: 0 }))
           : Promise.resolve({ items: [], total: 0 }),
-        // FEATURES.printSales is off in this build — same missing
-        // /api/v1/pending-approvals* routes as triage above — so skip the
-        // guaranteed-404 poll entirely rather than firing then falling
-        // back on the .catch.
         userMode === 'working_pro' && FEATURES.printSales
           ? fetchPrintPending().catch(() => ({ items: [], total: 0 }))
           : Promise.resolve({ items: [], total: 0 }),
       ]);
 
       setSidebarPhotoCount(stats.total);
-      setSidebarRecentPhotos(
-        recent.entries.map((e) => ({ id: e.id, imageUrl: e.imageUrl })),
-      );
       setPendingOrganize(triagePending.total);
 
-      const bestTrend = trends?.dimensions?.find(
-        (d) => d.delta != null && d.delta > 0 && ['composition', 'lighting', 'overall'].includes(d.key),
+      const focus = currentFocusFromJourney(coaching?.skills);
+      const focusSkill = focus?.name ?? null;
+      setSidebarFocus(
+        stats.total > 0 ? buildSidebarFocusDisplay(focus, coaching?.skills) : null,
       );
-      setSidebarTrendDelta(bestTrend?.delta ?? null);
+      setSidebarNextShotBrief(stats.total > 0 ? buildNextShotBrief(focusSkill) : null);
 
-      if (aesthetic && aesthetic.dominantTags.length > 0) {
-        const tags = aesthetic.dominantTags.slice(0, 2).join(' and ').replace(/_/g, ' ');
-        const delta = bestTrend?.delta;
-        const label = bestTrend?.label?.toLowerCase();
-        const trend =
-          delta != null && delta > 0 && label
-            ? ` — ${label} +${delta.toFixed(1)} across recent uploads`
-            : '';
-        setSidebarMentorLine(`Your ${tags} work is taking shape${trend}.`);
-      } else if (stats.total > 0) {
-        setSidebarMentorLine('Ready when you are — upload to grow your library.');
-      } else {
-        setSidebarMentorLine('Ready when you are — upload to begin.');
-      }
+      setSidebarMentorLine(
+        buildSidebarMentorLine({
+          identity: coaching?.identity,
+          dominantTags: aesthetic?.dominantTags,
+          photoCount: stats.total,
+        }),
+      );
 
       setPendingPrintDrafts(printPending.total);
     } catch {
@@ -398,8 +385,8 @@ function App() {
         glassBoxActive={showGlassBox}
         onNavigateGlassBox={navigateToGlassBox}
         photoCount={sidebarPhotoCount}
-        recentPhotos={sidebarRecentPhotos}
-        trendDelta={sidebarTrendDelta}
+        focusDisplay={sidebarFocus}
+        nextShotBrief={sidebarNextShotBrief}
         mentorOneLiner={sidebarMentorLine}
         activeAssignment={activeAssignment}
         pendingOrganize={pendingOrganize}

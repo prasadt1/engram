@@ -27,7 +27,8 @@ export interface GlassBox {
   reasoning_steps: string[];
   priority_fixes: PriorityFix[];
   grounding_principles?: string[];
-  grounding_citations?: GroundingCitation[];
+  /** Full objects or citation id strings from analyze_photo (see mapAnalysisResult). */
+  grounding_citations?: GroundingCitation[] | string[];
 }
 
 export interface BoundingBox {
@@ -127,6 +128,24 @@ export interface MemoryReceipt {
   query?: string;
 }
 
+/** Skill transitions captured during analyze_photo (additive backend field). */
+export interface MemoryUpdateSkill {
+  skill: string;
+  score: number;
+  bar: number;
+  aboveBar: boolean;
+  statusBefore: 'watching' | 'cleared';
+  statusAfter: 'watching' | 'cleared';
+  streakBefore: number;
+  streakAfter: number;
+}
+
+export interface MemoryUpdate {
+  skills: MemoryUpdateSkill[];
+  genre: string;
+  dominantGenreBefore: string | null;
+}
+
 export interface AnalysisResult {
   portfolioEntryId: string;
   assignmentId?: string;
@@ -152,6 +171,8 @@ export interface AnalysisResult {
   };
   /** Present only when the critique was built with the photographer's memory recalled. */
   memoryReceipt?: MemoryReceipt | null;
+  /** Skill/genre transitions after this upload (for honest mentor narration). */
+  memoryUpdate?: MemoryUpdate | null;
 }
 
 // Assignment types (spec §7.2)

@@ -29,6 +29,49 @@ logger = logging.getLogger(__name__)
 
 PROMPT_PATH = Path(__file__).parent / "prompts" / "coach.txt"
 
+
+def _record_upload_skill_updates(
+    memory_store: Any,
+    *,
+    user_id: str,
+    scores: dict[str, float],
+    weakness_bar: float,
+    evidence_id: str,
+    genre: str,
+) -> dict[str, Any]:
+    """Capture before/after skill state for honest upload narration (memoryUpdate).
+
+    dominant_genre() must reflect the portfolio *before* this upload is persisted.
+    """
+    dominant_before = memory_store.dominant_genre(user_id=user_id)
+    skills_out: list[dict[str, Any]] = []
+    for dim, score in scores.items():
+        before = memory_store.get_skill(user_id=user_id, skill=dim)
+        status_before = before.status.value if before else "watching"
+        streak_before = before.consecutive_above_bar if before else 0
+        after = memory_store.record_skill_session(
+            user_id=user_id,
+            skill=dim,
+            bar=weakness_bar,
+            score=score,
+            evidence_id=evidence_id,
+        )
+        skills_out.append({
+            "skill": dim,
+            "score": score,
+            "bar": weakness_bar,
+            "aboveBar": score >= weakness_bar,
+            "statusBefore": status_before,
+            "statusAfter": after.status.value,
+            "streakBefore": streak_before,
+            "streakAfter": after.consecutive_above_bar,
+        })
+    return {
+        "skills": skills_out,
+        "genre": genre,
+        "dominantGenreBefore": dominant_before,
+    }
+
 # Longest edge (px) an image is downscaled to before being sent to the vision
 # model. Chosen to stay comfortably under typical vision-model input limits
 # while preserving enough detail for composition/technique critique.
@@ -291,7 +334,8 @@ def analyze_photo(
             "observations": output.glass_box.observations,
             "reasoning_steps": output.glass_box.reasoning_steps,
             "priority_fixes": [p.model_dump() for p in output.glass_box.priority_fixes],
-            "grounding_citations": [c.id for c in citations],
+            "grounding_citations": [c.model_dump() for c in citations],
+            "grounding_principles": [c.id for c in citations],
         },
         "spatialMetadata": output.spatial_metadata.model_dump(),
         "settingsEstimate": {
@@ -309,10 +353,15 @@ def analyze_photo(
     # above; portfolioEntryId is added by the persistence wiring below.
     if memory_store is not None and user_id is not None:
         evidence_id = key  # the storage key doubles as the evidence reference
-        for dim, score in payload["scores"].items():
-            memory_store.record_skill_session(
-                user_id=user_id, skill=dim, bar=weakness_bar, score=score, evidence_id=evidence_id,
-            )
+        memory_update = _record_upload_skill_updates(
+            memory_store,
+            user_id=user_id,
+            scores=payload["scores"],
+            weakness_bar=weakness_bar,
+            evidence_id=evidence_id,
+            genre=output.genre,
+        )
+        payload["memoryUpdate"] = memory_update
         weak = sorted(
             ((d, s) for d, s in payload["scores"].items() if s < weakness_bar),
             key=lambda pair: pair[1],
@@ -357,6 +406,7 @@ def analyze_photo(
             "colour_notes": output.colour_notes,
             "glass_box": payload["glassBox"],
             "spatial_metadata": payload["spatialMetadata"],
+            "memory_update": memory_update,
             "created_at": datetime.now(timezone.utc),
         })
         payload["portfolioEntryId"] = str(entry.inserted_id)

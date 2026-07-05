@@ -9,6 +9,7 @@ import { BadgeCheck, Sparkles } from 'lucide-react';
 import { Card, Eyebrow, Tag } from './primitives';
 import { EmptyState } from './EmptyState';
 import { humanizeSkillName } from '../lib/scoreContext';
+import { orderWatchingByStreak, STREAK_TARGET } from '../lib/coachingBrief';
 import type { JourneySkill, JourneyStats } from '../services/journeyClient';
 import type { UserMode } from '../types/practice';
 
@@ -24,23 +25,10 @@ interface Props {
   mode?: UserMode;
 }
 
-const STREAK_TARGET = 3;
-
 /** Plain-language graduation rule — "above the bar" means the skill scored
  * at/above the passing threshold (7/10) on that upload. */
 const GRADUATION_EXPLAINER =
   'Each filled dot is one upload where this skill scored 7+ out of 10. Three strong uploads in a row and the skill clears — I stop repeating that advice.';
-
-/** Watching skills ordered closest-to-clearing first: streak descending,
- * alphabetical by skill name on ties. The top row IS the current focus —
- * this is the single place the ordering rule lives on the frontend, and
- * app/server.py's /api/v1/journey route applies the same rule when the
- * identity line names the skill it's "now sharpening". */
-function orderWatchingByStreak(watching: JourneySkill[]): JourneySkill[] {
-  return [...watching].sort(
-    (a, b) => b.consecutive - a.consecutive || a.name.localeCompare(b.name),
-  );
-}
 
 export const JourneySection: React.FC<Props> = ({
   summary,

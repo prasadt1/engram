@@ -49,7 +49,6 @@ import { MemoryGridSkeleton } from './SkeletonBlocks';
 import PhotoUploader from './studio/PhotoUploader';
 import StudioAnalysisResults from './studio/StudioAnalysisResults';
 import { MemoryReceipt } from './MemoryReceipt';
-import { MemoryDelta } from './MemoryDelta';
 import { PhotoDetailView } from './PhotoDetailView';
 import { ActivePracticeBanner } from './studio/ActivePracticeBanner';
 import { fetchAestheticProfile, fetchPortfolio, fetchPortfolioTrends, deletePortfolioEntries, deletePortfolioEntry, type SortField, type SortOrder } from '../services/memoryClient';
@@ -445,9 +444,9 @@ export const MyWorkTab: React.FC<MyWorkTabProps> = ({
             imageSrc={imageUrl}
             originalFilename={filename}
             onReset={handleReset}
+            memoryUpdate={result.memoryUpdate}
           />
         </div>
-        <MemoryDelta receipt={result.memoryReceipt} />
         <MemoryReceipt
           receipt={result.memoryReceipt}
           prominent={judgeMode}

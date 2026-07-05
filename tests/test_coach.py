@@ -40,6 +40,24 @@ MALFORMED_COACH_JSON = """{
 CORRECTED_COACH_JSON = VALID_COACH_JSON.replace('"genre": "landscape"', '"genre": "still_life"')
 
 
+def _wire_mock_memory_store(mock_store):
+    from app.memory_engine import Skill, SkillStatus
+
+    mock_store.get_skill.return_value = None
+    mock_store.dominant_genre.return_value = None
+
+    def _record(**kwargs):
+        above = kwargs["score"] >= kwargs["bar"]
+        return Skill(
+            name=kwargs["skill"],
+            bar=kwargs["bar"],
+            status=SkillStatus.WATCHING,
+            consecutive_above_bar=1 if above else 0,
+        )
+
+    mock_store.record_skill_session.side_effect = _record
+
+
 def test_analyze_photo_returns_payload_with_genre_and_writes_to_storage():
     from app.coach import analyze_photo
 
@@ -107,6 +125,7 @@ def test_analyze_photo_records_skill_sessions_and_persists_portfolio_entry():
     fake_call_result = MagicMock(content=VALID_COACH_JSON, model="qwen-vl-max", latency_ms=500, input_tokens=100, output_tokens=200)
     mock_store = MagicMock()
     mock_store.recall.return_value = []  # empty memory -> ctx.packed empty -> no prompt block, existing prompt assertions hold
+    _wire_mock_memory_store(mock_store)
 
     with patch("app.coach.qwen_client.chat_vision", return_value=fake_call_result), \
          patch("app.coach.get_storage") as mock_get_storage:
@@ -121,6 +140,15 @@ def test_analyze_photo_records_skill_sessions_and_persists_portfolio_entry():
     # technique scored 6 in VALID_COACH_JSON -> tracked below the 7.5 bar;
     # ALL five dimensions get a session recorded (streak logic lives in the engine)
     assert mock_store.record_skill_session.call_count == 5
+    assert mock_store.get_skill.call_count == 5
+    mock_store.dominant_genre.assert_called_once_with(user_id="u1")
+    assert "memoryUpdate" in result
+    assert len(result["memoryUpdate"]["skills"]) == 5
+    technique = next(s for s in result["memoryUpdate"]["skills"] if s["skill"] == "technique")
+    assert technique["score"] == 6
+    assert technique["aboveBar"] is False
+    assert technique["streakBefore"] == 0
+    assert technique["streakAfter"] == 0
     recorded_skills = {c.kwargs["skill"] for c in mock_store.record_skill_session.call_args_list}
     assert recorded_skills == {"composition", "lighting", "technique", "creativity", "subject_impact"}
     for c in mock_store.record_skill_session.call_args_list:
@@ -146,7 +174,97 @@ def test_analyze_photo_records_skill_sessions_and_persists_portfolio_entry():
     assert entry_doc["user_id"] == "u1"
     assert entry_doc["genre"] == "landscape"
     assert entry_doc["storage_key"] == "photos/fake.jpg"
+    assert "memory_update" in entry_doc
+    assert entry_doc["memory_update"]["skills"]
     assert "portfolioEntryId" in result
+
+
+def test_analyze_photo_memory_update_streak_advance_with_real_store():
+    import mongomock
+    from app.coach import analyze_photo
+    from app.memory_store import MemoryStore
+
+    client = mongomock.MongoClient()
+    store = MemoryStore(db=client.engram)
+    store.record_skill_session(user_id="u1", skill="composition", bar=7.0, score=8.0, evidence_id="warmup")
+
+    fake_call_result = MagicMock(content=VALID_COACH_JSON, model="qwen-vl-max", latency_ms=500, input_tokens=100, output_tokens=200)
+    with patch("app.coach.qwen_client.chat_vision", return_value=fake_call_result), \
+         patch("app.coach.get_storage") as mock_get_storage:
+        mock_get_storage.return_value.save.return_value = "photos/fake.jpg"
+        mock_get_storage.return_value.signed_url.return_value = "https://x/fake.jpg"
+
+        result = analyze_photo(
+            image_bytes=b"fake", content_type="image/jpeg", filename="x.jpg",
+            user_id="u1", memory_store=store, weakness_bar=7.0, stored_key="photos/fake.jpg",
+        )
+
+    comp = next(s for s in result["memoryUpdate"]["skills"] if s["skill"] == "composition")
+    assert comp["streakBefore"] == 1
+    assert comp["streakAfter"] == 2
+    assert comp["aboveBar"] is True
+
+
+def test_analyze_photo_memory_update_below_bar_resets_streak():
+    import mongomock
+    from app.coach import analyze_photo
+    from app.memory_store import MemoryStore
+
+    client = mongomock.MongoClient()
+    store = MemoryStore(db=client.engram)
+    for i in range(2):
+        store.record_skill_session(
+            user_id="u1", skill="composition", bar=7.0, score=8.0, evidence_id=f"p{i}",
+        )
+
+    weak_json = VALID_COACH_JSON.replace('"composition": 7', '"composition": 5')
+    fake_call_result = MagicMock(content=weak_json, model="qwen-vl-max", latency_ms=500, input_tokens=100, output_tokens=200)
+    with patch("app.coach.qwen_client.chat_vision", return_value=fake_call_result), \
+         patch("app.coach.get_storage") as mock_get_storage:
+        mock_get_storage.return_value.save.return_value = "photos/weak.jpg"
+        mock_get_storage.return_value.signed_url.return_value = "https://x/weak.jpg"
+
+        result = analyze_photo(
+            image_bytes=b"fake", content_type="image/jpeg", filename="x.jpg",
+            user_id="u1", memory_store=store, weakness_bar=7.0, stored_key="photos/weak.jpg",
+        )
+
+    comp = next(s for s in result["memoryUpdate"]["skills"] if s["skill"] == "composition")
+    assert comp["streakBefore"] == 2
+    assert comp["streakAfter"] == 0
+    assert comp["aboveBar"] is False
+    assert comp["statusBefore"] == "watching"
+    assert comp["statusAfter"] == "watching"
+
+
+def test_analyze_photo_memory_update_exception_on_cleared_skill():
+    import mongomock
+    from app.coach import analyze_photo
+    from app.memory_store import MemoryStore
+
+    client = mongomock.MongoClient()
+    store = MemoryStore(db=client.engram)
+    for i in range(3):
+        store.record_skill_session(
+            user_id="u1", skill="composition", bar=7.0, score=8.0, evidence_id=f"p{i}",
+        )
+
+    weak_json = VALID_COACH_JSON.replace('"composition": 7', '"composition": 4')
+    fake_call_result = MagicMock(content=weak_json, model="qwen-vl-max", latency_ms=500, input_tokens=100, output_tokens=200)
+    with patch("app.coach.qwen_client.chat_vision", return_value=fake_call_result), \
+         patch("app.coach.get_storage") as mock_get_storage:
+        mock_get_storage.return_value.save.return_value = "photos/weak-cleared.jpg"
+        mock_get_storage.return_value.signed_url.return_value = "https://x/weak.jpg"
+
+        result = analyze_photo(
+            image_bytes=b"fake", content_type="image/jpeg", filename="x.jpg",
+            user_id="u1", memory_store=store, weakness_bar=7.0, stored_key="photos/weak-cleared.jpg",
+        )
+
+    comp = next(s for s in result["memoryUpdate"]["skills"] if s["skill"] == "composition")
+    assert comp["statusBefore"] == "cleared"
+    assert comp["statusAfter"] == "cleared"
+    assert comp["aboveBar"] is False
 
 
 def test_memory_content_prefers_top_priority_fix_over_critique_prose():
@@ -159,6 +277,7 @@ def test_memory_content_prefers_top_priority_fix_over_critique_prose():
     fake_call_result = MagicMock(content=photo_json, model="qwen-vl-max", latency_ms=500, input_tokens=100, output_tokens=200)
     mock_store = MagicMock()
     mock_store.recall.return_value = []
+    _wire_mock_memory_store(mock_store)
 
     with patch("app.coach.qwen_client.chat_vision", return_value=fake_call_result), \
          patch("app.coach.get_storage") as mock_get_storage:
@@ -231,6 +350,7 @@ def test_analyze_photo_recalls_memory_into_prompt_and_returns_truthful_receipt()
     fake_call_result = MagicMock(content=VALID_COACH_JSON, model="qwen-vl-max", latency_ms=500, input_tokens=100, output_tokens=200)
     mock_store = MagicMock()
     mock_store.recall.return_value = _memory_items_one_live_one_superseded()
+    _wire_mock_memory_store(mock_store)
 
     with patch("app.coach.qwen_client.chat_vision", return_value=fake_call_result) as mock_vision, \
          patch("app.coach.get_storage") as mock_get_storage:
@@ -268,6 +388,7 @@ def test_analyze_photo_without_store_has_no_memory_prompt_block_or_receipt():
     sent_prompt = mock_vision.call_args.args[1]
     assert "What I remember about this photographer" not in sent_prompt
     assert "memoryReceipt" not in result or result["memoryReceipt"] is None
+    assert "memoryUpdate" not in result
 
 
 # ---------------------------------------------------------------------------
