@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings } from 'lucide-react';
+import { FlaskConical, Settings } from 'lucide-react';
 import { BrandLogo } from './BrandLogo';
 import { useLogoEntrance } from '../hooks/useLogoEntrance';
 import type { AppTab } from '../config/navConfig';
@@ -15,6 +15,11 @@ interface Props {
   activeTab: AppTab;
   mode: UserMode;
   onNavigate: (tab: AppTab) => void;
+  /** True while the Glass box (#glassbox) evidence page is shown. It lives
+   * outside the AppTab union (see App.tsx's showGlassBox), so the sidebar
+   * needs its own flag to select the Proof entry and deselect the tabs. */
+  glassBoxActive: boolean;
+  onNavigateGlassBox: () => void;
   photoCount: number;
   recentPhotos: SidebarPhoto[];
   trendDelta: number | null;
@@ -40,6 +45,8 @@ export const AppSidebar: React.FC<Props> = ({
   activeTab,
   mode,
   onNavigate,
+  glassBoxActive,
+  onNavigateGlassBox,
   photoCount,
   recentPhotos,
   trendDelta,
@@ -70,7 +77,10 @@ export const AppSidebar: React.FC<Props> = ({
       >
         {items.map((item) => {
           const Icon = item.icon;
-          const selected = activeTab === item.id;
+          // While the Glass box page is up, the underlying activeTab is
+          // preserved (so navigating back restores it) but must not read as
+          // selected — only the Proof entry below is.
+          const selected = !glassBoxActive && activeTab === item.id;
           const practiceBadge = item.id === 'practice' && activeAssignment ? 1 : 0;
           const mentorBadge = item.id === 'mentor' ? pendingOrganize : 0;
           const printBadge = item.id === 'print' ? pendingPrintDrafts : 0;
@@ -98,6 +108,32 @@ export const AppSidebar: React.FC<Props> = ({
             </button>
           );
         })}
+
+        {/* Proof group — the judge-facing evidence section. Deliberately a
+            separate group under an eyebrow, not another AppTab: the Glass
+            box is the receipts behind the product (live stats + committed
+            benchmark), and it should be findable without scrolling to the
+            footer link (which also still works). */}
+        <div className="pt-3 mt-2 border-t border-warm">
+          <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-stone-500">
+            Proof
+          </p>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={glassBoxActive}
+            onClick={onNavigateGlassBox}
+            className={`relative w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400 focus-visible:outline-offset-2 ${
+              glassBoxActive
+                ? 'bg-brand-500/15 text-stone-100 border-l-2 border-brand-400 pl-2.5'
+                : 'text-stone-400 hover:text-stone-200 hover:bg-surface-1/40'
+            }`}
+            style={{ transitionTimingFunction: 'var(--ease-out-expo)' }}
+          >
+            <FlaskConical className="w-4.5 h-4.5 shrink-0" aria-hidden />
+            <span className="truncate">Glass box</span>
+          </button>
+        </div>
       </nav>
 
       <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
@@ -184,7 +220,7 @@ export const AppSidebar: React.FC<Props> = ({
             onClick={() => onNavigate('settings')}
             aria-label="Account settings"
             className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400 focus-visible:outline-offset-2 ${
-              activeTab === 'settings'
+              activeTab === 'settings' && !glassBoxActive
                 ? 'bg-surface-1 text-stone-200 border-l-2 border-brand-400 pl-2.5'
                 : 'text-stone-400 hover:text-stone-300 hover:bg-surface-1/40'
             }`}

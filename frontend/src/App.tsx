@@ -103,13 +103,15 @@ function App() {
   const [showLogoCompare, setShowLogoCompare] = useState(
     () => typeof window !== 'undefined' && window.location.hash === '#logo-compare',
   );
-  // Glass box: judge-facing internals + benchmark page. Footer-linked, not
-  // part of AppTab's primary nav (see config/navConfig.ts) — it's a
-  // reference surface for evaluators, not a feature a photographer needs
-  // day to day. Modeled as a flag alongside activeTab (like showLogoCompare)
-  // rather than an AppTab member, so it can't accidentally leak into
-  // bottomNavItems/sidebarNavItems. Unlike showLogoCompare it renders inside
-  // the normal shell (sidebar/footer intact) via the activeTab-style
+  // Glass box: judge-facing internals + benchmark page. Reached from the
+  // sidebar's "Proof" nav group and the footer link (both drive the same
+  // #glassbox hash) — it's a reference surface for evaluators, not a
+  // feature a photographer needs day to day. Modeled as a flag alongside
+  // activeTab (like showLogoCompare) rather than an AppTab member, so it
+  // can't accidentally leak into bottomNavItems/sidebarNavItems — and so
+  // activeTab is preserved underneath, restoring the previous tab when the
+  // user navigates back to normal nav. Unlike showLogoCompare it renders
+  // inside the normal shell (sidebar/footer intact) via the activeTab-style
   // conditional in <main>, per this task's routing spec.
   const [showGlassBox, setShowGlassBox] = useState(
     () => typeof window !== 'undefined' && window.location.hash === '#glassbox',
@@ -344,6 +346,8 @@ function App() {
         activeTab={activeTab}
         mode={userMode}
         onNavigate={navigate}
+        glassBoxActive={showGlassBox}
+        onNavigateGlassBox={navigateToGlassBox}
         photoCount={sidebarPhotoCount}
         recentPhotos={sidebarRecentPhotos}
         trendDelta={sidebarTrendDelta}
