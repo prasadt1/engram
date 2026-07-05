@@ -146,7 +146,7 @@ python -m pytest
 
 Engram is a new product built during the Global AI Hackathon with Qwen Cloud submission period (May 26 – Jul 9, 2026), on my own open-source foundation: [Iris Photography Mentor](https://github.com/prasadt1/iris-photography-mentor) (Apache-2.0), a Gemini/Google-ADK photography mentor I built earlier this year.
 
-Reused from Iris (my own Apache-2.0 code, disclosed): MongoDB schemas and Pydantic models, portfolio/trend utilities, the photography-principles grounding corpus, and base React components. Everything that defines Engram as a MemoryAgent — the forgetting-aware memory engine, `engram-mcp`, the full Qwen Cloud port, the `/eval` benchmark, the Alibaba Cloud deployment, and the rebuilt memory-first UI — is new work from the submission period. Full dated commit trail: [`WHATS_NEW.md`](WHATS_NEW.md).
+Reused from Iris (my own Apache-2.0 code, disclosed): MongoDB schemas and Pydantic models, portfolio/trend utilities, the photography-principles grounding corpus, and base React components. Everything that defines Engram as a MemoryAgent — the forgetting-aware memory engine, `engram-mcp`, the full Qwen Cloud port, the `/eval` benchmark, the Alibaba Cloud deployment, and the rebuilt memory-first UI — is new work from the submission period.
 
 ---
 

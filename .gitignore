@@ -2,13 +2,40 @@
 __pycache__/
 *.pyc
 .env
+.env.local
+frontend/.env.local
 node_modules/
 dist/
 .DS_Store
 data/
+.pytest_cache/
+
 # The bare data/ rule above targets this repo's own runtime photo storage
 # (./data/media/photos); it's unanchored, so it also matches
 # frontend/src/data/ — committed source data (copies of the eval/ benchmark
 # JSONs for the Glass box page, see frontend/src/components/GlassBoxTab.tsx)
 # that must be tracked. Un-ignore it explicitly.
 !frontend/src/data/
+
+# --- Local agent / IDE instructions (not for the public repo) ---
+.claude/
+.cursor/
+.agent/
+AGENTS.md
+CLAUDE.md
+.cursorrules
+
+# --- Internal planning, reviews, submission drafts (keep docs/architecture/) ---
+docs/superpowers/
+docs/reviews/
+docs/DEVPOST-DRAFT.md
+docs/demo-video-script.md
+docs/mcp-transcript.md
+
+# Internal review notes and changelogs at repo root
+WHATS_NEW.md
+gpt-5.5 Engram approach review — findings.md
+gpt-5.5 Engram approach review - findings.md
+
+# Logo explorations — shipped icons live in frontend/public/
+assets/logo-options/
