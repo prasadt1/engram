@@ -35,7 +35,7 @@ import { fetchJourney } from '../services/journeyClient';
 import { FEATURES } from '../config/features';
 import type { AppTab } from '../config/navConfig';
 import type { AnalysisResult } from '../types';
-import type { Assignment, UserMode } from '../types/practice';
+import type { Assignment, AssignmentsResponse, UserMode } from '../types/practice';
 import type {
   AestheticProfileSummary,
   PortfolioListItem,
@@ -92,12 +92,22 @@ const EXAMPLE_PHOTO = {
     'Strong diagonal leading lines draw the eye through the frame. The golden hour light creates depth, though shadow detail could be lifted in the foreground rocks.',
 };
 
-const CAPABILITIES = [
+const CAPABILITIES: ReadonlyArray<{
+  title: string;
+  desc: string;
+  /** Feature flag gating this capability — flag-off features must not be
+   * advertised on the first-visit screen (they don't exist in this build). */
+  flag?: keyof typeof FEATURES;
+}> = [
   { title: 'Glass Box Critique', desc: 'Five dimensions scored with visible reasoning' },
-  { title: 'Practice Assignments', desc: 'Targeted challenges that build your weakest skills' },
+  { title: 'Practice Assignments', desc: 'Targeted challenges that build your weakest skills', flag: 'practice' },
   { title: 'Mentor Chat', desc: 'Portfolio-aware conversation with memory' },
-  { title: 'Organize & Tag', desc: 'AI-suggested tags, duplicate detection, your approval' },
-] as const;
+  { title: 'Organize & Tag', desc: 'AI-suggested tags, duplicate detection, your approval', flag: 'triage' },
+];
+
+const VISIBLE_CAPABILITIES = CAPABILITIES.filter((cap) => !cap.flag || FEATURES[cap.flag]);
+
+const EMPTY_ASSIGNMENTS: AssignmentsResponse = { proposed: [], active: [], completed: [] };
 
 function mentorInsightText(
   profile: AestheticProfileSummary,
@@ -169,7 +179,11 @@ export const HomeTab: React.FC<Props> = ({
         fetchPortfolio({ limit: 5, sortOrder: 'asc' }).catch(() => ({ entries: [], total: 0 })),
         fetchAestheticProfile().catch(() => null),
         fetchPortfolioTrends(6).catch(() => null),
-        fetchAssignments().catch(() => ({ proposed: [], active: [], completed: [] })),
+        // With practice off there is no /api/v1/assignments route — skip the
+        // guaranteed-404 fetch entirely and use the empty default directly.
+        FEATURES.practice
+          ? fetchAssignments().catch(() => EMPTY_ASSIGNMENTS)
+          : Promise.resolve(EMPTY_ASSIGNMENTS),
         fetchJourney().catch(() => null),
       ]);
 
@@ -444,7 +458,7 @@ export const HomeTab: React.FC<Props> = ({
             </h1>
             <p className="text-stone-400 text-base md:text-lg mb-8 max-w-xl">
               Glass Box critiques on five dimensions, a private library that grows with you,
-              practice assignments, and mentor chat.
+              {FEATURES.practice ? ' practice assignments,' : ''} and mentor chat.
             </p>
             <div className="flex flex-wrap gap-4">
               <Button
@@ -610,7 +624,7 @@ export const HomeTab: React.FC<Props> = ({
           <section className="max-w-4xl mx-auto">
             <h2 className="font-serif text-2xl text-white mb-6">What Engram can do</h2>
             <div className="grid sm:grid-cols-2 gap-4">
-              {CAPABILITIES.map((cap) => (
+              {VISIBLE_CAPABILITIES.map((cap) => (
                 <Card key={cap.title}>
                   <h3 className="text-white text-sm font-medium mb-1">{cap.title}</h3>
                   <p className="text-stone-400 text-xs">{cap.desc}</p>
