@@ -488,6 +488,18 @@ export const HomeTab: React.FC<Props> = ({
   const trendDelta = bestTrend?.delta ?? null;
   const trendLabel = bestTrend?.label ?? null;
 
+  /** Before → now framing for the trend card: the same older-half / newer-half
+   * split compute_delta (app/memory_engine.py) uses, so "6.8 → 7.4" is exactly
+   * the pair whose difference is the delta. Null when the series is too short
+   * for the backend to have produced a delta at all. */
+  const trendBeforeNow = (() => {
+    const values = bestTrend?.values;
+    if (!values || values.length < 4 || trendDelta == null) return null;
+    const mid = Math.floor(values.length / 2);
+    const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+    return { before: avg(values.slice(0, mid)), now: avg(values.slice(mid)) };
+  })();
+
   /** What the trend delta actually compares, in human terms: compute_delta
    * (backend) is the newer half of the recent-uploads window minus the older
    * half — say so instead of showing a bare "+0.6". Null below 4 points,
@@ -765,7 +777,9 @@ export const HomeTab: React.FC<Props> = ({
                     {trendDelta != null && trendLabel ? (
                       <>
                         <p className="text-sm font-serif text-white">
-                          {trendLabel} up +{trendDelta.toFixed(1)} pts
+                          {trendBeforeNow
+                            ? `${trendLabel}: ${trendBeforeNow.before.toFixed(1)} → ${trendBeforeNow.now.toFixed(1)}`
+                            : `${trendLabel} up +${trendDelta.toFixed(1)} pts`}
                         </p>
                         <p className="text-xs text-stone-400 mt-0.5">
                           Out of 10 · {trendComparisonNote ?? 'vs your earlier uploads'}

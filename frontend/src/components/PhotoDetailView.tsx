@@ -83,7 +83,10 @@ export const PhotoDetailView: React.FC<Props> = ({ photo, persona, judgeMode = f
 
       {/* Left pane: photo + scores */}
       <div className="w-full md:w-1/2 flex flex-col overflow-y-auto p-4 sm:p-6 md:border-r border-warm/40">
-        <div className="flex-1 min-h-0 flex items-center justify-center bg-photo-black rounded-xl overflow-hidden mb-4 max-h-[45vh] md:max-h-[60vh]">
+        {/* Fixed height (not max-h + flex-1) so the pane reserves its space
+            before the image loads — the scores below no longer jump down
+            when the photo arrives; object-contain letterboxes on the mat. */}
+        <div className="shrink-0 h-[45vh] md:h-[60vh] flex items-center justify-center bg-photo-black rounded-xl overflow-hidden mb-4">
           {photo.imageUrl ? (
             <img
               src={photo.imageUrl}
