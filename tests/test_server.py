@@ -494,6 +494,37 @@ def test_portfolio_trends_endpoint_shape():
     assert overall_dim["trend"] == "flat"
 
 
+def test_portfolio_trends_window_is_most_recent_photos_in_chronological_order():
+    # Home's "Recent trend" card and sparkline caption both describe this
+    # series as recent uploads — when the library exceeds `limit`, the window
+    # must be the NEWEST `limit` photos (still oldest->newest for charting),
+    # not frozen on the user's first uploads forever.
+    store = _seed_portfolio_store()  # A(5.0, oldest) -> B(9.0) -> C(7.0, newest)
+    now = datetime.now(timezone.utc)
+    for hours_ago, score in ((12, 6.0), (1, 8.0)):  # D and E, newer than C
+        store.db.portfolio_entries.insert_one({
+            "user_id": "u1", "storage_key": f"photos/x{hours_ago}.jpg", "image_url": "http://stale/x.jpg",
+            "scores": _score_set(score), "genre": "landscape", "aesthetic_tags": [],
+            "scene_description": "Later work.", "colour_notes": None,
+            "glass_box": {"observations": [], "reasoning_steps": [], "priority_fixes": []},
+            "spatial_metadata": {}, "created_at": now - timedelta(hours=hours_ago),
+        })
+    with patch("app.server._store", return_value=store), \
+         patch("app.server.get_storage") as mock_gs:
+        _patch_signed_urls(mock_gs)
+        resp = _client().get(
+            "/api/v1/portfolio/trends",
+            params={"limit": 4},  # library has 5 photos -> window drops only the OLDEST (A)
+            headers={"X-User-Id": "u1"},
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    # Newest 4 of A(5) B(9) C(7) D(6) E(8), chronological: B, C, D, E.
+    assert [p["overall"] for p in body["points"]] == [9.0, 7.0, 6.0, 8.0]
+    assert body["photoCount"] == 4
+    assert body["insufficientData"] is False
+
+
 def test_aesthetic_profile_endpoint_minimal_shape():
     store = _seed_portfolio_store()
     with patch("app.server._store", return_value=store), \

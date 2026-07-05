@@ -284,11 +284,18 @@ def portfolio_trends(limit: int = 12, x_user_id: str = Header(default="demo-user
     (types/memory.ts) — chronological score series + compute_delta per
     dimension, shaped like Iris's app/memory/trends.py::compute_portfolio_trends.
     compute_delta (app/memory_engine.py) is the same newer-half-vs-older-half
-    formula as Iris's _delta_recent_vs_older, so historical trend data agrees."""
+    formula as Iris's _delta_recent_vs_older, so historical trend data agrees.
+
+    The window is the most RECENT `limit` photos (returned in chronological
+    order for charting) — every consumer captions this series as recent
+    ("Recent trend" on Home, sparkline "recent uploads"), so an ascending
+    sort+limit that froze the window on the user's oldest uploads would
+    silently stop reflecting new work once the library outgrew `limit`."""
     capped_limit = max(4, min(limit, 24))
     query = {"user_id": x_user_id}
     coll = _store().db.portfolio_entries
-    docs = list(coll.find(query).sort("created_at", 1).limit(capped_limit))
+    docs = list(coll.find(query).sort("created_at", -1).limit(capped_limit))
+    docs.reverse()  # back to oldest -> newest for the chart / compute_delta
 
     if not docs:
         return {"photoCount": 0, "points": [], "dimensions": [], "insufficientData": True}

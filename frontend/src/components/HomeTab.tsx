@@ -300,6 +300,17 @@ export const HomeTab: React.FC<Props> = ({
   const trendDelta = bestTrend?.delta ?? null;
   const trendLabel = bestTrend?.label ?? null;
 
+  /** What the trend delta actually compares, in human terms: compute_delta
+   * (backend) is the newer half of the recent-uploads window minus the older
+   * half — say so instead of showing a bare "+0.6". Null below 4 points,
+   * where the backend returns no delta anyway. */
+  const trendComparisonNote = (() => {
+    const n = trends?.points.length ?? 0;
+    if (n < 4) return null;
+    const older = Math.floor(n / 2);
+    return `avg of your last ${n - older} uploads vs the ${older} before`;
+  })();
+
   const mentorThreshold = useDemoLibrary ? 1 : 3;
   const showMentorCard = Boolean(profile && portfolioTotal >= mentorThreshold);
 
@@ -613,7 +624,13 @@ export const HomeTab: React.FC<Props> = ({
                 label="Avg score"
                 value={avgLibraryScore != null ? avgLibraryScore.toFixed(1) : '—'}
                 unit={avgLibraryScore != null ? '/ 10' : undefined}
-                note={avgLibraryScore != null ? 'Across your recent library' : 'Upload more to see averages'}
+                note={
+                  avgLibraryScore != null
+                    ? portfolioTotal <= 20
+                      ? `All five skills, averaged across your ${portfolioTotal} photos`
+                      : 'All five skills, averaged across your last 20 photos'
+                    : 'Upload more to see averages'
+                }
               />
 
               <Card padding="sm" className="bg-surface-1/80">
@@ -629,7 +646,7 @@ export const HomeTab: React.FC<Props> = ({
                           {trendLabel} up +{trendDelta.toFixed(1)} pts
                         </p>
                         <p className="text-xs text-stone-400 mt-0.5">
-                          Out of 10 · vs your earlier uploads
+                          Out of 10 · {trendComparisonNote ?? 'vs your earlier uploads'}
                         </p>
                       </>
                     ) : (
@@ -656,7 +673,9 @@ export const HomeTab: React.FC<Props> = ({
                             </LineChart>
                           </ResponsiveContainer>
                         </div>
-                        <p className="text-[10px] text-stone-500 mt-1">Overall score · recent uploads</p>
+                        <p className="text-[10px] text-stone-500 mt-1">
+                          Overall score · your last {trends.points.length} uploads
+                        </p>
                       </div>
                     )}
                   </div>
@@ -859,7 +878,8 @@ export const HomeTab: React.FC<Props> = ({
             {growthFrameOverallDelta != null && growthFrameOverallDelta > 0 && (
               <p className="text-center mt-4 text-brand-400 font-medium text-sm">
                 <TrendingUp className="w-4 h-4 inline mr-1.5" />
-                +{growthFrameOverallDelta.toFixed(1)} overall between these two frames
+                Your strongest photo scores +{growthFrameOverallDelta.toFixed(1)} overall vs your
+                first upload
                 {growthFrameCompositionDelta != null && growthFrameCompositionDelta > 0 && (
                   <span className="text-stone-400 font-normal">
                     {' '}
