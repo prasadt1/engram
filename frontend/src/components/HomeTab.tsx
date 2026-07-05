@@ -646,7 +646,9 @@ export const HomeTab: React.FC<Props> = ({
                 unit={avgLibraryScore != null ? '/ 10' : undefined}
                 note={
                   avgLibraryScore != null
-                    ? portfolioTotal <= 20
+                    ? // 20 mirrors the server's window: aesthetic_profile uses
+                      // .limit(20) in app/server.py — keep the two in sync.
+                      portfolioTotal <= 20
                       ? `All five skills, averaged across your ${portfolioTotal} photos`
                       : 'All five skills, averaged across your last 20 photos'
                     : 'Upload more to see averages'
@@ -898,8 +900,8 @@ export const HomeTab: React.FC<Props> = ({
             {growthFrameOverallDelta != null && growthFrameOverallDelta > 0 && (
               <p className="text-center mt-4 text-brand-400 font-medium text-sm">
                 <TrendingUp className="w-4 h-4 inline mr-1.5" />
-                Your strongest photo scores +{growthFrameOverallDelta.toFixed(1)} overall vs your
-                first upload
+                This photo scores +{growthFrameOverallDelta.toFixed(1)} overall vs your first
+                upload
                 {growthFrameCompositionDelta != null && growthFrameCompositionDelta > 0 && (
                   <span className="text-stone-400 font-normal">
                     {' '}

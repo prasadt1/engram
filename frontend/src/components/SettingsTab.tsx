@@ -39,6 +39,7 @@ export const SettingsTab: React.FC<Props> = ({
   // local saving state, failures surfaced through onPersistError.
   const [displayName, setDisplayName] = useState('');
   const [nameLoaded, setNameLoaded] = useState(false);
+  const [nameFetchFailed, setNameFetchFailed] = useState(false);
   const [savingName, setSavingName] = useState(false);
   const [nameSaved, setNameSaved] = useState(false);
 
@@ -52,8 +53,12 @@ export const SettingsTab: React.FC<Props> = ({
         setNameLoaded(true);
       })
       .catch(() => {
-        // Profile fetch failing shouldn't lock the field — start blank.
-        if (!cancelled) setNameLoaded(true);
+        // Profile fetch failing shouldn't lock the field — start blank, but
+        // remember the failure: the blank field may be hiding a saved name.
+        if (!cancelled) {
+          setNameFetchFailed(true);
+          setNameLoaded(true);
+        }
       });
     return () => {
       cancelled = true;
@@ -61,11 +66,19 @@ export const SettingsTab: React.FC<Props> = ({
   }, [auth.loading, auth.userId]);
 
   const saveName = async () => {
+    // A blank PATCH clears the saved name. If the initial fetch failed we
+    // never saw the server state, so a blank save here could silently wipe
+    // an existing name the user didn't intend to clear.
+    if (nameFetchFailed && displayName.trim() === '') {
+      onPersistError('Could not load your saved name — type it (or a new one) before saving.');
+      return;
+    }
     setSavingName(true);
     setNameSaved(false);
     try {
       const result = await updateDisplayName(displayName.trim(), auth.userId);
       setDisplayName(result.displayName ?? '');
+      setNameFetchFailed(false);
       setNameSaved(true);
     } catch (e) {
       onPersistError(e instanceof Error ? e.message : 'Could not save your name');

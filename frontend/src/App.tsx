@@ -267,7 +267,7 @@ function App() {
         const label = bestTrend?.label?.toLowerCase();
         const trend =
           delta != null && delta > 0 && label
-            ? ` — ${label} +${delta.toFixed(1)} this month`
+            ? ` — ${label} +${delta.toFixed(1)} across recent uploads`
             : '';
         setSidebarMentorLine(`Your ${tags} work is taking shape${trend}.`);
       } else if (stats.total > 0) {
