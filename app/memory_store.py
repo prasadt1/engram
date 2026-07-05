@@ -40,7 +40,15 @@ GENRE_SEARCH_SYNONYMS: dict[str, set[str]] = {
     "portrait": {"person", "people", "human"},
     "wildlife": {"animal", "animals"},
     "architecture": {"building", "buildings"},
-    "landscape": {"nature", "scenery"},
+    "landscape": {"nature", "scenery", "mountain", "mountains", "peak", "peaks"},
+}
+
+# Query-term expansions — e.g. "mountain" also matches peaks/alpine in scene text.
+SEARCH_TERM_EXPANSIONS: dict[str, set[str]] = {
+    "mountain": {"mountain", "mountains", "mountainous", "alpine", "peak", "peaks", "summit", "ridge"},
+    "mountains": {"mountain", "mountains", "mountainous", "alpine", "peak", "peaks", "summit", "ridge"},
+    "peak": {"peak", "peaks", "summit", "mountain", "mountains", "alpine"},
+    "peaks": {"peak", "peaks", "summit", "mountain", "mountains", "alpine"},
 }
 
 
@@ -215,6 +223,17 @@ class MemoryStore:
         if not terms:
             return [], []
 
+        def expanded_for(term: str) -> set[str]:
+            return {term} | SEARCH_TERM_EXPANSIONS.get(term, set())
+
+        def term_matches(term: str, haystack: str, doc_genre_synonyms: set[str]) -> bool:
+            variants = expanded_for(term)
+            if any(v in haystack for v in variants):
+                return True
+            if variants & doc_genre_synonyms:
+                return True
+            return False
+
         docs = list(self.db.portfolio_entries.find({"user_id": user_id}))
         scored = []
         for doc in docs:
@@ -227,7 +246,7 @@ class MemoryStore:
             ]
             haystack = " ".join(str(f) for f in haystack_fields).lower()
             doc_genre_synonyms = GENRE_SEARCH_SYNONYMS.get((doc.get("genre") or "").lower(), set())
-            matched_terms = {t for t in terms if t in haystack or t in doc_genre_synonyms}
+            matched_terms = {t for t in terms if term_matches(t, haystack, doc_genre_synonyms)}
             if matched_terms:
                 scored.append((len(matched_terms), doc))
 

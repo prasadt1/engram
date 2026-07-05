@@ -19,6 +19,8 @@ import {
 import { FilmGrain } from '../FilmGrain';
 import { ApertureLoader } from '../ApertureLoader';
 import { InlineAlertBanner } from '../InlineAlertBanner';
+import { LiveProofRail } from '../LiveProofRail';
+import { UPLOAD_PROOF_STEPS } from '../../lib/liveProofCopy';
 
 interface PhotoUploaderProps {
   onImageSelected: (file: File, previewUrl: string) => void;
@@ -155,6 +157,12 @@ const PhotoUploader: React.FC<PhotoUploaderProps> = ({
                   />
                 </div>
               </div>
+              <LiveProofRail
+                steps={UPLOAD_PROOF_STEPS}
+                waitSec={waitSec}
+                variant="compact"
+                className="w-full mt-4"
+              />
               <p className="text-xs text-muted mt-4">{analyzeWaitHint(waitSec)}</p>
             </div>
           ) : (

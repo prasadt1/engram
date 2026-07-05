@@ -226,8 +226,8 @@ const StudioAnalysisResults: React.FC<Props> = ({
               selectedDimension={selectedDimension}
               onPreviewDimension={setHoveredDimension}
               onSelectDimension={(subject) => {
-                setSelectedDimension(subject);
-                setHoveredDimension(subject);
+                setSelectedDimension((prev) => (prev === subject ? null : subject));
+                setHoveredDimension(null);
               }}
               onWhyClick={focusScoreDimension}
             />

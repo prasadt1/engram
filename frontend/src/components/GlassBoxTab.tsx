@@ -32,7 +32,7 @@
  */
 
 import React, { useCallback, useState } from 'react';
-import { Loader2, Sparkles, Zap } from 'lucide-react';
+import { ChevronDown, Loader2, Sparkles, Zap } from 'lucide-react';
 import { Card, Eyebrow, StatCard, Tag } from './primitives';
 import { apiFetch } from '../lib/apiFetch';
 import resultsDefault from '../data/results-default.json';
@@ -275,9 +275,14 @@ const LiveMemoryStats: React.FC = () => {
       )}
 
       {state.kind === 'ready' && state.stats.served_via && (
-        <Tag variant="brand" icon={<Sparkles className="w-3 h-3" aria-hidden />}>
-          served_via: {state.stats.served_via}
-        </Tag>
+        <div className="space-y-1">
+          <Tag variant="brand" icon={<Sparkles className="w-3 h-3" aria-hidden />}>
+            Live MCP round trip confirmed
+          </Tag>
+          <p className="text-[10px] font-mono text-stone-500">
+            served_via: {state.stats.served_via}
+          </p>
+        </div>
       )}
     </Card>
   );
@@ -427,10 +432,10 @@ const HonestyFootnotes: React.FC = () => (
       One-command reproduction:{' '}
       <code className="font-mono text-stone-400">python -m eval.run --compare</code> — see{' '}
       <a
-        href="https://github.com/search?q=repo%3Aengram+path%3Aeval%2FREADME.md"
-        onClick={(e) => e.preventDefault()}
-        className="text-brand-400 hover:text-brand-300 hover:underline cursor-default"
-        title="eval/README.md in this repo"
+        href="https://github.com/prasadt1/engram/blob/main/eval/README.md"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-brand-400 hover:text-brand-300 hover:underline"
       >
         eval/README.md
       </a>{' '}
@@ -444,12 +449,14 @@ const HonestyFootnotes: React.FC = () => (
 // ---------------------------------------------------------------------------
 
 export const GlassBoxTab: React.FC = () => {
+  const [footnotesOpen, setFootnotesOpen] = useState(false);
+
   return (
     <div className="max-w-4xl mx-auto px-1 space-y-8 pb-8">
       <div>
-        <h1 className="font-serif text-2xl md:text-3xl text-white">Glass box</h1>
+        <h1 className="font-serif text-2xl md:text-3xl text-white">Memory Proof Room</h1>
         <p className="mt-1 text-sm text-stone-400">
-          How Engram&apos;s memory works — live internals and the benchmark that measures them.
+          Live memory internals and the benchmark that measures forgetting — formerly &ldquo;Glass box.&rdquo;
         </p>
         <p className="mt-3 text-sm text-stone-300 leading-relaxed max-w-2xl">
           This page is the proof behind Engram&apos;s memory — no mock-ups, no hand-picked numbers.
@@ -480,19 +487,31 @@ export const GlassBoxTab: React.FC = () => {
           </p>
         </div>
         <BenchmarkSummaryStrip />
-        <BenchmarkTable />
         <WorkedExample />
+        <BenchmarkTable />
       </section>
 
       <div className="border-t border-warm pt-4 space-y-3">
-        <div>
-          <Eyebrow>The fine print</Eyebrow>
-          <p className="mt-1 text-sm text-stone-400">
-            The caveats a careful reader would ask about — declared here instead of left for you to
-            find.
-          </p>
-        </div>
-        <HonestyFootnotes />
+        <button
+          type="button"
+          onClick={() => setFootnotesOpen((open) => !open)}
+          className="w-full flex items-start justify-between gap-3 text-left rounded-lg px-1 py-1 -mx-1 hover:bg-surface-2/50 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400 focus-visible:outline-offset-2"
+          aria-expanded={footnotesOpen}
+        >
+          <div>
+            <Eyebrow>The fine print</Eyebrow>
+            <p className="mt-1 text-sm text-stone-400">
+              Methodology caveats and reproduction steps — expand if you want the full disclosures.
+            </p>
+          </div>
+          <ChevronDown
+            className={`w-5 h-5 text-stone-500 shrink-0 mt-1 transition-transform ${
+              footnotesOpen ? 'rotate-180' : ''
+            }`}
+            aria-hidden
+          />
+        </button>
+        {footnotesOpen && <HonestyFootnotes />}
       </div>
     </div>
   );

@@ -2,6 +2,8 @@
  * Central API fetch — attaches X-User-Id when Firebase (or explicit) scope is set.
  */
 
+import { isJudgeModeRequested, JUDGE_DEMO_USER_ID } from './judgeMode';
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 
 let scopeUserId: string | null = null;
@@ -29,7 +31,11 @@ export type ApiFetchOptions = RequestInit & {
 export async function apiFetch(path: string, init?: ApiFetchOptions): Promise<Response> {
   const { timeoutMs = DEFAULT_API_TIMEOUT_MS, ...requestInit } = init ?? {};
   const headers = new Headers(requestInit.headers);
-  if (scopeUserId) {
+  // Judge mode always wins at request time — Firebase scope init and child
+  // effects can otherwise race and load the wrong library before App.tsx runs.
+  if (isJudgeModeRequested()) {
+    headers.set('X-User-Id', JUDGE_DEMO_USER_ID);
+  } else if (scopeUserId) {
     headers.set('X-User-Id', scopeUserId);
   }
 

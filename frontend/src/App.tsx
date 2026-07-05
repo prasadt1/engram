@@ -16,6 +16,7 @@ import { GlassBoxTab } from './components/GlassBoxTab';
 import { InlineAlertBanner } from './components/InlineAlertBanner';
 import { ScoreExplainer, ScoreExplainerTrigger } from './components/ScoreExplainer';
 import { OnboardingTour, resetTour } from './components/OnboardingTour';
+import { JudgeWelcome } from './components/JudgeWelcome';
 import { getStoredTheme, type ThemeMode } from './lib/theme';
 import { ThemeProvider } from './lib/ThemeContext';
 import type { AppTab } from './config/navConfig';
@@ -46,7 +47,14 @@ import {
   setOnboardingComplete,
   clearOnboardingComplete,
 } from './lib/onboarding';
-import { isJudgeModeRequested, JUDGE_DEMO_USER_ID } from './lib/judgeMode';
+import { JudgeTour, resetJudgeTour } from './components/JudgeTour';
+import {
+  isJudgeModeRequested,
+  isJudgeWelcomeDismissed,
+  JUDGE_DEMO_USER_ID,
+  resetJudgeWelcome,
+  setAppHash,
+} from './lib/judgeMode';
 import type { AnalysisResult } from './types';
 import type { Assignment, UserMode } from './types/practice';
 
@@ -74,6 +82,8 @@ function App() {
     const requested = isJudgeModeRequested();
     if (requested) {
       setOnboardingComplete();
+      // Scope demo-user synchronously so Home's first fetch never races auth init.
+      setApiUserScope(JUDGE_DEMO_USER_ID);
       JUDGE_TOUR_STORAGE_KEYS.forEach((key) => {
         if (typeof window !== 'undefined') localStorage.setItem(key, 'true');
       });
@@ -99,6 +109,12 @@ function App() {
   const [showScoreExplainer, setShowScoreExplainer] = useState(false);
   // Onboarding tour
   const [showTour, setShowTour] = useState(false);
+  const [showJudgeTour, setShowJudgeTour] = useState(false);
+  const [showJudgeWelcome, setShowJudgeWelcome] = useState(
+    () => judgeMode && !isJudgeWelcomeDismissed(),
+  );
+  const [focusPhotoId, setFocusPhotoId] = useState<string | null>(null);
+  const [portfolioRefreshKey, setPortfolioRefreshKey] = useState(0);
   const [theme, setTheme] = useState<ThemeMode>(() => getStoredTheme());
   const [showLogoCompare, setShowLogoCompare] = useState(
     () => typeof window !== 'undefined' && window.location.hash === '#logo-compare',
@@ -149,11 +165,17 @@ function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
+  const openPhotoInWork = useCallback(
+    (photoId: string) => {
+      setFocusPhotoId(photoId);
+      navigate('work');
+    },
+    [navigate],
+  );
+
   const navigateToGlassBox = useCallback(() => {
     setShowGlassBox(true);
-    if (typeof window !== 'undefined' && window.location.hash !== '#glassbox') {
-      window.history.replaceState(null, '', `${window.location.pathname}#glassbox`);
-    }
+    setAppHash('#glassbox');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
@@ -282,6 +304,11 @@ function App() {
     }
   }, [userMode]);
 
+  const handlePortfolioChanged = useCallback(() => {
+    setPortfolioRefreshKey((k) => k + 1);
+    void refreshSidebarDashboard();
+  }, [refreshSidebarDashboard]);
+
   useEffect(() => {
     if (!ready || auth.loading) return;
     void refreshSidebarDashboard();
@@ -336,6 +363,28 @@ function App() {
     );
   }
 
+  if (showJudgeWelcome && judgeMode) {
+    return (
+      <ThemeProvider theme={theme}>
+        <JudgeWelcome
+          onEnterDemo={() => setShowJudgeWelcome(false)}
+          onStartTour={() => {
+            setShowJudgeWelcome(false);
+            resetJudgeTour();
+            setShowJudgeTour(true);
+          }}
+          onOpenProof={() => {
+            setShowJudgeWelcome(false);
+            navigateToGlassBox();
+          }}
+        />
+        {showJudgeTour && (
+          <JudgeTour forceShow onComplete={() => setShowJudgeTour(false)} />
+        )}
+      </ThemeProvider>
+    );
+  }
+
   return (
     <ThemeProvider theme={theme}>
     <div className="min-h-screen bg-canvas text-stone-200 font-sans selection:bg-brand-500/30 flex relative">
@@ -363,10 +412,15 @@ function App() {
           <button
             type="button"
             onClick={() => navigate('home')}
-            className="min-w-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400 focus-visible:outline-offset-2 rounded-md"
+            className="min-w-0 flex items-center gap-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400 focus-visible:outline-offset-2 rounded-md"
             aria-label="Go to Home"
           >
             <MobileHeaderMark />
+            {judgeMode && (
+              <span className="text-[10px] font-bold uppercase tracking-wider text-brand-400 border border-brand-500/40 rounded px-1.5 py-0.5">
+                Judge
+              </span>
+            )}
           </button>
           <div className="flex items-center gap-1 shrink-0">
             {userMode === 'working_pro' && FEATURES.printSales && (
@@ -407,17 +461,47 @@ function App() {
         >
           {!online && <OfflineBanner />}
           {showJudgeBanner && (
-            <InlineAlertBanner
-              variant="info"
-              className="mb-4"
-              message="Demo mode — viewing a seeded photographer's journey. Explore: Home · Work · Mentor."
-              onDismiss={() => {
-                if (typeof window !== 'undefined') {
-                  localStorage.setItem(JUDGE_BANNER_DISMISSED_KEY, 'true');
-                }
-                setShowJudgeBanner(false);
-              }}
-            />
+            <div className="mb-4 space-y-2">
+              <InlineAlertBanner
+                variant="info"
+                message="Judge demo — seeded photographer with live memory proof. Same Home / Work / Mentor UX as regular users; data scoped to demo-user."
+                onDismiss={() => {
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem(JUDGE_BANNER_DISMISSED_KEY, 'true');
+                  }
+                  setShowJudgeBanner(false);
+                }}
+              />
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetJudgeWelcome();
+                    setShowJudgeWelcome(true);
+                  }}
+                  className="text-sm px-3 py-1.5 rounded-lg border border-warm text-stone-300 hover:text-white hover:border-brand-500/40 transition-colors"
+                >
+                  How to evaluate
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetJudgeTour();
+                    setShowJudgeTour(true);
+                  }}
+                  className="text-sm px-3 py-1.5 rounded-lg bg-brand-500/20 text-brand-300 border border-brand-500/30 hover:bg-brand-500/30 transition-colors"
+                >
+                  Run judge walkthrough
+                </button>
+                <button
+                  type="button"
+                  onClick={navigateToGlassBox}
+                  className="text-sm px-3 py-1.5 rounded-lg border border-warm text-stone-300 hover:text-white hover:border-brand-500/40 transition-colors"
+                >
+                  Memory Proof Room →
+                </button>
+              </div>
+            </div>
           )}
           {personaError && activeTab === 'settings' && !showGlassBox && (
             <p className="mb-4 text-sm text-amber-400" role="alert">
@@ -440,8 +524,12 @@ function App() {
               mode={userMode}
               activeAssignment={activeAssignment}
               useDemoLibrary={!auth.userId}
+              isActive={activeTab === 'home'}
+              portfolioRefreshKey={portfolioRefreshKey}
               onNavigate={navigate}
               onOpenSettings={() => navigate('settings')}
+              onOpenProof={navigateToGlassBox}
+              onOpenPhoto={openPhotoInWork}
               onAnalysisComplete={(result, imageUrl, filename) => {
                 toast({
                   variant: 'brand',
@@ -460,9 +548,12 @@ function App() {
           {activeTab === 'work' && (
             <MyWorkTab
               mode={userMode}
+              judgeMode={judgeMode}
+              focusPhotoId={focusPhotoId}
+              onFocusPhotoHandled={() => setFocusPhotoId(null)}
               activeAssignment={activeAssignment}
               onAssignmentComplete={refreshActiveAssignment}
-              onPortfolioChanged={refreshSidebarDashboard}
+              onPortfolioChanged={handlePortfolioChanged}
               onGoHome={() => navigate('home')}
               onGoToPractice={(focusDimension) => {
                 if (focusDimension) {
@@ -513,7 +604,7 @@ function App() {
           )}
 
           {activeTab === 'mentor' && (
-            <MentorTab mode={userMode} onGoToWork={() => navigate('work')} />
+            <MentorTab mode={userMode} judgeMode={judgeMode} onGoToWork={() => navigate('work')} />
           )}
 
           {/* Print Sales tab is deferred in this build — FEATURES.printSales
@@ -585,7 +676,7 @@ function App() {
                 aria-current={showGlassBox ? 'page' : undefined}
                 className="text-brand-400 hover:text-brand-300 hover:underline transition-colors"
               >
-                Glass box
+                Memory Proof Room
               </button>
             </p>
             <p className="text-xs text-stone-500">
@@ -595,7 +686,14 @@ function App() {
         </footer>
       </div>
 
-      <BottomNav activeTab={activeTab} mode={userMode} onNavigate={navigate} />
+      <BottomNav
+        activeTab={activeTab}
+        mode={userMode}
+        onNavigate={navigate}
+        judgeMode={judgeMode}
+        glassBoxActive={showGlassBox}
+        onNavigateProof={navigateToGlassBox}
+      />
 
       {/* Global Score Explainer Modal */}
       <ScoreExplainer isOpen={showScoreExplainer} onClose={() => setShowScoreExplainer(false)} />
@@ -605,6 +703,13 @@ function App() {
         forceShow={showTour}
         onComplete={() => setShowTour(false)}
       />
+
+      {judgeMode && (
+        <JudgeTour
+          forceShow={showJudgeTour}
+          onComplete={() => setShowJudgeTour(false)}
+        />
+      )}
     </div>
     </ThemeProvider>
   );

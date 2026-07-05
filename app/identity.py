@@ -13,6 +13,20 @@ def _humanize(value: str) -> str:
     return value.replace("_", " ")
 
 
+# Glass Box dimension keys stored as skill names in MongoDB.
+_SKILL_LABELS: dict[str, str] = {
+    "composition": "composition",
+    "lighting": "lighting",
+    "technique": "technique",
+    "creativity": "creativity",
+    "subject_impact": "subject impact",
+}
+
+
+def _humanize_skill(skill: str) -> str:
+    return _SKILL_LABELS.get(skill, _humanize(skill))
+
+
 def build_identity_line(
     genre: str | None, tag: str | None, cleared: list[str], watching: str | None,
 ) -> str | None:
@@ -33,10 +47,11 @@ def build_identity_line(
 
     clauses: list[str] = []
     if cleared:
-        clauses.append(f"{', '.join(cleared)} cleared")
+        cleared_labels = [_humanize_skill(s) for s in cleared]
+        clauses.append(f"{', '.join(cleared_labels)} cleared")
     else:
         clauses.append("working toward your first cleared skill")
     if watching:
-        clauses.append(f"now sharpening {watching}")
+        clauses.append(f"now sharpening {_humanize_skill(watching)}")
 
     return f"You're {descriptor} — {', '.join(clauses)}."

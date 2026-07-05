@@ -2,7 +2,7 @@
  * Spotlight overlay when hovering score dimensions (gemma4-style linked preview).
  */
 
-import React from 'react';
+import React, { useId } from 'react';
 import type { StudioAnalysis } from '../../types/studio';
 import { getDimensionHighlight, type PercentRect } from '../../lib/dimensionRegions';
 
@@ -14,12 +14,11 @@ interface Props {
 const Spotlight: React.FC<{
   region: PercentRect;
   borderClass: string;
-  glowClass: string;
   fillClass: string;
   dashed?: boolean;
-}> = ({ region, borderClass, glowClass, fillClass, dashed }) => (
+}> = ({ region, borderClass, fillClass, dashed }) => (
   <div
-    className={`absolute rounded-sm border-2 pointer-events-none ${borderClass} ${fillClass} ${glowClass} ${
+    className={`absolute rounded-sm border-2 pointer-events-none ${borderClass} ${fillClass} ${
       dashed ? 'border-dashed' : ''
     }`}
     style={{
@@ -27,9 +26,38 @@ const Spotlight: React.FC<{
       top: `${region.y}%`,
       width: `${region.width}%`,
       height: `${region.height}%`,
-      zIndex: 25,
+      zIndex: 26,
     }}
   />
+);
+
+/** Dims the photo outside the highlighted region (unmounts with DimensionOverlay). */
+const DimOutsideRegion: React.FC<{ region: PercentRect; maskId: string }> = ({
+  region,
+  maskId,
+}) => (
+  <svg
+    className="absolute inset-0 w-full h-full pointer-events-none"
+    viewBox="0 0 100 100"
+    preserveAspectRatio="none"
+    style={{ zIndex: 20 }}
+    aria-hidden
+  >
+    <defs>
+      <mask id={maskId}>
+        <rect width="100" height="100" fill="white" />
+        <rect
+          x={region.x}
+          y={region.y}
+          width={region.width}
+          height={region.height}
+          fill="black"
+          rx="0.8"
+        />
+      </mask>
+    </defs>
+    <rect width="100" height="100" fill="rgba(10,9,8,0.55)" mask={`url(#${maskId})`} />
+  </svg>
 );
 
 const ThirdsGrid: React.FC = () => (
@@ -49,6 +77,8 @@ const ThirdsGrid: React.FC = () => (
 );
 
 const DimensionOverlay: React.FC<Props> = ({ dimension, analysis }) => {
+  const maskId = useId().replace(/:/g, '');
+
   if (!dimension) return null;
 
   const highlight = getDimensionHighlight(dimension, analysis);
@@ -58,6 +88,8 @@ const DimensionOverlay: React.FC<Props> = ({ dimension, analysis }) => {
 
   return (
     <div className="absolute inset-0 pointer-events-none" aria-hidden>
+      <DimOutsideRegion region={highlight.region} maskId={`dim-${maskId}`} />
+
       {highlight.showThirdsGrid && <ThirdsGrid />}
 
       {highlight.lightingDirection && (
@@ -65,7 +97,7 @@ const DimensionOverlay: React.FC<Props> = ({ dimension, analysis }) => {
           className="absolute inset-0"
           style={{
             zIndex: 21,
-            background: `linear-gradient(135deg, rgba(251,191,36,0.22) 0%, transparent 55%, rgba(10,9,8,0.25) 100%)`,
+            background: `linear-gradient(135deg, rgba(251,191,36,0.18) 0%, transparent 55%, transparent 100%)`,
           }}
         />
       )}
@@ -73,7 +105,6 @@ const DimensionOverlay: React.FC<Props> = ({ dimension, analysis }) => {
       <Spotlight
         region={highlight.region}
         borderClass={highlight.borderClass}
-        glowClass={highlight.glowClass}
         fillClass={fillFor()}
       />
 
@@ -82,7 +113,6 @@ const DimensionOverlay: React.FC<Props> = ({ dimension, analysis }) => {
           key={i}
           region={r}
           borderClass="border-stone-400"
-          glowClass=""
           fillClass="bg-stone-400/8"
           dashed
         />

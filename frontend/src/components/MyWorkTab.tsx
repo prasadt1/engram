@@ -49,6 +49,7 @@ import { MemoryGridSkeleton } from './SkeletonBlocks';
 import PhotoUploader from './studio/PhotoUploader';
 import StudioAnalysisResults from './studio/StudioAnalysisResults';
 import { MemoryReceipt } from './MemoryReceipt';
+import { MemoryDelta } from './MemoryDelta';
 import { PhotoDetailView } from './PhotoDetailView';
 import { ActivePracticeBanner } from './studio/ActivePracticeBanner';
 import { fetchAestheticProfile, fetchPortfolio, fetchPortfolioTrends, deletePortfolioEntries, deletePortfolioEntry, type SortField, type SortOrder } from '../services/memoryClient';
@@ -84,6 +85,10 @@ interface PendingAnalysis {
 interface MyWorkTabProps {
   /** Drives the persona for PhotoDetailView's scoped mentor chat. */
   mode: UserMode;
+  judgeMode?: boolean;
+  /** Open this portfolio entry in PhotoDetailView after gallery load (from Home memory thread). */
+  focusPhotoId?: string | null;
+  onFocusPhotoHandled?: () => void;
   activeAssignment?: Assignment | null;
   onAssignmentComplete?: () => void;
   onGoHome?: () => void;
@@ -100,6 +105,9 @@ type ViewMode = 'gallery' | 'upload' | 'analyzing' | 'result';
 
 export const MyWorkTab: React.FC<MyWorkTabProps> = ({
   mode,
+  judgeMode = false,
+  focusPhotoId,
+  onFocusPhotoHandled,
   activeAssignment,
   onAssignmentComplete,
   onGoHome,
@@ -161,6 +169,16 @@ export const MyWorkTab: React.FC<MyWorkTabProps> = ({
       onClearPendingAnalysis?.();
     }
   }, [pendingAnalysis, onClearPendingAnalysis]);
+
+  useEffect(() => {
+    if (!focusPhotoId || loading) return;
+    const entry = entries.find((e) => e.id === focusPhotoId);
+    if (entry?.imageUrl) {
+      setDetailEntry(entry);
+      setViewMode('gallery');
+      onFocusPhotoHandled?.();
+    }
+  }, [focusPhotoId, loading, entries, onFocusPhotoHandled]);
 
   const runLibrarySearch = useCallback(async () => {
     const q = librarySearch.trim();
@@ -429,7 +447,12 @@ export const MyWorkTab: React.FC<MyWorkTabProps> = ({
             onReset={handleReset}
           />
         </div>
-        <MemoryReceipt receipt={result.memoryReceipt} />
+        <MemoryDelta receipt={result.memoryReceipt} />
+        <MemoryReceipt
+          receipt={result.memoryReceipt}
+          prominent={judgeMode}
+          defaultExpanded={judgeMode}
+        />
       </div>
     );
   }
@@ -1086,6 +1109,7 @@ export const MyWorkTab: React.FC<MyWorkTabProps> = ({
         <PhotoDetailView
           photo={detailEntry}
           persona={mode}
+          judgeMode={judgeMode}
           onClose={() => setDetailEntry(null)}
         />
       )}

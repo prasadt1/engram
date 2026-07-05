@@ -14,6 +14,8 @@ import {
 } from '../lib/analyzeWaitCopy';
 import { ApertureLoader } from './ApertureLoader';
 import { ViewfinderFrame } from './ViewfinderFrame';
+import { LiveProofRail } from './LiveProofRail';
+import { UPLOAD_PROOF_STEPS } from '../lib/liveProofCopy';
 
 interface Props {
   /** URL of the photo being analyzed (for preview) */
@@ -49,7 +51,8 @@ export const AnalyzingOverlay: React.FC<Props> = ({
       aria-modal="true"
       aria-labelledby="analyzing-overlay-title"
     >
-      <div className="max-w-lg w-full animate-fadeIn">
+      <div className="max-w-4xl w-full animate-fadeIn grid lg:grid-cols-[minmax(0,1fr)_minmax(240px,280px)] gap-6 items-start">
+        <div>
         {imageUrl && (
           <ViewfinderFrame active={true} className="mb-6">
             <div className="rounded-2xl overflow-hidden border border-warm bg-photo-black p-2 shadow-2xl">
@@ -143,6 +146,19 @@ export const AnalyzingOverlay: React.FC<Props> = ({
         </div>
 
         <p className="text-center text-xs text-muted mt-4">{analyzeWaitHint(waitSec)}</p>
+        </div>
+
+        <LiveProofRail
+          steps={UPLOAD_PROOF_STEPS}
+          waitSec={waitSec}
+          className="hidden lg:block sticky top-4"
+        />
+        <LiveProofRail
+          steps={UPLOAD_PROOF_STEPS}
+          waitSec={waitSec}
+          variant="compact"
+          className="lg:hidden mt-4"
+        />
       </div>
     </div>
   );

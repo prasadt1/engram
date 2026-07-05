@@ -22,7 +22,7 @@ export function BrandLogo({
   markSize,
   markScale = MARK_SCALE,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for API compatibility with mark/tittle variants
-  extraBold = false,
+  extraBold: _extraBold = false,
   animate = false,
   className = '',
 }: {

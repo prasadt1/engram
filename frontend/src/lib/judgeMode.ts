@@ -1,17 +1,15 @@
 /**
  * Judge mode — zero-friction entry for hackathon judges / demo click-testing.
  *
- * `?judge=1` (query param) or `#judge` (hash) scopes the app to the seeded
- * demo-user journey (see scripts/seed_demo_user.py), skips onboarding/tour,
- * and lands on Home. Detection is read-only and side-effect-free so it can
- * be called during render; callers apply the actual scope/localStorage
- * side effects once, on mount.
+ * `?judge=1` scopes the app to the seeded demo-user journey, skips onboarding,
+ * and shows the judge welcome screen first. The query param is preserved on
+ * every in-app navigation so refresh/back stay in judge mode.
  */
 
 const JUDGE_QUERY_KEY = 'judge';
 const JUDGE_HASH = 'judge';
-
 export const JUDGE_DEMO_USER_ID = 'demo-user';
+export const JUDGE_WELCOME_DISMISSED_KEY = 'engram_judge_welcome_dismissed';
 
 export function isJudgeModeRequested(): boolean {
   if (typeof window === 'undefined') return false;
@@ -19,4 +17,35 @@ export function isJudgeModeRequested(): boolean {
   if (params.get(JUDGE_QUERY_KEY) === '1') return true;
   const hash = window.location.hash.replace(/^#/, '');
   return hash === JUDGE_HASH;
+}
+
+/** Current path + search + hash — keeps ?judge=1 when changing tabs. */
+export function buildAppUrl(pathname: string, hash: string): string {
+  if (typeof window === 'undefined') return `${pathname}${hash}`;
+  const search = window.location.search;
+  return `${pathname}${search}${hash}`;
+}
+
+export function setAppHash(hash: string): void {
+  if (typeof window === 'undefined') return;
+  const normalized = hash.startsWith('#') ? hash : `#${hash}`;
+  const next = buildAppUrl(window.location.pathname, normalized);
+  if (window.location.pathname + window.location.search + window.location.hash !== next) {
+    window.history.replaceState(null, '', next);
+  }
+}
+
+export function isJudgeWelcomeDismissed(): boolean {
+  if (typeof window === 'undefined') return true;
+  return sessionStorage.getItem(JUDGE_WELCOME_DISMISSED_KEY) === 'true';
+}
+
+export function dismissJudgeWelcome(): void {
+  if (typeof window === 'undefined') return;
+  sessionStorage.setItem(JUDGE_WELCOME_DISMISSED_KEY, 'true');
+}
+
+export function resetJudgeWelcome(): void {
+  if (typeof window === 'undefined') return;
+  sessionStorage.removeItem(JUDGE_WELCOME_DISMISSED_KEY);
 }

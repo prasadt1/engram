@@ -302,6 +302,25 @@ def test_search_portfolio_scoped_to_user():
     assert len(docs) == 1
 
 
+def test_search_portfolio_mountain_matches_peaks_in_scene():
+    store = _store()
+    now = datetime.now(timezone.utc)
+    store.db.portfolio_entries.insert_one({
+        "user_id": "u1",
+        "scene_description": "Snow-capped peaks at dawn, wide valley below.",
+        "created_at": now,
+    })
+    store.db.portfolio_entries.insert_one({
+        "user_id": "u1",
+        "scene_description": "Busy city crosswalk at midday.",
+        "created_at": now,
+    })
+    docs, terms = store.search_portfolio(user_id="u1", query="mountain", limit=8)
+    assert terms == ["mountain"]
+    assert len(docs) == 1
+    assert "peaks" in docs[0]["scene_description"].lower()
+
+
 def test_similar_portfolio_entries_finds_shared_tag_match():
     store = _store()
     now = datetime.now(timezone.utc)

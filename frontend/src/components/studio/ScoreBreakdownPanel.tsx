@@ -40,7 +40,7 @@ export const ScoreBreakdownPanel: React.FC<Props> = ({
       : 'p-4 space-y-3 border-t border-warm/60';
 
   return (
-    <div className={shellClass}>
+    <div className={shellClass} onMouseLeave={() => onPreviewDimension(null)}>
       <div className={`${variant === 'sidebar' ? 'p-4 pb-3' : ''} flex items-start justify-between gap-3`}>
         <div>
           <h3 className="text-xs font-semibold text-muted uppercase tracking-wide">
@@ -55,7 +55,6 @@ export const ScoreBreakdownPanel: React.FC<Props> = ({
 
       <div
         className={`${variant === 'sidebar' ? 'px-4' : ''} space-y-1.5 flex-1`}
-        onMouseLeave={() => onPreviewDimension(null)}
       >
         {rows.map((item) => {
           const isPreview = previewDimension === item.subject;

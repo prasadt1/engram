@@ -10,6 +10,7 @@ import { Card, Eyebrow, Tag } from './primitives';
 import { EmptyState } from './EmptyState';
 import { humanizeSkillName } from '../lib/scoreContext';
 import type { JourneySkill, JourneyStats } from '../services/journeyClient';
+import type { UserMode } from '../types/practice';
 
 interface Props {
   summary: string;
@@ -19,9 +20,16 @@ interface Props {
   /** Optional user-set name — the section header becomes "{name}'s journey";
    * absent, it renders exactly the anonymous "Your journey" it always did. */
   displayName?: string | null;
+  /** Hobbyist vs working pro — adjusts framing copy on Home. */
+  mode?: UserMode;
 }
 
 const STREAK_TARGET = 3;
+
+/** Plain-language graduation rule — "above the bar" means the skill scored
+ * at/above the passing threshold (7/10) on that upload. */
+const GRADUATION_EXPLAINER =
+  'Each filled dot is one upload where this skill scored 7+ out of 10. Three strong uploads in a row and the skill clears — I stop repeating that advice.';
 
 /** Watching skills ordered closest-to-clearing first: streak descending,
  * alphabetical by skill name on ties. The top row IS the current focus —
@@ -34,8 +42,24 @@ function orderWatchingByStreak(watching: JourneySkill[]): JourneySkill[] {
   );
 }
 
-export const JourneySection: React.FC<Props> = ({ summary, skills, identity, displayName }) => {
-  const heading = displayName ? `${displayName}'s journey` : 'Your journey';
+export const JourneySection: React.FC<Props> = ({
+  summary,
+  skills,
+  identity,
+  displayName,
+  mode = 'hobbyist',
+}) => {
+  const isPro = mode === 'working_pro';
+  const heading = displayName
+    ? isPro
+      ? `${displayName}'s portfolio journey`
+      : `${displayName}'s journey`
+    : isPro
+      ? 'Your portfolio journey'
+      : 'Your journey';
+  const personaNote = isPro
+    ? 'Consistency across shoots — what I remember for client-ready work.'
+    : 'Skill-building over time — what I remember from each critique.';
 
   if (skills.length === 0) {
     return (
@@ -54,7 +78,11 @@ export const JourneySection: React.FC<Props> = ({ summary, skills, identity, dis
 
   return (
     <section className="max-w-4xl mx-auto px-1 space-y-4">
-      <Eyebrow>{heading}</Eyebrow>
+      <div className="flex flex-wrap items-center gap-2">
+        <Eyebrow>{heading}</Eyebrow>
+        <Tag variant="outline">{isPro ? 'Working pro' : 'Hobbyist'}</Tag>
+      </div>
+      <p className="text-xs text-stone-500 -mt-2">{personaNote}</p>
 
       {identity && (
         <p className="font-serif text-xl md:text-2xl text-white leading-snug">{identity}</p>
@@ -79,7 +107,7 @@ export const JourneySection: React.FC<Props> = ({ summary, skills, identity, dis
                   <Tag variant="brand">Cleared</Tag>
                 </div>
                 <p className="text-xs text-stone-400 leading-relaxed">
-                  3 sessions above the bar — I&apos;ve stopped coaching this.
+                  Three strong uploads in a row (7+ out of 10) — I&apos;ve stopped coaching this skill.
                 </p>
               </div>
             </Card>
@@ -91,7 +119,7 @@ export const JourneySection: React.FC<Props> = ({ summary, skills, identity, dis
         <Card padding="sm">
           <Eyebrow tone="faint" className="mb-1.5">Watching</Eyebrow>
           <p className="text-xs text-stone-400 leading-relaxed mb-3">
-            Each dot is a session above the bar — three in a row and I stop coaching that skill.
+            {GRADUATION_EXPLAINER}
           </p>
           <ul className="space-y-2.5">
             {watching.map((skill, index) => {
@@ -116,7 +144,7 @@ export const JourneySection: React.FC<Props> = ({ summary, skills, identity, dis
                   <div
                     className="flex items-center gap-1 shrink-0"
                     role="img"
-                    aria-label={`${filled} of ${STREAK_TARGET} sessions above the bar`}
+                    aria-label={`${filled} of ${STREAK_TARGET} strong uploads toward clearing`}
                   >
                     {Array.from({ length: STREAK_TARGET }, (_, i) => (
                       <span

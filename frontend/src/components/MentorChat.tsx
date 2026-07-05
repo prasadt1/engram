@@ -32,6 +32,8 @@ import { friendlyErrorMessage } from '../lib/friendlyError';
 import { mentorLoadingStage } from '../lib/mentorLoadingStages';
 import { streamMentorMessage, type ChatMessage } from '../services/mentorClient';
 import { IconButton } from './primitives';
+import { LiveProofRail } from './LiveProofRail';
+import { MENTOR_PROOF_STEPS } from '../lib/liveProofCopy';
 import type { MemoryReceipt as MemoryReceiptData } from '../types';
 
 export interface MentorChatHandle {
@@ -52,6 +54,8 @@ interface Props {
   placeholder?: string;
   /** Shown above the input when there are no messages yet. Omit to use the default copy. */
   emptyStateDescription?: string;
+  /** Judge mode: expand and brand the Memory Receipt. */
+  prominentReceipt?: boolean;
   /** Mirrors the internal loading flag so a parent (e.g. MentorTab's quick-action chips) can disable its own controls while a reply is in flight. */
   onLoadingChange?: (loading: boolean) => void;
   /** Rendered between the error banner and the input form — MentorTab's quick-actions/suggested-questions chip bars slot in here so it keeps its exact original layout. */
@@ -67,6 +71,7 @@ export const MentorChat = forwardRef<MentorChatHandle, Props>(
       emptyStateDescription,
       onLoadingChange,
       footerSlot,
+      prominentReceipt = false,
     },
     ref,
   ) => {
@@ -248,7 +253,16 @@ export const MentorChat = forwardRef<MentorChatHandle, Props>(
                 />
                 {isLatest && turn.assistant && latestReceipt && (
                   <div className="px-1">
-                    <MemoryReceipt receipt={latestReceipt} />
+                    <MemoryReceipt receipt={latestReceipt} prominent={prominentReceipt} defaultExpanded={prominentReceipt} />
+                  </div>
+                )}
+                {isPendingLatest && (
+                  <div className="px-1">
+                    <LiveProofRail
+                      steps={MENTOR_PROOF_STEPS}
+                      waitSec={waitSec}
+                      variant="compact"
+                    />
                   </div>
                 )}
               </React.Fragment>

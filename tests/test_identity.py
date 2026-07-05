@@ -43,3 +43,13 @@ def test_no_portfolio_at_all_returns_none():
 def test_underscored_tag_and_genre_are_humanized():
     result = build_identity_line("still_life", "natural_light", ["composition"], "lighting")
     assert result == "You're a natural light still life shooter — composition cleared, now sharpening lighting."
+
+
+def test_subject_impact_skill_is_humanized():
+    result = build_identity_line(
+        "landscape", "natural_light", ["composition", "lighting", "creativity"], "subject_impact",
+    )
+    assert result == (
+        "You're a natural light landscape shooter — composition, lighting, creativity cleared, "
+        "now sharpening subject impact."
+    )

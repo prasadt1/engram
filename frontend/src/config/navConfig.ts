@@ -84,8 +84,11 @@ export function tabFromHash(): AppTab | null {
 
 export function setTabHash(tab: AppTab): void {
   if (typeof window === 'undefined') return;
-  const next = `#${tab}`;
-  if (window.location.hash !== next) {
-    window.history.replaceState(null, '', `${window.location.pathname}${next}`);
+  const nextHash = `#${tab}`;
+  const search = window.location.search;
+  const path = window.location.pathname;
+  const next = `${path}${search}${nextHash}`;
+  if (`${path}${search}${window.location.hash}` !== next) {
+    window.history.replaceState(null, '', next);
   }
 }

@@ -96,8 +96,8 @@ export const SettingsTab: React.FC<Props> = ({
         </Eyebrow>
         <h1 className="font-serif text-2xl md:text-3xl text-white">Your profile</h1>
         <p className="text-muted text-sm mt-2">
-          Switch between hobbyist and working pro. I&apos;ll adjust listings, suggestions, and how
-          I coach you.
+          Hobbyist mode emphasizes skill-building in Mentor conversations. Working pro mode uses
+          portfolio- and consistency-oriented prompts, and unlocks Print Sales when that feature is on.
         </p>
       </div>
 

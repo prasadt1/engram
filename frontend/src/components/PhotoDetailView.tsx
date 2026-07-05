@@ -31,10 +31,11 @@ const DIMENSIONS: { key: keyof PortfolioListItem['scores']; label: string }[] = 
 interface Props {
   photo: PortfolioListItem;
   persona: 'hobbyist' | 'working_pro';
+  judgeMode?: boolean;
   onClose: () => void;
 }
 
-export const PhotoDetailView: React.FC<Props> = ({ photo, persona, onClose }) => {
+export const PhotoDetailView: React.FC<Props> = ({ photo, persona, judgeMode = false, onClose }) => {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -52,6 +53,12 @@ export const PhotoDetailView: React.FC<Props> = ({ photo, persona, onClose }) =>
   // existed) still opens — chat just falls back to portfolio-wide memory
   // instead of erroring, matching sendMentorMessage's `photoId?: string`.
   const photoId = photo.storageKey || undefined;
+  const scopedMemoryCopy = photoId
+    ? 'I only draw on memory tied to this specific frame.'
+    : 'I’ll start from this photo and your broader library memory.';
+  const scopedEmptyCopy = photoId
+    ? 'Ask what’s working, what to try next, or how this compares to your other shots — I only recall memory scoped to this photo.'
+    : 'Ask what’s working or what to try next — replies draw on your broader library memory for this frame.';
   // genre isn't on PortfolioListItem's wire contract yet (only on
   // AnalysisResult/MemoryReceipt items) — read it defensively so this Tag
   // renders the moment the backend starts including it, and quietly does
@@ -112,15 +119,14 @@ export const PhotoDetailView: React.FC<Props> = ({ photo, persona, onClose }) =>
       <div className="w-full md:w-1/2 flex flex-col min-h-[50vh] md:min-h-0 p-4 sm:p-6">
         <div className="mb-4">
           <h2 className="font-serif text-xl text-white">Ask about this photo</h2>
-          <p className="text-muted text-sm mt-1">
-            I only draw on memory tied to this specific frame.
-          </p>
+          <p className="text-muted text-sm mt-1">{scopedMemoryCopy}</p>
         </div>
         <MentorChat
           persona={persona}
           photoId={photoId}
           placeholder="Ask about this photo…"
-          emptyStateDescription="Ask what's working, what to try next, or how this compares to your other shots — I only recall memory scoped to this photo."
+          emptyStateDescription={scopedEmptyCopy}
+          prominentReceipt={judgeMode}
         />
       </div>
     </div>,

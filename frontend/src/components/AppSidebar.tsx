@@ -131,7 +131,7 @@ export const AppSidebar: React.FC<Props> = ({
             style={{ transitionTimingFunction: 'var(--ease-out-expo)' }}
           >
             <FlaskConical className="w-4.5 h-4.5 shrink-0" aria-hidden />
-            <span className="truncate">Glass box</span>
+            <span className="truncate">Memory Proof Room</span>
           </button>
         </div>
       </nav>

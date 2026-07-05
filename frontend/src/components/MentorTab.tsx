@@ -47,6 +47,7 @@ type MentorView = 'chat' | 'label';
 
 interface Props {
   mode: UserMode;
+  judgeMode?: boolean;
   onGoToWork?: () => void;
 }
 
@@ -231,7 +232,7 @@ function OrganizeFeedbackBanner({
   );
 }
 
-export const MentorTab: React.FC<Props> = ({ mode, onGoToWork }) => {
+export const MentorTab: React.FC<Props> = ({ mode, judgeMode = false, onGoToWork }) => {
   const [view, setView] = useState<MentorView>('chat');
 
   // Chat area: the message/turn/loading state machine itself lives in
@@ -491,6 +492,7 @@ export const MentorTab: React.FC<Props> = ({ mode, onGoToWork }) => {
           <MentorChat
             ref={mentorChatRef}
             persona={mode}
+            prominentReceipt={judgeMode}
             onLoadingChange={setChatLoading}
             footerSlot={
               <>

@@ -2,11 +2,12 @@
  * HomeTab — Layered homepage: first-visit pitch vs returning personal hero.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
   Award,
   BarChart3,
+  Database,
   ImageIcon,
   TrendingUp,
   Upload,
@@ -15,6 +16,8 @@ import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import { AnalyzingOverlay } from './AnalyzingOverlay';
 import { InlineAlertBanner } from './InlineAlertBanner';
 import { JourneySection } from './JourneySection';
+import { MemoryLane, buildMemoryLaneFrames } from './MemoryLane';
+import { ContactSheet } from './ContactSheet';
 import { LibraryBackdrop } from './LibraryBackdrop';
 import { PhotoMat } from './PhotoMat';
 import { Button, Card, Tag, Eyebrow, StatCard } from './primitives';
@@ -22,6 +25,7 @@ import { useCountUp } from '../hooks/useCountUp';
 import { formatSkillLabel } from '../lib/formatSkillLabel';
 import { friendlyErrorMessage } from '../lib/friendlyError';
 import { pickHomeHeroPhoto } from '../lib/pickHomeHeroPhoto';
+import { portfolioImageUrl } from '../lib/portfolioImageUrl';
 import {
   fetchAestheticProfile,
   fetchPortfolio,
@@ -51,7 +55,14 @@ interface Props {
   useDemoLibrary?: boolean;
   onNavigate: (tab: AppTab) => void;
   onOpenSettings: () => void;
+  onOpenProof?: () => void;
+  /** Open a specific photo in My Work (memory thread, contact sheet). */
+  onOpenPhoto?: (photoId: string) => void;
   onAnalysisComplete?: (result: AnalysisResult, imageUrl: string, filename: string) => void;
+  /** Incremented when portfolio changes (e.g. My Work upload) to refresh hero/journey. */
+  portfolioRefreshKey?: number;
+  /** True when Home tab is visible — refetch when returning after uploads elsewhere. */
+  isActive?: boolean;
 }
 
 const PRACTICE_WIN_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -84,6 +95,147 @@ function shortAssignmentBrief(brief: string, maxLen = 58): string {
   return `${first.slice(0, maxLen - 1).trimEnd()}…`;
 }
 
+interface ReturningPhotoHeroProps {
+  heroPhoto: PortfolioListItem;
+  heroSrc: string | null;
+  heroImageReady: boolean;
+  imageError: boolean;
+  animatedScore: number;
+  portfolioTotal: number;
+  stats: PortfolioStats | null;
+  uploading: boolean;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  onNavigate: (tab: AppTab) => void;
+  eyebrow: string;
+  compact?: boolean;
+}
+
+function ReturningPhotoHero({
+  heroPhoto,
+  heroSrc,
+  heroImageReady,
+  imageError,
+  animatedScore,
+  portfolioTotal,
+  stats,
+  uploading,
+  fileInputRef,
+  onNavigate,
+  eyebrow,
+  compact = false,
+}: ReturningPhotoHeroProps) {
+  return (
+    <div
+      className={`grid grid-cols-1 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,1fr)] overflow-hidden bg-photo-black -mx-3 md:-mx-6 rounded-none md:rounded-2xl md:mx-0 border border-warm/40 md:border-warm/60 ${
+        compact ? 'max-w-4xl mx-auto opacity-95' : ''
+      }`}
+    >
+      <div
+        className={`relative aspect-[5/4] sm:aspect-[16/10] lg:aspect-auto ${
+          compact ? 'lg:min-h-[320px]' : 'lg:min-h-[440px]'
+        }`}
+      >
+        {imageError && !heroSrc ? (
+          <div className="absolute inset-0 bg-surface-2 flex flex-col items-center justify-center gap-3 px-6 text-center">
+            <ImageIcon className="w-12 h-12 text-stone-600" />
+            <p className="text-sm text-muted max-w-xs">
+              Couldn&apos;t load this preview — your library is still here. Upload or open My Work.
+            </p>
+          </div>
+        ) : (
+          <>
+            {heroSrc && (
+              <img
+                src={heroSrc}
+                alt={heroPhoto.sceneDescription || 'Your strongest work'}
+                className="absolute inset-0 w-full h-full object-cover object-[center_42%]"
+              />
+            )}
+            {!heroSrc && (
+              <div className="absolute inset-0 bg-surface-2 animate-pulse flex items-center justify-center z-10">
+                <ImageIcon className="w-12 h-12 text-stone-600" />
+              </div>
+            )}
+          </>
+        )}
+
+        {heroImageReady && (
+          <div className="lg:hidden absolute top-3 right-3 flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-500 shadow-lg score-badge">
+            <span className="text-xl font-bold text-on-brand tabular-nums font-serif">
+              {animatedScore.toFixed(1)}
+            </span>
+            <span className="text-[10px] font-semibold text-on-brand/70">/ 10</span>
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-5 p-5 md:p-6 lg:p-8 bg-surface-1 border-t lg:border-t-0 lg:border-l border-warm/50">
+        <div className="space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <Eyebrow tone="faint" className="tracking-[0.2em]">
+              {eyebrow}
+            </Eyebrow>
+            {heroImageReady && (
+              <div className="hidden lg:flex items-baseline gap-1 shrink-0">
+                <span className="text-4xl font-bold text-brand-400 tabular-nums font-serif leading-none">
+                  {animatedScore.toFixed(1)}
+                </span>
+                <span className="text-sm text-stone-500">/ 10</span>
+              </div>
+            )}
+          </div>
+
+          <p className="font-serif text-lg md:text-xl text-white leading-snug line-clamp-4">
+            {heroPhoto.sceneDescription || 'Your photograph'}
+          </p>
+
+          {heroPhoto.glassBoxSummary.length > 0 && (
+            <p className="text-sm text-stone-400 leading-relaxed line-clamp-2 border-l-2 border-brand-500/40 pl-3">
+              {heroPhoto.glassBoxSummary[0]}
+            </p>
+          )}
+
+          <p className="text-xs text-stone-500">
+            {portfolioTotal} photo{portfolioTotal === 1 ? '' : 's'}
+            {stats?.firstUpload ? ` · Member since ${stats.firstUpload}` : ''}
+          </p>
+        </div>
+
+        {heroPhoto.aestheticTags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {heroPhoto.aestheticTags.slice(0, 4).map((tag) => (
+              <Tag key={tag} variant="outline">
+                {tag.replace(/_/g, ' ')}
+              </Tag>
+            ))}
+          </div>
+        )}
+
+        <div className="flex flex-col sm:flex-row lg:flex-col gap-2.5 mt-auto pt-2">
+          <Button
+            icon={<Upload className="w-4 h-4" />}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            fullWidth
+          >
+            Upload photo
+          </Button>
+          {FEATURES.practice && (
+            <Button
+              variant="secondary"
+              iconRight={<ArrowRight className="w-4 h-4" />}
+              onClick={() => onNavigate('practice')}
+              fullWidth
+            >
+              Continue practice
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const EXAMPLE_PHOTO = {
   url: 'https://picsum.photos/seed/iris-home-hero/1200/800',
   sceneDescription: 'Golden hour light on rocky foreground with long shadows across the frame.',
@@ -113,6 +265,7 @@ function mentorInsightText(
   profile: AestheticProfileSummary,
   trendDelta: number | null,
   trendLabel: string | null,
+  mode: UserMode,
 ): string {
   if (profile.dominantTags.length > 0) {
     const tags = profile.dominantTags
@@ -123,20 +276,31 @@ function mentorInsightText(
       trendDelta != null && trendDelta > 0 && trendLabel
         ? ` Your ${trendLabel.toLowerCase()} has improved +${trendDelta.toFixed(1)} recently.`
         : '';
+    if (mode === 'working_pro') {
+      return `Your portfolio leans toward ${tags} — I track that for consistency across client work.${trend}`;
+    }
     return `I notice you're drawn to ${tags} work.${trend}`;
   }
-  return "Keep uploading — I'll help you see patterns across your shoots.";
+  return mode === 'working_pro'
+    ? 'Keep building the portfolio — I track consistency and repeatable strengths across shoots.'
+    : "Keep uploading — I'll help you see patterns across your shoots.";
 }
 
 export const HomeTab: React.FC<Props> = ({
+  mode,
   activeAssignment,
   useDemoLibrary = false,
   onNavigate,
+  onOpenProof,
+  onOpenPhoto,
   onAnalysisComplete,
+  portfolioRefreshKey = 0,
+  isActive = true,
 }) => {
   const [stats, setStats] = useState<PortfolioStats | null>(null);
   const [bestPhoto, setBestPhoto] = useState<PortfolioListItem | null>(null);
   const [earliestPhoto, setEarliestPhoto] = useState<PortfolioListItem | null>(null);
+  const [memoryLaneSource, setMemoryLaneSource] = useState<PortfolioListItem[]>([]);
   const [contactSheet, setContactSheet] = useState<PortfolioListItem[]>([]);
   const [profile, setProfile] = useState<AestheticProfileSummary | null>(null);
   const [trends, setTrends] = useState<PortfolioTrendsResponse | null>(null);
@@ -226,6 +390,16 @@ export const HomeTab: React.FC<Props> = ({
         (e) => e.imageUrl && e.overallAverage > 0,
       );
       setEarliestPhoto(validOldest ?? null);
+
+      const poolById = new Map<string, PortfolioListItem>();
+      for (const e of [...oldestPortfolio.entries, ...recentPhotos.entries, ...topByScore.entries]) {
+        if (e?.id && e.imageUrl?.trim()) poolById.set(e.id, e);
+      }
+      setMemoryLaneSource(
+        [...poolById.values()].sort(
+          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        ),
+      );
     } catch (err) {
       setLoadError(
         err instanceof Error
@@ -239,9 +413,9 @@ export const HomeTab: React.FC<Props> = ({
   }, [auth.userId, useDemoLibrary]);
 
   useEffect(() => {
-    if (auth.loading) return;
+    if (auth.loading || !isActive) return;
     void load();
-  }, [auth.loading, load]);
+  }, [auth.loading, load, portfolioRefreshKey, isActive]);
 
   useEffect(() => {
     if (!uploading) {
@@ -354,11 +528,18 @@ export const HomeTab: React.FC<Props> = ({
     return vals.reduce((a, b) => a + b, 0) / vals.length;
   })();
 
+  const memoryLaneFrames = useMemo(
+    () => buildMemoryLaneFrames(memoryLaneSource, journey),
+    [memoryLaneSource, journey],
+  );
+
+  const showMemoryProofCard = !FEATURES.practice && Boolean(journey);
+
   // Preload hero image; keep the current frame visible when only the signed URL
   // refreshes on a background refetch (auth scope stabilising, etc.).
   useEffect(() => {
     const heroId = heroPhoto?.id ?? null;
-    const url = heroPhoto?.imageUrl?.trim() || null;
+    const url = portfolioImageUrl(heroPhoto?.imageUrl) || null;
 
     if (!heroId || !url) {
       prevHeroIdRef.current = null;
@@ -408,7 +589,7 @@ export const HomeTab: React.FC<Props> = ({
     <>
       {isReturning && contactSheet.length > 0 && (
         <LibraryBackdrop
-          photos={contactSheet.map((p) => ({ id: p.id, imageUrl: p.imageUrl }))}
+          photos={contactSheet.map((p) => ({ id: p.id, imageUrl: portfolioImageUrl(p.imageUrl) }))}
         />
       )}
 
@@ -448,7 +629,6 @@ export const HomeTab: React.FC<Props> = ({
           </div>
         )}
 
-        {/* First visit: pitch hero */}
         {isFirstVisit && (
           <div className="bg-gradient-to-b from-surface-2 to-canvas rounded-2xl p-8 md:p-12 border border-warm">
             <h1 className="font-serif text-3xl md:text-4xl text-white mb-4 leading-tight">
@@ -476,111 +656,22 @@ export const HomeTab: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Returning: split hero — clean photo + editorial panel (magazine layout) */}
         {isReturning && heroPhoto && (
-          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,1fr)] overflow-hidden bg-photo-black -mx-3 md:-mx-6 rounded-none md:rounded-2xl md:mx-0 border border-warm/40 md:border-warm/60">
-            {/* Photo column — no overlays on desktop */}
-            <div className="relative aspect-[5/4] sm:aspect-[16/10] lg:aspect-auto lg:min-h-[440px]">
-              {imageError && !heroSrc ? (
-                <div className="absolute inset-0 bg-surface-2 flex flex-col items-center justify-center gap-3 px-6 text-center">
-                  <ImageIcon className="w-12 h-12 text-stone-600" />
-                  <p className="text-sm text-muted max-w-xs">
-                    Couldn&apos;t load this preview — your library is still here. Upload or open My Work.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  {heroSrc && (
-                    <img
-                      src={heroSrc}
-                      alt={heroPhoto.sceneDescription || 'Your strongest work'}
-                      className="absolute inset-0 w-full h-full object-cover object-[center_42%]"
-                    />
-                  )}
-                  {!heroSrc && (
-                    <div className="absolute inset-0 bg-surface-2 animate-pulse flex items-center justify-center z-10">
-                      <ImageIcon className="w-12 h-12 text-stone-600" />
-                    </div>
-                  )}
-                </>
-              )}
-
-              {heroImageReady && (
-                <div className="lg:hidden absolute top-3 right-3 flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-500 shadow-lg score-badge">
-                  <span className="text-xl font-bold text-on-brand tabular-nums font-serif">
-                    {animatedScore.toFixed(1)}
-                  </span>
-                  <span className="text-[10px] font-semibold text-on-brand/70">/ 10</span>
-                </div>
-              )}
-            </div>
-
-            {/* Editorial panel */}
-            <div className="flex flex-col gap-5 p-5 md:p-6 lg:p-8 bg-surface-1 border-t lg:border-t-0 lg:border-l border-warm/50">
-              <div className="space-y-4">
-                <div className="flex items-start justify-between gap-4">
-                  <Eyebrow tone="faint" className="tracking-[0.2em]">Best in your library</Eyebrow>
-                  {heroImageReady && (
-                    <div className="hidden lg:flex items-baseline gap-1 shrink-0">
-                      <span className="text-4xl font-bold text-brand-400 tabular-nums font-serif leading-none">
-                        {animatedScore.toFixed(1)}
-                      </span>
-                      <span className="text-sm text-stone-500">/ 10</span>
-                    </div>
-                  )}
-                </div>
-
-                <p className="font-serif text-lg md:text-xl text-white leading-snug line-clamp-4">
-                  {heroPhoto.sceneDescription || 'Your photograph'}
-                </p>
-
-                {heroPhoto.glassBoxSummary.length > 0 && (
-                  <p className="text-sm text-stone-400 leading-relaxed line-clamp-2 border-l-2 border-brand-500/40 pl-3">
-                    {heroPhoto.glassBoxSummary[0]}
-                  </p>
-                )}
-
-                <p className="text-xs text-stone-500">
-                  {portfolioTotal} photo{portfolioTotal === 1 ? '' : 's'}
-                  {stats?.firstUpload ? ` · Member since ${stats.firstUpload}` : ''}
-                </p>
-              </div>
-
-              {heroPhoto.aestheticTags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {heroPhoto.aestheticTags.slice(0, 4).map((tag) => (
-                    <Tag key={tag} variant="outline">{tag.replace(/_/g, ' ')}</Tag>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex flex-col sm:flex-row lg:flex-col gap-2.5 mt-auto pt-2">
-                <Button
-                  icon={<Upload className="w-4 h-4" />}
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  fullWidth
-                >
-                  Upload photo
-                </Button>
-                {FEATURES.practice && (
-                  <Button
-                    variant="secondary"
-                    iconRight={<ArrowRight className="w-4 h-4" />}
-                    onClick={() => onNavigate('practice')}
-                    fullWidth
-                  >
-                    Continue practice
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
+          <ReturningPhotoHero
+            heroPhoto={heroPhoto}
+            heroSrc={heroSrc}
+            heroImageReady={heroImageReady}
+            imageError={imageError}
+            animatedScore={animatedScore}
+            portfolioTotal={portfolioTotal}
+            stats={stats}
+            uploading={uploading}
+            fileInputRef={fileInputRef}
+            onNavigate={onNavigate}
+            eyebrow={mode === 'working_pro' ? 'Strongest in your portfolio' : 'Best in your library'}
+          />
         )}
 
-        {/* Your journey — since-last-time summary, graduation cards, watching
-            streaks. Returning users only: a first-visit user already gets
-            this same "upload to start" message in the pitch hero above. */}
         {isReturning && journey && (
           <JourneySection
             summary={journey.summary}
@@ -588,6 +679,15 @@ export const HomeTab: React.FC<Props> = ({
             stats={journey.stats}
             identity={journey.identity}
             displayName={journey.displayName ?? null}
+            mode={mode}
+          />
+        )}
+
+        {isReturning && memoryLaneFrames.length > 0 && (
+          <MemoryLane
+            frames={memoryLaneFrames}
+            portfolioTotal={portfolioTotal}
+            onOpenPhoto={(photoId) => onOpenPhoto?.(photoId)}
           />
         )}
 
@@ -634,7 +734,7 @@ export const HomeTab: React.FC<Props> = ({
           </section>
         )}
 
-        {/* At a glance (returning) — above the fold after hero */}
+        {/* At a glance */}
         {isReturning && !loading && (
           <div className="max-w-4xl mx-auto px-1 space-y-2">
             <Eyebrow>At a glance</Eyebrow>
@@ -704,96 +804,62 @@ export const HomeTab: React.FC<Props> = ({
                 </div>
               </Card>
 
-              <StatCard
-                icon={<Award className="w-5 h-5" />}
-                label="Assignments done"
-                value={completedAssignmentCount}
-                detail={
-                  (activeAssignment ?? recentCompletedAssignment)
-                    ? shortAssignmentBrief((activeAssignment ?? recentCompletedAssignment)!.brief)
-                    : undefined
-                }
-                note={
-                  activeAssignment
-                    ? 'Active practice brief'
-                    : completedAssignmentCount === 0
-                      ? FEATURES.practice
-                        ? 'Accept a challenge in Practice'
-                        : 'Coming soon'
-                      : 'Completed practice briefs'
-                }
-                action={
-                  FEATURES.practice ? (
-                    <Button variant="subtle" size="sm" onClick={() => onNavigate('practice')}>
-                      Practice →
-                    </Button>
-                  ) : undefined
-                }
-              />
+              {showMemoryProofCard ? (
+                <StatCard
+                  icon={<Database className="w-5 h-5" />}
+                  label="Memory proof"
+                  value={journey!.stats.skills_cleared}
+                  unit={journey!.stats.skills_cleared === 1 ? 'skill cleared' : 'skills cleared'}
+                  note={`${journey!.stats.live_memories} live · ${journey!.stats.superseded_memories} retired`}
+                  action={
+                    onOpenProof ? (
+                      <Button variant="subtle" size="sm" onClick={onOpenProof}>
+                        See proof →
+                      </Button>
+                    ) : undefined
+                  }
+                />
+              ) : (
+                <StatCard
+                  icon={<Award className="w-5 h-5" />}
+                  label="Assignments done"
+                  value={completedAssignmentCount}
+                  detail={
+                    (activeAssignment ?? recentCompletedAssignment)
+                      ? shortAssignmentBrief((activeAssignment ?? recentCompletedAssignment)!.brief)
+                      : undefined
+                  }
+                  note={
+                    activeAssignment
+                      ? 'Active practice brief'
+                      : completedAssignmentCount === 0
+                        ? FEATURES.practice
+                          ? 'Accept a challenge in Practice'
+                          : 'Coming soon'
+                        : 'Completed practice briefs'
+                  }
+                  action={
+                    FEATURES.practice ? (
+                      <Button variant="subtle" size="sm" onClick={() => onNavigate('practice')}>
+                        Practice →
+                      </Button>
+                    ) : undefined
+                  }
+                />
+              )}
             </div>
           </div>
         )}
 
-        {/* Contact sheet — primary library access, kept high on the page */}
         {isReturning && (
-          <section className="max-w-6xl mx-auto px-1">
-            <div className="flex items-end justify-between gap-4 mb-3">
-              <div>
-                <h2 className="font-serif text-xl md:text-2xl text-white">Contact sheet</h2>
-                <p className="text-stone-400 text-xs md:text-sm mt-0.5">Recent frames from your library</p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Button
-                  size="sm"
-                  icon={<Upload className="w-4 h-4" />}
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                >
-                  Upload
-                </Button>
-                <Button variant="subtle" size="sm" onClick={() => onNavigate('work')}>
-                  Library →
-                </Button>
-              </div>
-            </div>
-
-            {loading ? (
-              <div className="flex gap-4 overflow-hidden">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="shrink-0 w-48 h-32 rounded-xl bg-surface-2 animate-pulse" />
-                ))}
-              </div>
-            ) : contactSheet.length > 0 ? (
-              <div className="flex gap-4 overflow-x-auto pb-3 snap-x snap-mandatory scrollbar-hide -mx-1 px-1">
-                {contactSheet.map((photo) => (
-                  <button
-                    key={photo.id}
-                    type="button"
-                    onClick={() => onNavigate('work')}
-                    className="shrink-0 w-44 sm:w-52 snap-start group text-left"
-                  >
-                    <PhotoMat variant="contact" className="transition-transform duration-300 group-hover:-translate-y-1">
-                      <div className="aspect-[4/5] relative">
-                        <img
-                          src={photo.imageUrl}
-                          alt={photo.sceneDescription || 'Photo'}
-                          className="w-full h-full object-cover"
-                        />
-                        <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-brand-500 text-on-brand text-xs font-bold tabular-nums">
-                          {photo.overallAverage.toFixed(1)}
-                        </span>
-                      </div>
-                    </PhotoMat>
-                    {photo.sceneDescription && (
-                      <p className="mt-1.5 text-xs text-stone-400 line-clamp-1 leading-relaxed">
-                        {photo.sceneDescription}
-                      </p>
-                    )}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </section>
+          <ContactSheet
+            photos={contactSheet}
+            loading={loading}
+            uploading={uploading}
+            onOpenPhoto={(photoId) => onOpenPhoto?.(photoId)}
+            onNavigateLibrary={() => onNavigate('work')}
+            onUpload={() => fileInputRef.current?.click()}
+          />
         )}
 
         {isReturning && showMentorCard && profile && (
@@ -801,7 +867,7 @@ export const HomeTab: React.FC<Props> = ({
             <div className="flex-1 min-w-0">
               <Eyebrow tone="faint" className="mb-1">From your mentor</Eyebrow>
               <p className="text-stone-300 text-sm leading-relaxed font-serif line-clamp-2">
-                {mentorInsightText(profile, trendDelta, trendLabel)}
+                {mentorInsightText(profile, trendDelta, trendLabel, mode)}
               </p>
             </div>
             <Button
