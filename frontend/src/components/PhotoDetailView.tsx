@@ -14,7 +14,7 @@
 
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { ArrowLeft, X } from 'lucide-react';
 import { DimensionBar } from './DimensionBar';
 import { MemoryDelta } from './MemoryDelta';
 import { PrinciplesUsedPanel } from './studio/PrinciplesUsedPanel';
@@ -35,10 +35,18 @@ interface Props {
   photo: PortfolioListItem;
   persona: 'hobbyist' | 'working_pro';
   judgeMode?: boolean;
+  /** e.g. "Back to Home" or "Back to library" */
+  backLabel?: string;
   onClose: () => void;
 }
 
-export const PhotoDetailView: React.FC<Props> = ({ photo, persona, judgeMode = false, onClose }) => {
+export const PhotoDetailView: React.FC<Props> = ({
+  photo,
+  persona,
+  judgeMode = false,
+  backLabel = 'Back',
+  onClose,
+}) => {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -79,7 +87,15 @@ export const PhotoDetailView: React.FC<Props> = ({ photo, persona, judgeMode = f
       <button
         type="button"
         onClick={onClose}
-        className="absolute top-4 right-4 z-20 p-2 rounded-full bg-white/10 text-stone-200 hover:bg-white/20 transition-colors"
+        className="absolute top-4 left-4 z-20 inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 text-stone-200 hover:bg-white/20 transition-colors text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400"
+      >
+        <ArrowLeft className="w-4 h-4 shrink-0" aria-hidden />
+        {backLabel}
+      </button>
+      <button
+        type="button"
+        onClick={onClose}
+        className="absolute top-4 right-4 z-20 p-2 rounded-full bg-white/10 text-stone-200 hover:bg-white/20 transition-colors md:hidden"
         aria-label="Close photo detail"
       >
         <X className="w-5 h-5" aria-hidden />

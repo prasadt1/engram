@@ -127,6 +127,8 @@ export const MyWorkTab: React.FC<MyWorkTabProps> = ({
   // mentor chat) — ImageLightbox stays in the codebase as a component but is
   // no longer wired to this click; PhotoDetailView is the library-flow entry point.
   const [detailEntry, setDetailEntry] = useState<PortfolioListItem | null>(null);
+  /** True when detail was opened from Home (memory thread / contact sheet). */
+  const detailReturnHomeRef = useRef(false);
   const [trends, setTrends] = useState<PortfolioTrendsResponse | null>(null);
 
   // Sort and filter state
@@ -169,10 +171,39 @@ export const MyWorkTab: React.FC<MyWorkTabProps> = ({
     }
   }, [pendingAnalysis, onClearPendingAnalysis]);
 
+  const closePhotoDetail = useCallback(() => {
+    const returnHome = detailReturnHomeRef.current;
+    detailReturnHomeRef.current = false;
+    setDetailEntry(null);
+    if (returnHome) onGoHome?.();
+  }, [onGoHome]);
+
+  const handlePhotoDetailBack = useCallback(() => {
+    if (window.history.state?.engramPhotoDetail) {
+      window.history.back();
+    } else {
+      closePhotoDetail();
+    }
+  }, [closePhotoDetail]);
+
+  useEffect(() => {
+    if (!detailEntry) return;
+    window.history.pushState({ engramPhotoDetail: true }, '');
+    const onPop = () => {
+      const returnHome = detailReturnHomeRef.current;
+      detailReturnHomeRef.current = false;
+      setDetailEntry(null);
+      if (returnHome) onGoHome?.();
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [detailEntry, onGoHome]);
+
   useEffect(() => {
     if (!focusPhotoId || loading) return;
     const entry = entries.find((e) => e.id === focusPhotoId);
     if (entry?.imageUrl) {
+      detailReturnHomeRef.current = true;
       setDetailEntry(entry);
       setViewMode('gallery');
       onFocusPhotoHandled?.();
@@ -936,7 +967,10 @@ export const MyWorkTab: React.FC<MyWorkTabProps> = ({
                       toggleSelected(entry.id);
                       return;
                     }
-                    if (entry.imageUrl) setDetailEntry(entry);
+                    if (entry.imageUrl) {
+                      detailReturnHomeRef.current = false;
+                      setDetailEntry(entry);
+                    }
                   }}
                 >
                   <div className="p-3 bg-photo-black border-b border-warm/40">
@@ -1109,7 +1143,8 @@ export const MyWorkTab: React.FC<MyWorkTabProps> = ({
           photo={detailEntry}
           persona={mode}
           judgeMode={judgeMode}
-          onClose={() => setDetailEntry(null)}
+          backLabel={detailReturnHomeRef.current ? 'Back to Home' : 'Back to library'}
+          onClose={handlePhotoDetailBack}
         />
       )}
     </div>
