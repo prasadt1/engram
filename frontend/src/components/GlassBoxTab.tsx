@@ -183,6 +183,65 @@ const STAT_FIELDS: { key: keyof Omit<MemoryStats, 'served_via'>; label: string }
   { key: 'skills_cleared', label: 'Skills cleared' },
 ];
 
+/** Plain-language gloss for judges — mirrors app/engram_mcp.py tool names. */
+const MCP_TOOLS: ReadonlyArray<{ name: string; summary: string }> = [
+  {
+    name: 'recall',
+    summary: 'Fetch salience-ranked memories for a question — superseded facts stay out of advice.',
+  },
+  {
+    name: 'consolidate',
+    summary: 'List episodic memories ready to merge into durable semantic memory.',
+  },
+  {
+    name: 'forget',
+    summary: 'Check whether a coached skill graduated (its coaching memories retired).',
+  },
+  {
+    name: 'get_memory_stats',
+    summary: 'Live counts for a user — the same numbers this card shows when the toggle is on.',
+  },
+];
+
+const McpToolsExplainer: React.FC = () => {
+  const [open, setOpen] = useState(true);
+
+  return (
+    <div className="rounded-lg border border-warm/80 bg-surface-1/60 p-3 space-y-2">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-start justify-between gap-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400 focus-visible:outline-offset-2 rounded-md"
+        aria-expanded={open}
+      >
+        <div>
+          <p className="text-xs font-semibold text-stone-200">What is engram-mcp?</p>
+          <p className="text-[11px] text-muted leading-relaxed mt-0.5">
+            Model Context Protocol — a standard way for any Qwen agent to mount Engram&apos;s memory
+            engine as tools, not a private REST API only this web app can call.
+          </p>
+        </div>
+        <ChevronDown
+          className={`w-4 h-4 text-stone-500 shrink-0 mt-0.5 transition-transform ${open ? 'rotate-180' : ''}`}
+          aria-hidden
+        />
+      </button>
+      {open && (
+        <ul className="text-[11px] text-stone-400 space-y-1.5 pl-0.5 list-none">
+          {MCP_TOOLS.map((tool) => (
+            <li key={tool.name} className="flex gap-2 leading-relaxed">
+              <code className="shrink-0 font-mono text-[10px] text-brand-400/90 bg-brand-500/10 px-1.5 py-0.5 rounded">
+                {tool.name}
+              </code>
+              <span>{tool.summary}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+
 const LiveMemoryStats: React.FC = () => {
   const [state, setState] = useState<StatsState>({ kind: 'loading' });
   const [viaMcp, setViaMcp] = useState(false);
@@ -227,6 +286,7 @@ const LiveMemoryStats: React.FC = () => {
           onClick={handleToggle}
           disabled={loading}
           aria-pressed={viaMcp}
+          title="Re-fetch these counts through the live engram-mcp subprocess instead of the in-process API"
           className={`inline-flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-md border transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0 ${
             viaMcp
               ? 'bg-brand-500/15 border-brand-500/40 text-brand-400'
@@ -241,6 +301,8 @@ const LiveMemoryStats: React.FC = () => {
           Serve via engram-mcp
         </button>
       </div>
+
+      <McpToolsExplainer />
 
       {loading && viaMcp && (
         <p className="text-xs text-muted italic flex items-center gap-1.5">
