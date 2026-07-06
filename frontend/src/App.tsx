@@ -177,7 +177,11 @@ function App() {
   // inside the normal shell (sidebar/footer intact) via the activeTab-style
   // conditional in <main>, per this task's routing spec.
   const [showGlassBox, setShowGlassBox] = useState(
-    () => typeof window !== 'undefined' && window.location.hash === '#glassbox',
+    () => {
+      if (typeof window === 'undefined') return false;
+      const h = window.location.hash.replace(/^#/, '');
+      return h === 'glassbox' || h.startsWith('proof-');
+    },
   );
   const [practiceDetailId, setPracticeDetailId] = useState<string | null>(null);
   const [onboardingBusy, setOnboardingBusy] = useState(false);
@@ -246,7 +250,8 @@ function App() {
   useEffect(() => {
     const onHash = () => {
       setShowLogoCompare(window.location.hash === '#logo-compare');
-      setShowGlassBox(window.location.hash === '#glassbox');
+      const h = window.location.hash.replace(/^#/, '');
+      setShowGlassBox(h === 'glassbox' || h.startsWith('proof-'));
     };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);

@@ -465,22 +465,48 @@ const WorkedExample: React.FC = () => {
   return (
     <div
       id="proof-start"
-      className="rounded-xl border border-brand-500/40 bg-brand-500/5 p-4 md:p-5 space-y-3 scroll-mt-6"
+      className="rounded-xl border border-brand-500/40 bg-brand-500/5 p-4 md:p-5 space-y-4 scroll-mt-6"
     >
       <div className="flex flex-wrap items-center gap-2">
         <Eyebrow tone="brand">Start here</Eyebrow>
-        <Tag variant="brand">Step 1 · Canon → Sony</Tag>
+        <Tag variant="brand">Step 1 · Eval harness</Tag>
+        <Tag variant="outline">Not demo-user uploads</Tag>
       </div>
-      <p className="text-sm text-stone-300 leading-relaxed">
-        One scenario end to end: a photographer who started on a Canon body, then switched to a Sony
-        mirrorless in session 3. Both versions get the same question — watch which facts each one
-        brings back.{' '}
-        <span className="font-mono text-[10px] text-stone-500">({WORKED_TRACE_ID})</span>
-      </p>
+
+      <div className="rounded-lg border border-warm/70 bg-surface-1/40 p-3 space-y-2 text-xs text-stone-400 leading-relaxed">
+        <p>
+          <span className="text-stone-200 font-medium">What this is:</span> frozen scenario{' '}
+          <code className="font-mono text-[10px] text-brand-400/90">{WORKED_TRACE_ID}</code> from{' '}
+          <a
+            href="https://github.com/prasadt1/engram/blob/main/eval/traces.py"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-brand-400 hover:text-brand-300 hover:underline"
+          >
+            eval/traces.py
+          </a>
+          . We script memory facts (no photos), run the same <code className="font-mono">recall()</code>{' '}
+          engine the coach uses, and compare two engine settings. The recall lines below are{' '}
+          <span className="text-stone-300">committed JSON output</span> from{' '}
+          <code className="font-mono text-[10px]">python -m eval.run --compare</code> — not copy I
+          typed for this page.
+        </p>
+        <p>
+          <span className="text-stone-200 font-medium">Story in the harness:</span> sessions 1–2 store
+          &ldquo;shoots primarily with a Canon body.&rdquo; In session 3 the photographer switches to Sony;
+          the Canon fact is <span className="text-stone-300">superseded</span> (retired in the audit trail,
+          excluded from default recall). Then we ask one question.
+        </p>
+        <p className="text-stone-500">
+          Step 2 below is different — that&apos;s live MongoDB for the demo photographer you&apos;ve been
+          clicking through in the app.
+        </p>
+      </div>
+
       <p className="font-serif text-base text-white">Q: What camera gear do I use?</p>
       <div className="space-y-2 text-sm">
         <p className="text-stone-300">
-          <span className="font-semibold text-stone-200">Never forgets — recalls:</span>{' '}
+          <span className="font-semibold text-stone-200">Never forgets ablation — recalls:</span>{' '}
           {workedNoForgetting.recalled_contents.join('; ')} — the retired Canon fact rides along.
         </p>
         <p className="text-stone-300">
@@ -489,48 +515,62 @@ const WorkedExample: React.FC = () => {
         </p>
       </div>
       <p className="text-xs text-muted italic border-t border-warm/50 pt-2">
-        Why: the Canon fact was superseded in session 3. The default engine excludes anything with a
+        Why the split: default <code className="font-mono not-italic">recall()</code> skips items with a
         live <code className="font-mono not-italic">superseded_by</code> link; the no-forgetting ablation
-        calls <code className="font-mono not-italic">recall(..., include_archived=True)</code>, so the
-        retired fact leaks back into context even though it&apos;s three sessions stale.
+        calls <code className="font-mono not-italic">recall(..., include_archived=True)</code>. Same
+        engine, one flag — see{' '}
+        <a
+          href="https://github.com/prasadt1/engram/blob/main/eval/README.md"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-brand-400 hover:text-brand-300 hover:underline"
+        >
+          eval/README.md
+        </a>{' '}
+        for the full 26-trace table.
       </p>
     </div>
   );
 };
 
-const PROOF_GUIDE_STEPS: ReadonlyArray<{ n: number; label: string; hint: string; href: string }> = [
+const PROOF_GUIDE_STEPS: ReadonlyArray<{ n: number; label: string; hint: string; targetId: string }> = [
   {
     n: 1,
     label: 'Canon → Sony example',
-    hint: 'One question, two recalls',
-    href: '#proof-start',
+    hint: 'Eval harness · not demo uploads',
+    targetId: 'proof-start',
   },
   {
     n: 2,
     label: 'Live demo library',
     hint: 'MongoDB counts · optional MCP',
-    href: '#proof-live',
+    targetId: 'proof-live',
   },
   {
     n: 3,
     label: 'Full benchmark',
     hint: '26 scripted scenarios',
-    href: '#proof-benchmark',
+    targetId: 'proof-benchmark',
   },
 ];
+
+function scrollToProofSection(targetId: string): void {
+  document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 
 const ProofGuideStrip: React.FC = () => (
   <nav aria-label="How to read this page" className="grid sm:grid-cols-3 gap-2">
     {PROOF_GUIDE_STEPS.map((step) => (
-      <a
+      <button
         key={step.n}
-        href={step.href}
-        className="rounded-lg border border-warm/80 bg-surface-1/50 px-3 py-2.5 hover:border-brand-500/40 hover:bg-brand-500/5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400"
+        type="button"
+        onClick={() => scrollToProofSection(step.targetId)}
+        className="rounded-lg border border-warm/80 bg-surface-1/50 px-3 py-2.5 text-left hover:border-brand-500/40 hover:bg-brand-500/5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400"
       >
         <p className="text-[10px] font-bold uppercase tracking-wider text-brand-400">Step {step.n}</p>
         <p className="text-sm font-medium text-stone-100 mt-0.5">{step.label}</p>
         <p className="text-[11px] text-stone-500 mt-0.5">{step.hint}</p>
-      </a>
+      </button>
     ))}
   </nav>
 );
@@ -586,11 +626,11 @@ export const GlassBoxTab: React.FC = () => {
           Live memory internals and the benchmark that measures forgetting.
         </p>
         <p className="mt-3 text-sm text-stone-300 leading-relaxed max-w-2xl">
-          Two kinds of proof on one page:{' '}
-          <span className="text-stone-200">production data</span> from the demo library you&apos;ve
-          been using, and a{' '}
-          <span className="text-stone-200">controlled benchmark</span> on frozen scripted histories.
-          Follow the three steps below — start with the Canon → Sony example.
+          Two kinds of proof:{' '}
+          <span className="text-stone-200">Step 1 &amp; 3</span> run a frozen eval harness on scripted
+          memory facts (same engine, reproducible JSON).{' '}
+          <span className="text-stone-200">Step 2</span> is live MongoDB for the demo photographer
+          you&apos;ve been using in the app. Start with the Canon → Sony harness scenario.
         </p>
       </div>
 
