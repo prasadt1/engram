@@ -94,6 +94,15 @@ const workedNoForgetting = noForgettingByTrace.get(WORKED_TRACE_ID) ?? null;
  * copy can never drift from the data it describes. */
 const LEAKED_ANSWER_COUNT = noForgettingResults.results.filter((r) => r.fama.fama < 1).length;
 
+function traceForgotMatter(defaultFama: number, ablated: EvalTraceResult | undefined): boolean {
+  if (!ablated) return false;
+  return ablated.fama.fama < defaultFama - 1e-6;
+}
+
+const DIVERGED_TRACE_COUNT = defaultResults.results.filter((row) =>
+  traceForgotMatter(row.fama.fama, noForgettingByTrace.get(row.user_id)),
+).length;
+
 /**
  * Human labels for the frozen trace ids, authored from eval/traces.py (the
  * frozen answer key — see eval/README.md's freeze declaration). Each label
@@ -270,15 +279,18 @@ const LiveMemoryStats: React.FC = () => {
   const loading = state.kind === 'loading';
 
   return (
-    <Card padding="md" className="space-y-4">
+    <Card padding="md" className="space-y-4 scroll-mt-6" id="proof-live">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Eyebrow>Live memory stats</Eyebrow>
+          <div className="flex flex-wrap items-center gap-2">
+            <Eyebrow>Live demo library</Eyebrow>
+            <Tag variant="outline">Step 2</Tag>
+          </div>
           <p className="mt-1 text-xs text-muted max-w-lg">
-            Real counts from this app&apos;s memory store, fetched just now for the user you&apos;re
-            viewing (the seeded demo photographer in judge mode). &ldquo;Superseded&rdquo; is the one
-            to watch — facts the memory deliberately retired when something newer replaced them, kept
-            for the audit trail but never re-surfaced in advice.
+            Production data for the user you&apos;re viewing (seeded demo photographer in judge mode) —
+            fetched live from MongoDB, not from the benchmark below. &ldquo;Superseded&rdquo; counts facts
+            the engine retired when something newer replaced them; they stay in the audit trail but never
+            re-surface in advice.
           </p>
         </div>
         <button
@@ -385,11 +397,13 @@ const BenchmarkTable: React.FC = () => {
   return (
     <div className="space-y-2">
       <p className="text-xs text-muted leading-relaxed">
-        Each row is one scripted photographer history. Where the two FAMA columns split, the
-        never-forgets run surfaced a stale fact that Engram correctly left out — higher is better,
-        1.00 is perfect. &ldquo;Token savings&rdquo; is how much smaller Engram&apos;s recalled context
-        was than stuffing the full history into the prompt. Rows with nothing outdated tie at 1.00 in
-        both columns: there was nothing to forget.
+        Each row is one scripted photographer history.{' '}
+        <span className="text-stone-300">
+          {DIVERGED_TRACE_COUNT} highlighted rows
+        </span>{' '}
+        are where the two FAMA columns split — the never-forgets run surfaced a stale fact Engram
+        correctly left out. Higher is better; 1.00 is perfect. Control rows with nothing outdated tie
+        at 1.00 in both columns.
       </p>
       <div className="rounded-lg border border-warm overflow-hidden">
         <div className="max-h-80 overflow-y-auto overflow-x-auto">
@@ -410,8 +424,16 @@ const BenchmarkTable: React.FC = () => {
               {defaultResults.results.map((row) => {
                 const ablated = noForgettingByTrace.get(row.user_id);
                 const label = TRACE_LABELS[row.user_id];
+                const diverged = traceForgotMatter(row.fama.fama, ablated);
                 return (
-                  <tr key={row.user_id} className="border-t border-warm/50 odd:bg-surface-1 even:bg-transparent">
+                  <tr
+                    key={row.user_id}
+                    className={`border-t border-warm/50 ${
+                      diverged
+                        ? 'bg-brand-500/10 border-l-2 border-l-brand-400/70'
+                        : 'odd:bg-surface-1 even:bg-transparent'
+                    }`}
+                  >
                     <td className="px-3 py-1.5 min-w-[16rem]">
                       <span className="text-stone-300">{label ?? row.user_id}</span>
                       {label && (
@@ -441,8 +463,14 @@ const BenchmarkTable: React.FC = () => {
 const WorkedExample: React.FC = () => {
   if (!workedDefault || !workedNoForgetting) return null;
   return (
-    <div className="rounded-xl border border-brand-500/30 bg-brand-500/5 p-4 space-y-3">
-      <Eyebrow tone="brand">Worked example</Eyebrow>
+    <div
+      id="proof-start"
+      className="rounded-xl border border-brand-500/40 bg-brand-500/5 p-4 md:p-5 space-y-3 scroll-mt-6"
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <Eyebrow tone="brand">Start here</Eyebrow>
+        <Tag variant="brand">Step 1 · Canon → Sony</Tag>
+      </div>
       <p className="text-sm text-stone-300 leading-relaxed">
         One scenario end to end: a photographer who started on a Canon body, then switched to a Sony
         mirrorless in session 3. Both versions get the same question — watch which facts each one
@@ -469,6 +497,43 @@ const WorkedExample: React.FC = () => {
     </div>
   );
 };
+
+const PROOF_GUIDE_STEPS: ReadonlyArray<{ n: number; label: string; hint: string; href: string }> = [
+  {
+    n: 1,
+    label: 'Canon → Sony example',
+    hint: 'One question, two recalls',
+    href: '#proof-start',
+  },
+  {
+    n: 2,
+    label: 'Live demo library',
+    hint: 'MongoDB counts · optional MCP',
+    href: '#proof-live',
+  },
+  {
+    n: 3,
+    label: 'Full benchmark',
+    hint: '26 scripted scenarios',
+    href: '#proof-benchmark',
+  },
+];
+
+const ProofGuideStrip: React.FC = () => (
+  <nav aria-label="How to read this page" className="grid sm:grid-cols-3 gap-2">
+    {PROOF_GUIDE_STEPS.map((step) => (
+      <a
+        key={step.n}
+        href={step.href}
+        className="rounded-lg border border-warm/80 bg-surface-1/50 px-3 py-2.5 hover:border-brand-500/40 hover:bg-brand-500/5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400"
+      >
+        <p className="text-[10px] font-bold uppercase tracking-wider text-brand-400">Step {step.n}</p>
+        <p className="text-sm font-medium text-stone-100 mt-0.5">{step.label}</p>
+        <p className="text-[11px] text-stone-500 mt-0.5">{step.hint}</p>
+      </a>
+    ))}
+  </nav>
+);
 
 // ---------------------------------------------------------------------------
 // Honesty footnotes
@@ -518,38 +583,42 @@ export const GlassBoxTab: React.FC = () => {
       <div>
         <h1 className="font-serif text-2xl md:text-3xl text-white">Memory Proof Room</h1>
         <p className="mt-1 text-sm text-stone-400">
-          Live memory internals and the benchmark that measures forgetting — formerly &ldquo;Glass box.&rdquo;
+          Live memory internals and the benchmark that measures forgetting.
         </p>
         <p className="mt-3 text-sm text-stone-300 leading-relaxed max-w-2xl">
-          This page is the proof behind Engram&apos;s memory — no mock-ups, no hand-picked numbers.
-          The counts just below are fetched live from the memory database running behind this app,
-          and the benchmark after them compares two versions of the same mentor: one that keeps every
-          fact you&apos;ve ever shared forever, and one that notices when a fact has been replaced and
-          quietly lets it go. If you read one thing, make it the worked example — it shows the whole
-          difference in a single question.
+          Two kinds of proof on one page:{' '}
+          <span className="text-stone-200">production data</span> from the demo library you&apos;ve
+          been using, and a{' '}
+          <span className="text-stone-200">controlled benchmark</span> on frozen scripted histories.
+          Follow the three steps below — start with the Canon → Sony example.
         </p>
       </div>
 
+      <ProofGuideStrip />
+
+      <WorkedExample />
+
       <LiveMemoryStats />
 
-      <section className="space-y-4">
+      <section id="proof-benchmark" className="space-y-4 scroll-mt-6">
         <div className="space-y-2">
-          <Eyebrow>Benchmark results</Eyebrow>
+          <div className="flex flex-wrap items-center gap-2">
+            <Eyebrow>Controlled benchmark</Eyebrow>
+            <Tag variant="outline">Step 3 · {defaultResults.summary.trace_count} scenarios</Tag>
+          </div>
           <h2 className="font-serif text-lg md:text-xl text-white">
             What happens when a mentor never forgets
           </h2>
           <p className="text-sm text-stone-400 leading-relaxed max-w-2xl">
-            We scripted {defaultResults.summary.trace_count} photographer histories — in most of
-            them a fact changes over time (a gear switch, a habit that improved), while a few are
-            controls where nothing changes — then asked the memory a question about each and scored
-            the answer. The score is{' '}
+            Frozen scripted histories — not the live demo library above. In most scenarios a fact
+            changes over time (gear switch, habit improved); a few are controls where nothing
+            changes. Each row asks the memory a question and scores the answer with{' '}
             <span className="text-stone-200 font-medium">FAMA</span> (Forgetting-Aware Memory
-            Accuracy): it rewards recalling every still-true fact and penalizes surfacing outdated
-            ones — higher is better, 1.00 is perfect.
+            Accuracy): rewards still-true facts, penalizes outdated ones — higher is better, 1.00 is
+            perfect.
           </p>
         </div>
         <BenchmarkSummaryStrip />
-        <WorkedExample />
         <BenchmarkTable />
       </section>
 
