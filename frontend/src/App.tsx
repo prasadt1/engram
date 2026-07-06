@@ -41,6 +41,7 @@ import {
 import { fetchPendingApprovals } from './services/triageClient';
 import { fetchPrintPending } from './services/printSalesClient';
 import { fetchUserProfile, personaToUserMode, updatePersona } from './services/userClient';
+import { effectiveUserMode } from './lib/effectiveUserMode';
 import { OfflineBanner } from './components/OfflineBanner';
 import { FilmGrain } from './components/FilmGrain';
 import { Tabs } from './components/Tabs';
@@ -267,7 +268,7 @@ function App() {
     const scopedUserId = judgeMode ? JUDGE_DEMO_USER_ID : auth.userId;
     setApiUserScope(scopedUserId);
     void fetchUserProfile(scopedUserId ?? undefined)
-      .then((p) => setUserMode(personaToUserMode(p.persona)))
+      .then((p) => setUserMode(effectiveUserMode(personaToUserMode(p.persona))))
       .catch(() => {});
   }, [auth.loading, auth.userId, judgeMode]);
 
@@ -282,7 +283,7 @@ function App() {
         if (serverOnboardingComplete(profile.preferences)) {
           setOnboardingComplete();
           setShowOnboarding(false);
-          setUserMode(personaToUserMode(profile.persona));
+          setUserMode(effectiveUserMode(personaToUserMode(profile.persona)));
         }
       })
       .catch(() => {});
@@ -349,7 +350,7 @@ function App() {
   const handleOnboardingComplete = useCallback((mode: UserMode) => {
     setOnboardingComplete();
     setShowOnboarding(false);
-    setUserMode(mode);
+    setUserMode(effectiveUserMode(mode));
     setActiveTab('home');
     setTabHash('home');
     window.scrollTo({ top: 0, behavior: 'smooth' });
