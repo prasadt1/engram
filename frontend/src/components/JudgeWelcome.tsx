@@ -4,8 +4,8 @@
  * uses the same Home / Work / Mentor UX as regular users afterward.
  */
 
-import React from 'react';
-import { ArrowRight, BadgeCheck, FlaskConical, Images, Sparkles } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { ArrowLeft, ArrowRight, BadgeCheck, FlaskConical, Images, Sparkles } from 'lucide-react';
 import { BrandLogo } from './BrandLogo';
 import { Button, Card, Eyebrow } from './primitives';
 import { dismissJudgeWelcome } from '../lib/judgeMode';
@@ -14,19 +14,44 @@ interface Props {
   onEnterDemo: () => void;
   onStartTour: () => void;
   onOpenProof: () => void;
+  /** When set, the user reopened this guide from inside the app — show Back to Home. */
+  onBack?: () => void;
 }
 
-export const JudgeWelcome: React.FC<Props> = ({ onEnterDemo, onStartTour, onOpenProof }) => {
+export const JudgeWelcome: React.FC<Props> = ({ onEnterDemo, onStartTour, onOpenProof, onBack }) => {
   const handleEnter = () => {
     dismissJudgeWelcome();
     onEnterDemo();
   };
 
+  useEffect(() => {
+    if (!onBack) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onBack();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onBack]);
+
   return (
     <div className="min-h-screen bg-canvas text-stone-200 flex flex-col">
-      <header className="border-b border-warm px-6 py-5 flex items-center gap-3">
-        <BrandLogo variant="horizontal" direction="simplified" />
-        <Eyebrow tone="brand">Hackathon judge entry</Eyebrow>
+      <header className="border-b border-warm px-6 py-5 flex items-center justify-between gap-3">
+        {onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center gap-2 text-sm font-medium text-stone-300 hover:text-white transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400 focus-visible:outline-offset-2 rounded-md"
+          >
+            <ArrowLeft className="w-4 h-4 shrink-0" aria-hidden />
+            Back to Home
+          </button>
+        ) : (
+          <div className="flex items-center gap-3 min-w-0">
+            <BrandLogo variant="horizontal" direction="simplified" />
+            <Eyebrow tone="brand">Hackathon judge entry</Eyebrow>
+          </div>
+        )}
+        {onBack && <Eyebrow tone="brand">Judge guide</Eyebrow>}
       </header>
 
       <main className="flex-1 max-w-3xl mx-auto w-full px-6 py-10 space-y-8">

@@ -54,10 +54,10 @@ import {
 } from './lib/onboarding';
 import { JudgeTour, resetJudgeTour } from './components/JudgeTour';
 import {
+  dismissJudgeWelcome,
   isJudgeModeRequested,
   isJudgeWelcomeDismissed,
   JUDGE_DEMO_USER_ID,
-  resetJudgeWelcome,
   setAppHash,
 } from './lib/judgeMode';
 import type { AnalysisResult } from './types';
@@ -65,6 +65,14 @@ import type { Assignment, UserMode } from './types/practice';
 
 const JUDGE_TOUR_STORAGE_KEYS = ['engram-tour-completed-v2', 'engram-tour-completed'];
 const JUDGE_BANNER_DISMISSED_KEY = 'engram_judge_banner_dismissed';
+const SHARED_DEMO_BANNER_DISMISSED_KEY = 'engram_shared_demo_banner_dismissed';
+
+function sharedDemoJudgeUrl(): string {
+  if (typeof window === 'undefined') return '/?judge=1';
+  const url = new URL(window.location.href);
+  url.searchParams.set('judge', '1');
+  return url.toString();
+}
 
 function MobileHeaderMark() {
   return <BrandLogo variant="mark" markSize={30} />;
@@ -102,6 +110,12 @@ function App() {
   const [showJudgeBanner, setShowJudgeBanner] = useState(
     () => judgeMode && typeof window !== 'undefined' && localStorage.getItem(JUDGE_BANNER_DISMISSED_KEY) !== 'true',
   );
+  const [showSharedDemoBanner, setShowSharedDemoBanner] = useState(
+    () =>
+      !judgeMode &&
+      typeof window !== 'undefined' &&
+      localStorage.getItem(SHARED_DEMO_BANNER_DISMISSED_KEY) !== 'true',
+  );
   const [personaError, setPersonaError] = useState<string | null>(null);
   const [activeAssignment, setActiveAssignment] = useState<Assignment | null>(null);
   // Sub-views within Practice tab
@@ -118,6 +132,33 @@ function App() {
   const [showJudgeWelcome, setShowJudgeWelcome] = useState(
     () => judgeMode && !isJudgeWelcomeDismissed(),
   );
+  /** True when judge guide was reopened from the in-app banner (not first load). */
+  const [judgeGuideReopened, setJudgeGuideReopened] = useState(false);
+
+  const closeJudgeGuide = useCallback(() => {
+    setShowJudgeWelcome(false);
+    setJudgeGuideReopened(false);
+    dismissJudgeWelcome();
+  }, []);
+
+  const openJudgeGuide = useCallback(() => {
+    setJudgeGuideReopened(true);
+    setShowJudgeWelcome(true);
+    window.history.pushState({ engramJudgeGuide: true }, '');
+  }, []);
+
+  useEffect(() => {
+    const onPop = () => {
+      setShowJudgeWelcome((open) => {
+        if (!open) return open;
+        setJudgeGuideReopened(false);
+        dismissJudgeWelcome();
+        return false;
+      });
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
   const [focusPhotoId, setFocusPhotoId] = useState<string | null>(null);
   const [portfolioRefreshKey, setPortfolioRefreshKey] = useState(0);
   const [theme, setTheme] = useState<ThemeMode>(() => getStoredTheme());
@@ -229,6 +270,10 @@ function App() {
       .then((p) => setUserMode(personaToUserMode(p.persona)))
       .catch(() => {});
   }, [auth.loading, auth.userId, judgeMode]);
+
+  useEffect(() => {
+    if (auth.userId) setShowSharedDemoBanner(false);
+  }, [auth.userId]);
 
   useEffect(() => {
     if (!ready || auth.loading || isOnboardingComplete() || onboardingBusy) return;
@@ -354,16 +399,32 @@ function App() {
     return (
       <ThemeProvider theme={theme}>
         <JudgeWelcome
-          onEnterDemo={() => setShowJudgeWelcome(false)}
+          onEnterDemo={() => {
+            setJudgeGuideReopened(false);
+            setShowJudgeWelcome(false);
+          }}
           onStartTour={() => {
+            setJudgeGuideReopened(false);
             setShowJudgeWelcome(false);
             resetJudgeTour();
             setShowJudgeTour(true);
           }}
           onOpenProof={() => {
+            setJudgeGuideReopened(false);
             setShowJudgeWelcome(false);
             navigateToGlassBox();
           }}
+          onBack={
+            judgeGuideReopened
+              ? () => {
+                  if (window.history.state?.engramJudgeGuide) {
+                    window.history.back();
+                  } else {
+                    closeJudgeGuide();
+                  }
+                }
+              : undefined
+          }
         />
         {showJudgeTour && (
           <JudgeTour forceShow onComplete={() => setShowJudgeTour(false)} />
@@ -447,6 +508,28 @@ function App() {
           className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-3 py-4 md:py-6 animate-tabEnter"
         >
           {!online && <OfflineBanner />}
+          {showSharedDemoBanner && !judgeMode && !auth.userId && (
+            <div className="mb-4 space-y-2">
+              <InlineAlertBanner
+                variant="info"
+                message="Shared demo library — you're viewing a seeded photographer (demo-user) with live critiques and memory. Uploads add to this demo unless you sign in."
+                onDismiss={() => {
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem(SHARED_DEMO_BANNER_DISMISSED_KEY, 'true');
+                  }
+                  setShowSharedDemoBanner(false);
+                }}
+              />
+              <div className="flex flex-wrap gap-2">
+                <a
+                  href={sharedDemoJudgeUrl()}
+                  className="text-sm px-3 py-1.5 rounded-lg bg-brand-500/20 text-brand-300 border border-brand-500/30 hover:bg-brand-500/30 transition-colors"
+                >
+                  Open judge guide (?judge=1)
+                </a>
+              </div>
+            </div>
+          )}
           {showJudgeBanner && (
             <div className="mb-4 space-y-2">
               <InlineAlertBanner
@@ -462,13 +545,10 @@ function App() {
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    resetJudgeWelcome();
-                    setShowJudgeWelcome(true);
-                  }}
+                  onClick={openJudgeGuide}
                   className="text-sm px-3 py-1.5 rounded-lg border border-warm text-stone-300 hover:text-white hover:border-brand-500/40 transition-colors"
                 >
-                  How to evaluate
+                  Judge guide
                 </button>
                 <button
                   type="button"

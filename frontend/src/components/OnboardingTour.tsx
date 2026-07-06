@@ -33,7 +33,7 @@ const TOUR_STEPS: TourStep[] = [
     icon: Home,
     title: 'Your darkroom home',
     description:
-      'Your best work up front — scores, Glass Box reasoning, and progress at a glance.',
+      'Upload a photo for a Glass Box critique, see what I learned from it, and track the skill I am coaching you on next.',
     tabHint: 'Home tab',
   },
   {
@@ -62,7 +62,7 @@ const TOUR_STEPS: TourStep[] = [
     icon: Settings,
     title: 'Settings',
     description:
-      'Switch between Hobbyist and Working pro, restart this tour, or adjust theme — anytime.',
+      'Restart this tour, adjust theme, or peek at the pro workflow roadmap — anytime.',
     tabHint: 'Settings',
   },
   {

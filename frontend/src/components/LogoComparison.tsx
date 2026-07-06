@@ -52,8 +52,8 @@ export function LogoComparison() {
           <p className="text-xs uppercase tracking-[0.2em] text-brand-400">Brand identity</p>
           <h1 className="font-serif text-3xl md:text-4xl text-stone-100">Pick a sidebar lockup</h1>
           <p className="text-stone-500 text-sm max-w-xl">
-            Three directions at real sidebar size on dark canvas. The tittle/merged hero lockup stays
-            separate for onboarding — this comparison is for the everyday nav mark.
+            Three directions at real sidebar size on dark canvas. Stacked lockup below is for
+            onboarding — this comparison is for the everyday nav mark.
           </p>
         </header>
 
@@ -74,13 +74,12 @@ export function LogoComparison() {
         </div>
 
         <section className="rounded-xl border border-warm/60 bg-canvas/50 p-6 space-y-4">
-          <h2 className="font-serif text-lg text-stone-100">Reference — tittle hero lockup</h2>
+          <h2 className="font-serif text-lg text-stone-100">Reference — stacked hero lockup</h2>
           <p className="text-sm text-stone-500">
-            Mark over the first i — for onboarding/marketing only. Feels less premium at small sizes;
-            keep for hero where it can breathe.
+            Icon above wordmark — for onboarding and judge welcome where it can breathe.
           </p>
           <div className="flex justify-center py-8 bg-canvas rounded-lg border border-warm">
-            <BrandLogo variant="tittle" size={48} />
+            <BrandLogo variant="stacked" />
           </div>
         </section>
 

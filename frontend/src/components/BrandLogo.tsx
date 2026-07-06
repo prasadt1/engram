@@ -1,4 +1,3 @@
-import { IrisMark } from './IrisMark';
 import { useThemeMode } from '../lib/ThemeContext';
 
 /** Mark diameter ≈ 1.75× wordmark em-size (reads larger than cap height). */
@@ -21,13 +20,14 @@ export function BrandLogo({
   direction = 'simplified',
   markSize,
   markScale = MARK_SCALE,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for API compatibility with mark/tittle variants
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for API compatibility
   extraBold: _extraBold = false,
-  animate = false,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for API compatibility
+  animate: _animate = false,
   className = '',
 }: {
   size?: number;
-  variant?: 'horizontal' | 'tittle' | 'mark' | 'stacked';
+  variant?: 'horizontal' | 'mark' | 'stacked';
   direction?: LogoDirection;
   markSize?: number;
   markScale?: number;
@@ -37,61 +37,21 @@ export function BrandLogo({
 }) {
   const theme = useThemeMode();
   const isLight = theme === 'light';
-  const markColor = isLight ? '#b45309' : '#f5a623';
-  const markRim = isLight ? '#b45309' : '#fbbf24';
   const textColor = isLight ? '#292524' : '#e8e0d6';
   const preset = HORIZONTAL_PRESETS[direction];
-
-  const markProps = {
-    color: markColor,
-    pupilRim: markRim,
-    animate,
-  };
 
   if (variant === 'mark') {
     const soloMark = markSize ?? Math.round((size ?? 28) * markScale);
     return (
       <span className={`inline-flex items-center leading-none ${className}`}>
-        <IrisMark size={soloMark} {...markProps} />
+        <img
+          src="/engram-icon-192.png"
+          alt=""
+          width={soloMark}
+          height={soloMark}
+          style={{ borderRadius: '20%' }}
+        />
         <span className="sr-only">Engram</span>
-      </span>
-    );
-  }
-
-  if (variant === 'tittle') {
-    const tittleSize = size ?? 48;
-    const mergedMarkSize = markSize ?? Math.round(tittleSize * 0.72);
-    const markBottom = tittleSize * 0.6;
-    const markOverhang = Math.max(0, markBottom + mergedMarkSize - tittleSize);
-    const wordmarkStyle = {
-      fontFamily: "'Newsreader', Georgia, serif",
-      fontWeight: 600,
-      fontSize: tittleSize,
-      color: textColor,
-      letterSpacing: '-0.01em' as const,
-    };
-
-    return (
-      <span
-        className={`inline-flex items-end leading-none ${className}`}
-        style={{ ...wordmarkStyle, paddingTop: markOverhang }}
-      >
-        <span className="relative inline-block leading-none" style={{ width: `${tittleSize * 0.34}px` }}>
-          <span
-            aria-hidden
-            style={{
-              position: 'absolute',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              bottom: `${markBottom}px`,
-            }}
-          >
-            <IrisMark size={mergedMarkSize} {...markProps} />
-          </span>
-          <span aria-hidden>&#x131;</span>
-        </span>
-        <span>ris</span>
-        <span className="sr-only">Iris</span>
       </span>
     );
   }

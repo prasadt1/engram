@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { LogIn, LogOut, Settings } from 'lucide-react';
+import { LogIn, LogOut, Settings, Store } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
 import { firebaseAuthEnabled } from '../auth/firebaseConfig';
-import { ModeToggle } from './ModeToggle';
 import { ThemeToggle } from './ThemeToggle';
 import { Button, Card, Eyebrow, TextInput } from './primitives';
 import { clearOnboardingComplete } from '../lib/onboarding';
@@ -23,9 +22,9 @@ interface Props {
 }
 
 export const SettingsTab: React.FC<Props> = ({
-  mode,
-  onModeChange,
-  onPersistPersona,
+  mode: _mode,
+  onModeChange: _onModeChange,
+  onPersistPersona: _onPersistPersona,
   onPersistError,
   onRestartOnboarding,
   onRestartTour,
@@ -96,8 +95,8 @@ export const SettingsTab: React.FC<Props> = ({
         </Eyebrow>
         <h1 className="font-serif text-2xl md:text-3xl text-white">Your profile</h1>
         <p className="text-muted text-sm mt-2">
-          Hobbyist mode emphasizes skill-building in Mentor conversations. Working pro mode uses
-          portfolio- and consistency-oriented prompts, and unlocks Print Sales when that feature is on.
+          Hobbyist coaching is the default in this build — upload, critique, mentor chat, and skill
+          graduation on your private library.
         </p>
       </div>
 
@@ -114,8 +113,7 @@ export const SettingsTab: React.FC<Props> = ({
                 User id: {auth.userId}
               </p>
               <p className="text-xs text-muted leading-relaxed">
-                Must match the User id shown in the iPhone app Settings (same Google account).
-                Without sign-in, the site shows the shared judge demo library — not your field
+                Without sign-in, the site shows the shared judge demo library — not your private
                 captures.
               </p>
               <Button
@@ -198,12 +196,22 @@ export const SettingsTab: React.FC<Props> = ({
       </Card>
 
       <Card>
-        <ModeToggle
-          mode={mode}
-          onModeChange={onModeChange}
-          onPersistPersona={onPersistPersona}
-          onPersistError={onPersistError}
-        />
+        <h2 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
+          <Store className="w-4 h-4 text-brand-400" aria-hidden />
+          Pro workflow
+          <span className="text-[10px] font-bold uppercase tracking-wider text-brand-400 border border-brand-500/40 rounded px-1.5 py-0.5">
+            Coming
+          </span>
+        </h2>
+        <p className="text-sm text-muted leading-relaxed mb-3">
+          Print readiness, listing drafts, and portfolio consistency checks — on the same memory
+          layer as coaching (engram-mcp). Not live in this hackathon build.
+        </p>
+        <ul className="text-xs text-muted space-y-1.5 list-disc list-inside">
+          <li>Print sales readiness scoring</li>
+          <li>Listing draft review before publish</li>
+          <li>Consistency tracking across client shoots</li>
+        </ul>
       </Card>
 
       <Card>
@@ -227,8 +235,8 @@ export const SettingsTab: React.FC<Props> = ({
         <Card className="bg-canvas-elevated border-warm/80">
           <h2 className="text-sm font-semibold text-muted mb-2">Developer (local only)</h2>
           <p className="text-xs text-muted">
-            API: run <code className="text-brand-400">make api-dev</code> on port 8081 before using
-            Mentor or approvals.
+            API: run <code className="text-brand-400">uvicorn app.server:app --reload --port 8000</code>{' '}
+            (or <code className="text-brand-400">make api-dev</code>) before using Mentor.
           </p>
         </Card>
       )}

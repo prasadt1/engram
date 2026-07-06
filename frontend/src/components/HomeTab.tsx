@@ -668,14 +668,20 @@ export const HomeTab: React.FC<Props> = ({
         {isFirstVisit && (
           <div className="bg-gradient-to-b from-surface-2 to-canvas rounded-2xl p-8 md:p-12 border border-warm">
             <h1 className="font-serif text-3xl md:text-4xl text-white mb-4 leading-tight">
-              Your AI photography mentor —
+              Upload one photo.
               <br />
-              that remembers every shot you upload.
+              Get a critique that remembers.
             </h1>
-            <p className="text-stone-400 text-base md:text-lg mb-8 max-w-xl">
-              Glass Box critiques on five dimensions, a private library that grows with you,
-              {FEATURES.practice ? ' practice assignments,' : ''} and mentor chat.
+            <p className="text-stone-400 text-base md:text-lg mb-6 max-w-xl">
+              I explain what worked, what to practice next, and remember the pattern so future
+              critiques adapt to you.
             </p>
+            <ol className="text-sm text-stone-400 mb-8 max-w-xl space-y-2 list-decimal list-inside">
+              <li>Critique this photo</li>
+              <li>Remember the lesson</li>
+              <li>Name your current focus</li>
+              <li>Adapt the next critique</li>
+            </ol>
             <div className="flex flex-wrap gap-4">
               <Button
                 size="lg"
@@ -735,7 +741,7 @@ export const HomeTab: React.FC<Props> = ({
             padding="lg"
             className="max-w-4xl mx-auto focus:outline-none focus:ring-2 focus:ring-brand-400"
           >
-            <Eyebrow className="mb-4">Example Critique</Eyebrow>
+            <Eyebrow className="mb-4">What this becomes after a few uploads</Eyebrow>
             <div className="flex flex-col md:flex-row gap-6">
               <img
                 src={EXAMPLE_PHOTO.url}
