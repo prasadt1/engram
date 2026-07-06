@@ -130,7 +130,7 @@ Takes ~20 minutes and makes ~16 real Qwen vision calls — it builds a scripted 
 
 **4. Judge mode**
 
-Open **`/?judge=1`**. It scopes the app straight to the seeded `demo-user` journey, skips onboarding, and lands on Home — graduation cards, current-focus streaks, and the Memory Receipt under every reply are all live from the seeded data. The footer links to a Glass Box page with the live MCP toggle and the benchmark table above.
+Open **`/?judge=1`**. It scopes the app straight to the seeded `demo-user` journey, skips onboarding, and lands on Home — graduation cards, current-focus streaks, and the Memory Receipt under every reply are all live from the seeded data. Sidebar **Proof → Memory Proof Room** (`#glassbox`) is a visual three-step walkthrough (Canon/Sony animation, live MongoDB counts, benchmark heatmap). Full text: [`docs/judge-memory-proof-room.md`](docs/judge-memory-proof-room.md).
 
 **5. Tests**
 
