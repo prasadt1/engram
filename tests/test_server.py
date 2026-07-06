@@ -88,7 +88,9 @@ def _seed_portfolio_store():
 
 
 def _patch_signed_urls(mock_gs):
-    mock_gs.return_value.signed_url.side_effect = lambda key, **kw: f"https://signed.example/{key}"
+    storage = mock_gs.return_value
+    storage.signed_url.side_effect = lambda key, **kw: f"https://signed.example/{key}"
+    storage.exists.return_value = True
 
 
 def test_health_endpoint():
@@ -582,6 +584,27 @@ def test_portfolio_stats_endpoint_shape():
     assert body["strongest"] is not None
     assert body["strongest"]["overallAverage"] == 9.0  # entry B has the highest average score
     assert body["strongest"]["imageUrl"] == "https://signed.example/photos/b.jpg"
+
+
+def test_portfolio_omits_missing_storage_and_strongest_skips_orphan():
+    store = _seed_portfolio_store()
+    with patch("app.server._store", return_value=store), \
+         patch("app.server.get_storage") as mock_gs:
+        storage = mock_gs.return_value
+        storage.signed_url.side_effect = lambda key, **kw: f"https://signed.example/{key}"
+        storage.exists.side_effect = lambda key: key != "photos/b.jpg"
+
+        list_resp = _client().get("/api/v1/portfolio", headers={"X-User-Id": "u1"})
+        assert list_resp.status_code == 200
+        by_key = {e["storageKey"]: e["imageUrl"] for e in list_resp.json()["entries"]}
+        assert by_key["photos/b.jpg"] == ""
+        assert by_key["photos/c.jpg"] == "https://signed.example/photos/c.jpg"
+
+        stats_resp = _client().get("/api/v1/portfolio/stats", headers={"X-User-Id": "u1"})
+        assert stats_resp.status_code == 200
+        strongest = stats_resp.json()["strongest"]
+        assert strongest["storageKey"] == "photos/c.jpg"
+        assert strongest["overallAverage"] == 7.0
 
 
 def test_portfolio_delete_single_and_batch():

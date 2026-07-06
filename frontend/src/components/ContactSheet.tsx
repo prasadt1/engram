@@ -3,8 +3,8 @@
  * Small square thumbs in a wrap grid so it reads differently from MemoryLane.
  */
 
-import React from 'react';
-import { Upload } from 'lucide-react';
+import React, { useState } from 'react';
+import { ImageIcon, Upload } from 'lucide-react';
 import { Button, Eyebrow } from './primitives';
 import { portfolioImageUrl } from '../lib/portfolioImageUrl';
 import type { PortfolioListItem } from '../types/memory';
@@ -59,6 +59,8 @@ export const ContactSheet: React.FC<Props> = ({
   onNavigateLibrary,
   onUpload,
 }) => {
+  const [brokenIds, setBrokenIds] = useState<Set<string>>(() => new Set());
+
   if (!loading && photos.length === 0) return null;
 
   return (
@@ -103,7 +105,10 @@ export const ContactSheet: React.FC<Props> = ({
         </div>
       ) : (
         <div className="flex flex-wrap gap-2 sm:gap-2.5">
-          {photos.map((photo) => (
+          {photos.map((photo) => {
+            const thumbUrl = portfolioImageUrl(photo.imageUrl);
+            const broken = !thumbUrl || brokenIds.has(photo.id);
+            return (
             <button
               key={photo.id}
               type="button"
@@ -111,17 +116,32 @@ export const ContactSheet: React.FC<Props> = ({
               className="group relative w-[4.5rem] h-[4.5rem] sm:w-20 sm:h-20 shrink-0 rounded-md overflow-hidden border border-warm/70 bg-photo-black hover:border-brand-400/50 hover:ring-1 hover:ring-brand-400/30 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400"
               title={contactSheetThumbTitle(photo)}
             >
-              <img
-                src={portfolioImageUrl(photo.imageUrl)}
-                alt={contactSheetThumbAlt(photo)}
-                className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
-                loading="lazy"
-              />
+              {broken ? (
+                <div className="absolute inset-0 flex items-center justify-center bg-surface-2">
+                  <ImageIcon className="w-5 h-5 text-stone-600" aria-hidden />
+                </div>
+              ) : (
+                <img
+                  src={thumbUrl}
+                  alt={contactSheetThumbAlt(photo)}
+                  className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
+                  loading="lazy"
+                  onError={() => {
+                    setBrokenIds((prev) => {
+                      if (prev.has(photo.id)) return prev;
+                      const next = new Set(prev);
+                      next.add(photo.id);
+                      return next;
+                    });
+                  }}
+                />
+              )}
               <span className="absolute inset-x-0 bottom-0 py-0.5 text-center text-[9px] font-bold tabular-nums text-white bg-black/65">
                 {photo.overallAverage.toFixed(1)}
               </span>
             </button>
-          ))}
+          );
+          })}
         </div>
       )}
     </section>

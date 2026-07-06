@@ -311,6 +311,7 @@ export const HomeTab: React.FC<Props> = ({
 }) => {
   const [stats, setStats] = useState<PortfolioStats | null>(null);
   const [bestPhoto, setBestPhoto] = useState<PortfolioListItem | null>(null);
+  const [heroFallbackPool, setHeroFallbackPool] = useState<PortfolioListItem[]>([]);
   const [earliestPhoto, setEarliestPhoto] = useState<PortfolioListItem | null>(null);
   const [memoryLaneSource, setMemoryLaneSource] = useState<PortfolioListItem[]>([]);
   const [contactSheet, setContactSheet] = useState<PortfolioListItem[]>([]);
@@ -364,7 +365,9 @@ export const HomeTab: React.FC<Props> = ({
       ]);
 
       setStats(portfolioStats);
-      const hero = pickHomeHeroPhoto(portfolioStats.strongest, topByScore.entries);
+      const heroPool = topByScore.entries.filter((e) => e.imageUrl?.trim() && e.overallAverage > 0);
+      setHeroFallbackPool(heroPool);
+      const hero = pickHomeHeroPhoto(portfolioStats.strongest, heroPool);
       setBestPhoto(hero);
       setPortfolioTotal(portfolioStats.total);
       setContactSheet(recentPhotos.entries);
@@ -603,7 +606,15 @@ export const HomeTab: React.FC<Props> = ({
     img.onerror = () => {
       if (!cancelled) {
         setHeroSrc((prev) => {
-          if (!prev) setImageError(true);
+          if (prev) return prev;
+          const currentIdx = heroFallbackPool.findIndex((p) => p.id === heroId);
+          const next = currentIdx >= 0 ? heroFallbackPool[currentIdx + 1] : null;
+          if (next?.imageUrl) {
+            setBestPhoto(next);
+            setImageError(false);
+            return prev;
+          }
+          setImageError(true);
           return prev;
         });
       }
@@ -613,7 +624,7 @@ export const HomeTab: React.FC<Props> = ({
     return () => {
       cancelled = true;
     };
-  }, [heroPhoto?.id, heroPhoto?.imageUrl]);
+  }, [heroPhoto?.id, heroPhoto?.imageUrl, heroFallbackPool]);
 
   useEffect(() => {
     if (heroSrc || imageError || !heroPhoto?.imageUrl) return;

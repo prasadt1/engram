@@ -512,7 +512,7 @@ function App() {
             <div className="mb-4 space-y-2">
               <InlineAlertBanner
                 variant="info"
-                message="Shared demo library — you're viewing a seeded photographer (demo-user) with live critiques and memory. Uploads add to this demo unless you sign in."
+                message="Shared demo library — you're viewing a seeded photographer with live critiques and memory. Uploads add to this demo unless you sign in."
                 onDismiss={() => {
                   if (typeof window !== 'undefined') {
                     localStorage.setItem(SHARED_DEMO_BANNER_DISMISSED_KEY, 'true');
@@ -525,7 +525,7 @@ function App() {
                   href={sharedDemoJudgeUrl()}
                   className="text-sm px-3 py-1.5 rounded-lg bg-brand-500/20 text-brand-300 border border-brand-500/30 hover:bg-brand-500/30 transition-colors"
                 >
-                  Open judge guide (?judge=1)
+                  Hackathon judge guide →
                 </a>
               </div>
             </div>

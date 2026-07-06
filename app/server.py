@@ -215,6 +215,24 @@ def _avg_score(scores: dict[str, Any]) -> float:
     return sum(vals) / len(vals) if vals else 0.0
 
 
+def _portfolio_image_url(doc: dict[str, Any]) -> str:
+    """Signed/read URL when bytes exist; empty when storage_key points at a missing object."""
+    storage_key = doc.get("storage_key")
+    if storage_key:
+        storage = get_storage()
+        if not storage.exists(storage_key):
+            return ""
+        return storage.signed_url(storage_key)
+    return doc.get("image_url") or ""
+
+
+def _portfolio_entry_has_media(doc: dict[str, Any]) -> bool:
+    storage_key = doc.get("storage_key")
+    if storage_key:
+        return get_storage().exists(storage_key)
+    return bool((doc.get("image_url") or "").strip())
+
+
 def _serialize_portfolio_entry(doc: dict[str, Any]) -> dict[str, Any]:
     """doc (as written by app.coach.analyze_photo) -> PortfolioListItem
     (frontend/src/types/memory.ts). imageUrl is computed HERE via
@@ -225,7 +243,7 @@ def _serialize_portfolio_entry(doc: dict[str, Any]) -> dict[str, Any]:
     created_iso = created.isoformat() if isinstance(created, datetime) else (str(created) if created else "")
 
     storage_key = doc.get("storage_key")
-    image_url = get_storage().signed_url(storage_key) if storage_key else (doc.get("image_url") or "")
+    image_url = _portfolio_image_url(doc)
 
     return {
         "id": str(doc["_id"]),
@@ -304,8 +322,9 @@ def portfolio_stats(x_user_id: str = Header(default="demo-user")) -> dict:
 
     strongest = None
     docs = list(coll.find(query))
-    if docs:
-        best = max(docs, key=lambda d: _avg_score(d.get("scores") or {}))
+    media_docs = [d for d in docs if _portfolio_entry_has_media(d)]
+    if media_docs:
+        best = max(media_docs, key=lambda d: _avg_score(d.get("scores") or {}))
         strongest = _serialize_portfolio_entry(best)
 
     return {"total": total, "firstUpload": first_upload, "strongest": strongest}
