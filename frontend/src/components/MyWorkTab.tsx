@@ -8,14 +8,12 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { formatDistanceToNow } from 'date-fns';
 import {
   ArrowUpDown,
   BookmarkCheck,
   CheckSquare,
   ChevronDown,
   ChevronLeft,
-  Database,
   ImageIcon,
   Images,
   Plus,
@@ -29,8 +27,8 @@ import {
   Upload,
   X,
 } from 'lucide-react';
-import { SimilarPhotosRow } from './SimilarPhotosRow';
 import { LazyPortfolioImage } from './LazyPortfolioImage';
+import { formatPhotoDate } from '../lib/formatPhotoDate';
 import { searchModeLabel, searchPortfolioLibrary } from '../services/portfolioInsightsClient';
 import { SubViewBack } from './SubViewBack';
 import { FilmGrain } from './FilmGrain';
@@ -122,7 +120,6 @@ export const MyWorkTab: React.FC<MyWorkTabProps> = ({
   const [profile, setProfile] = useState<AestheticProfileSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   // Clicking a photo in the grid opens the split-view detail (photo + scoped
   // mentor chat) — ImageLightbox stays in the codebase as a component but is
   // no longer wired to this click; PhotoDetailView is the library-flow entry point.
@@ -296,7 +293,6 @@ export const MyWorkTab: React.FC<MyWorkTabProps> = ({
       if (deleteConfirm === 'single' && deleteTargetId) {
         await deletePortfolioEntry(deleteTargetId, { removeListing: deleteRemovesListing });
         removedIds.add(deleteTargetId);
-        if (expandedId === deleteTargetId) setExpandedId(null);
       } else if (deleteConfirm === 'bulk' && selectedIds.size > 0) {
         const result = await deletePortfolioEntries([...selectedIds], {
           removeListing: deleteRemovesListing,
@@ -329,7 +325,6 @@ export const MyWorkTab: React.FC<MyWorkTabProps> = ({
     deleteTargetId,
     deleteRemovesListing,
     selectedIds,
-    expandedId,
     exitSelectMode,
     loadGallery,
     onPortfolioChanged,
@@ -929,20 +924,18 @@ export const MyWorkTab: React.FC<MyWorkTabProps> = ({
           }
         />
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
           {(searchResults !== null ? searchResults : entries).map((entry) => {
-            const expanded = expandedId === entry.id;
             const selected = selectedIds.has(entry.id);
-            let when = '';
-            try {
-              when = formatDistanceToNow(new Date(entry.createdAt), { addSuffix: true });
-            } catch {
-              when = '';
-            }
+            const dateLabel = formatPhotoDate(entry.createdAt);
+            const primaryTag =
+              entry.userTags?.find((tag) => tag !== LISTED_FOR_SALE_TAG) ??
+              entry.aestheticTags?.[0] ??
+              null;
             return (
               <article
                 key={entry.id}
-                className={`rounded-2xl bg-surface-1 border overflow-hidden flex flex-col transition-all duration-[250ms] hover:-translate-y-1 hover:shadow-[0_12px_32px_oklch(0_0_0/0.3)] ${
+                className={`group rounded-xl bg-surface-1 border overflow-hidden flex flex-col transition-all duration-[250ms] hover:-translate-y-1 hover:shadow-[0_12px_32px_oklch(0_0_0/0.3)] ${
                   selected ? 'border-brand-500/60 ring-1 ring-brand-500/40' : 'border-warm'
                 }`}
                 style={{ transitionTimingFunction: 'var(--ease-out-expo)' }}
@@ -958,180 +951,57 @@ export const MyWorkTab: React.FC<MyWorkTabProps> = ({
                       {selected ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
                     </button>
                   )}
-                <button
-                  type="button"
-                  className="text-left w-full cursor-zoom-in"
-                  aria-label={`Open photo detail and ask the mentor about it, score ${entry.overallAverage} out of 10`}
-                  onClick={() => {
-                    if (selectMode) {
-                      toggleSelected(entry.id);
-                      return;
-                    }
-                    if (entry.imageUrl) {
-                      detailReturnHomeRef.current = false;
-                      setDetailEntry(entry);
-                    }
-                  }}
-                >
-                  <div className="p-3 bg-photo-black border-b border-warm/40">
-                    <div className="aspect-[4/3] bg-photo-black relative rounded-md overflow-hidden ring-1 ring-warm/60 shadow-inner">
-                      {isListedForSale(entry.userTags) && (
-                        <span className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded-full bg-stone-900 border border-brand-500/50 text-brand-400 text-[10px] font-bold uppercase tracking-wide shadow-md whitespace-nowrap">
-                          Listed
-                        </span>
-                      )}
-                      {entry.glassBoxSummary.length > 0 && (
-                        <span
-                          className="absolute bottom-2 left-2 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-stone-900 border border-brand-500/40 text-brand-300 text-[10px] font-semibold whitespace-nowrap"
-                          title="Critique grounded in your library — Glass Box reasoning and cited photography principles are stored with this photo"
-                        >
-                          <Database className="w-3 h-3" aria-hidden />
-                          Grounded
-                        </span>
-                      )}
-                      {entry.imageUrl ? (
-                        <LazyPortfolioImage
-                          src={entry.imageUrl}
-                          alt={entry.sceneDescription?.slice(0, 120) || 'Portfolio photo'}
-                          imgClassName="w-full h-full object-contain"
-                        />
-                      ) : (
-                        <div className="flex items-center justify-center h-full text-stone-600">
-                          <ImageIcon className="w-10 h-10" aria-hidden />
-                        </div>
-                      )}
-                      <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-amber-500 text-on-brand text-xs font-bold shadow-md tabular-nums">
-                        {entry.overallAverage}/10
-                      </span>
-                    </div>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  className="text-left flex flex-col flex-1"
-                  aria-label={`View photo details, score ${entry.overallAverage} out of 10${
-                    entry.sceneDescription
-                      ? `: ${entry.sceneDescription.slice(0, 60)}`
-                      : ''
-                  }`}
-                  aria-expanded={expanded}
-                  onClick={() => {
-                    if (selectMode) {
-                      toggleSelected(entry.id);
-                      return;
-                    }
-                    setExpandedId(expanded ? null : entry.id);
-                  }}
-                >
-                  <div className="p-4 flex-1">
-                    {entry.sceneDescription && (
-                      <p
-                        className={`text-sm text-stone-300 leading-snug ${
-                          expanded ? '' : 'line-clamp-2'
-                        }`}
-                      >
-                        {entry.sceneDescription}
-                      </p>
-                    )}
-                    <p className="text-[10px] text-muted mt-2 uppercase">{when}</p>
-                    {entry.glassBoxSummary.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-warm/80">
-                        <p className="text-[10px] font-bold uppercase text-brand-400/90 tracking-wide mb-1.5">
-                          Glass Box
-                        </p>
-                        <ul className="space-y-1 text-xs text-muted leading-relaxed" role="list">
-                          {(expanded ? entry.glassBoxSummary : entry.glassBoxSummary.slice(0, 1)).map(
-                            (line, i) => (
-                              <li key={i} className={expanded ? '' : 'line-clamp-2'}>
-                                {line}
-                              </li>
-                            ),
-                          )}
-                        </ul>
-                        {!expanded && entry.glassBoxSummary.length > 0 && (
-                          <span className="text-[10px] text-brand-400 mt-1 inline-block">
-                            Show critique reasoning
+                  <button
+                    type="button"
+                    className="text-left w-full cursor-zoom-in flex flex-col flex-1"
+                    aria-label={`Open photo detail and ask the mentor about it${
+                      dateLabel ? `, taken ${dateLabel}` : ''
+                    }, score ${entry.overallAverage} out of 10`}
+                    onClick={() => {
+                      if (selectMode) {
+                        toggleSelected(entry.id);
+                        return;
+                      }
+                      if (entry.imageUrl) {
+                        detailReturnHomeRef.current = false;
+                        setDetailEntry(entry);
+                      }
+                    }}
+                  >
+                    <div className="p-2 bg-photo-black">
+                      <div className="aspect-[4/3] bg-photo-black relative rounded-md overflow-hidden ring-1 ring-warm/60 shadow-inner">
+                        {isListedForSale(entry.userTags) && (
+                          <span className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded-full bg-stone-900 border border-brand-500/50 text-brand-400 text-[11px] font-bold uppercase tracking-wide shadow-md whitespace-nowrap">
+                            Listed
                           </span>
                         )}
+                        {entry.imageUrl ? (
+                          <LazyPortfolioImage
+                            src={entry.imageUrl}
+                            alt={entry.sceneDescription?.slice(0, 120) || 'Portfolio photo'}
+                            imgClassName="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex items-center justify-center h-full text-stone-600">
+                            <ImageIcon className="w-10 h-10" aria-hidden />
+                          </div>
+                        )}
+                        <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-amber-500 text-on-brand text-xs font-bold shadow-md tabular-nums">
+                          {entry.overallAverage}/10
+                        </span>
                       </div>
-                    )}
-                    {/* User-applied tags (amber) */}
-                    {(entry.userTags?.length ?? 0) > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {entry.userTags
-                          .filter((tag) => tag !== LISTED_FOR_SALE_TAG)
-                          .slice(0, expanded ? 8 : 3)
-                          .map((tag) => (
-                          <span
-                            key={`user-${tag}`}
-                            className="text-[10px] px-1.5 py-0.5 rounded bg-brand-500/20 text-brand-400 border border-brand-500/30 font-medium"
-                          >
-                            {tag.replace(/_/g, ' ')}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {/* AI-generated tags (gray) */}
-                    {entry.aestheticTags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {entry.aestheticTags.slice(0, expanded ? 12 : 4).map((tag) => (
-                          <span
-                            key={`ai-${tag}`}
-                            className="text-[10px] px-1.5 py-0.5 rounded bg-canvas-elevated text-muted"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {expanded && (
-                      <SimilarPhotosRow
-                        entryId={entry.id}
-                        onSelectEntry={(id) => {
-                          setExpandedId(id);
-                          clearLibrarySearch();
-                        }}
-                      />
-                    )}
-                    {'matchedObservations' in entry &&
-                      Array.isArray(
-                        (entry as PortfolioListItem & { matchedObservations?: string[] })
-                          .matchedObservations,
-                      ) &&
-                      (
-                        entry as PortfolioListItem & { matchedObservations?: string[] }
-                      ).matchedObservations!.length > 0 && (
-                        <div className="mt-2 pt-2 border-t border-warm/60">
-                          <p className="text-[10px] font-bold uppercase text-muted tracking-wide mb-1">
-                            Matched critique
-                          </p>
-                          <p className="text-xs text-stone-400 leading-relaxed line-clamp-2">
-                            {(
-                              entry as PortfolioListItem & { matchedObservations?: string[] }
-                            ).matchedObservations![0]}
-                          </p>
-                        </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 px-2.5 pb-2.5 pt-1.5">
+                      <span className="text-xs text-stone-400 tabular-nums shrink-0">
+                        {dateLabel || '—'}
+                      </span>
+                      {primaryTag && (
+                        <span className="text-xs px-2 py-0.5 rounded bg-canvas-elevated text-stone-400 truncate max-w-[60%]">
+                          {primaryTag.replace(/_/g, ' ')}
+                        </span>
                       )}
-                  </div>
-                </button>
-                {expanded && !selectMode && (
-                  <div className="px-4 pb-3 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDeleteTargetId(entry.id);
-                        setDeleteRemovesListing(isListedForSale(entry.userTags));
-                        setDeleteConfirm('single');
-                      }}
-                      className="inline-flex items-center gap-1.5 text-xs text-rose-400 hover:text-rose-300"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      {isListedForSale(entry.userTags)
-                        ? 'Remove listing & delete'
-                        : 'Delete from library'}
-                    </button>
-                  </div>
-                )}
+                    </div>
+                  </button>
                 </div>
               </article>
             );

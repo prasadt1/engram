@@ -787,7 +787,18 @@ export const HomeTab: React.FC<Props> = ({
           </section>
         )}
 
-        {/* At a glance */}
+        {isReturning && (
+          <ContactSheet
+            photos={contactSheet}
+            loading={loading}
+            uploading={uploading}
+            onOpenPhoto={(photoId) => onOpenPhoto?.(photoId)}
+            onNavigateLibrary={() => onNavigate('work')}
+            onUpload={() => fileInputRef.current?.click()}
+          />
+        )}
+
+        {/* At a glance — below the library roll so the personal read leads */}
         {isReturning && !loading && (
           <div className="max-w-4xl mx-auto px-1 space-y-2">
             <Eyebrow>At a glance</Eyebrow>
@@ -904,17 +915,6 @@ export const HomeTab: React.FC<Props> = ({
               )}
             </div>
           </div>
-        )}
-
-        {isReturning && (
-          <ContactSheet
-            photos={contactSheet}
-            loading={loading}
-            uploading={uploading}
-            onOpenPhoto={(photoId) => onOpenPhoto?.(photoId)}
-            onNavigateLibrary={() => onNavigate('work')}
-            onUpload={() => fileInputRef.current?.click()}
-          />
         )}
 
         {isReturning && showMentorCard && profile && (

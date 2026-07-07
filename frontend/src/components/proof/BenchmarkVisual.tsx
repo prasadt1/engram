@@ -101,6 +101,10 @@ export const BenchmarkVisual: React.FC = () => {
           </div>
           <ScoreRing label="Mean FAMA · never forgets" value={meanAblated} tone="bad" />
         </div>
+        <p className="mt-4 pt-3 border-t border-warm/50 text-xs text-stone-400 text-center max-w-2xl mx-auto">
+          <span className="text-stone-300 font-semibold">Mean FAMA</span> recalls every still-true
+          fact, penalizes surfacing outdated ones — 1.00 is perfect.
+        </p>
       </div>
 
       {/* Trace heatmap */}

@@ -26,7 +26,11 @@ export const GlassBoxTab: React.FC = () => (
     <header className="space-y-4">
       <div>
         <h1 className="font-serif text-2xl md:text-3xl text-white">Memory Proof Room</h1>
-        <p className="mt-1 text-sm text-stone-400 max-w-xl">
+        <p className="mt-2 font-serif text-base md:text-lg text-stone-200 leading-snug max-w-2xl">
+          This page proves Engram remembers what matters, forgets what no longer applies, and
+          matches a full-memory baseline while using far less context.
+        </p>
+        <p className="mt-2 text-sm text-stone-400 max-w-xl">
           Visual proof in three steps — play the story, check live counts, scan the benchmark.
         </p>
       </div>

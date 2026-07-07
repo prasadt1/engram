@@ -212,7 +212,7 @@ export const AppSidebar: React.FC<Props> = ({
       <div className="mt-auto shrink-0 border-t border-warm bg-canvas">
         {showMentorFooter && (
           <div className="px-3 py-3">
-            <p className="text-xs text-brand-400 leading-relaxed line-clamp-3">{mentorOneLiner}</p>
+            <p className="text-[13px] text-stone-300 leading-relaxed line-clamp-3">{mentorOneLiner}</p>
           </div>
         )}
         <div className={`p-2 ${showMentorFooter ? 'border-t border-warm' : ''}`}>

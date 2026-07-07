@@ -5,11 +5,25 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Play, RotateCcw } from 'lucide-react';
 import { Button, Eyebrow, Tag } from '../primitives';
-import { JUDGE_GUIDE_URL, WORKED_TRACE_ID, workedDefault, workedNoForgetting } from './proofData';
+import { JUDGE_GUIDE_URL, TRACE_LABELS, WORKED_TRACE_ID, workedDefault, workedNoForgetting } from './proofData';
 
 type Phase = 0 | 1 | 2 | 3 | 4;
 
 const PHASE_MS = 1400;
+
+/**
+ * Mentor-voice narration keyed to what the stage actually shows at each phase.
+ * NB: the component reveals the Sony fact at the "Still Canon" step (phase 2)
+ * and only retires Canon at the "Sony switch" step (phase 3), so the lines are
+ * written to the real per-phase visuals rather than the step captions.
+ */
+const NARRATION: Record<Phase, string> = {
+  0: 'Press Play — watch one fact get stored, then retired when it stops being true.',
+  1: 'Session 2: you tell me you shoot Canon — I remember it.',
+  2: 'Session 3: you switch to Sony. For a beat both facts are live — I haven’t retired Canon yet.',
+  3: 'I link the switch and retire the Canon fact — kept for audit, it never coaches you again.',
+  4: 'You ask what gear you use: I recall only Sony. “Never forget” leaks the stale Canon fact back in.',
+};
 
 function MemoryChip({
   label,
@@ -82,7 +96,8 @@ export const CanonSonyVisual: React.FC = () => {
           </div>
           <h2 className="font-serif text-xl md:text-2xl text-white">Canon → Sony — forgetting in one question</h2>
           <p className="text-sm text-stone-400 max-w-xl">
-            Scripted scenario <code className="font-mono text-xs text-brand-400">{WORKED_TRACE_ID}</code> — same{' '}
+            {TRACE_LABELS[WORKED_TRACE_ID]}{' '}
+            <span className="font-mono text-xs text-stone-600">({WORKED_TRACE_ID})</span> — same{' '}
             <code className="font-mono text-xs">recall()</code> engine as the coach, not demo-user uploads.
           </p>
         </div>
@@ -147,6 +162,14 @@ export const CanonSonyVisual: React.FC = () => {
           <MemoryChip label="Canon body" tone="superseded" visible={canonSuperseded} />
         </div>
       </div>
+
+      {/* Mentor-voice narration — updates as the story plays */}
+      <p
+        className="text-sm text-stone-300 text-center min-h-[2.75rem] flex items-center justify-center transition-opacity duration-300"
+        aria-live="polite"
+      >
+        {NARRATION[phase]}
+      </p>
 
       {/* Question + recall split */}
       <div

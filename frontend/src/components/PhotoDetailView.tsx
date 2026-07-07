@@ -21,6 +21,7 @@ import { PrinciplesUsedPanel } from './studio/PrinciplesUsedPanel';
 import { principlesFromPortfolio } from '../lib/mapAnalysisResult';
 import { MentorChat } from './MentorChat';
 import { Tag } from './primitives/Tag';
+import { formatPhotoDate } from '../lib/formatPhotoDate';
 import type { PortfolioListItem } from '../types/memory';
 
 const DIMENSIONS: { key: keyof PortfolioListItem['scores']; label: string }[] = [
@@ -124,6 +125,9 @@ export const PhotoDetailView: React.FC<Props> = ({
               {photo.overallAverage}/10
             </span>
             {genre && <Tag variant="outline">{genre}</Tag>}
+            {formatPhotoDate(photo.createdAt) && (
+              <span className="text-xs text-stone-500">Uploaded {formatPhotoDate(photo.createdAt)}</span>
+            )}
           </div>
 
           {photo.sceneDescription && (

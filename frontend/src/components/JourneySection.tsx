@@ -65,12 +65,12 @@ export const JourneySection: React.FC<Props> = ({
   const watching = orderWatchingByStreak(skills.filter((s) => s.status === 'watching'));
 
   return (
-    <section className="max-w-4xl mx-auto px-1 space-y-4">
+    <section className="max-w-4xl mx-auto px-1 space-y-2.5">
       <div className="flex flex-wrap items-center gap-2">
         <Eyebrow>{heading}</Eyebrow>
         <Tag variant="outline">{isPro ? 'Working pro' : 'Hobbyist'}</Tag>
       </div>
-      <p className="text-xs text-stone-500 -mt-2">{personaNote}</p>
+      <p className="text-xs text-stone-500 -mt-1.5">{personaNote}</p>
 
       {identity && (
         <p className="font-serif text-xl md:text-2xl text-white leading-snug">{identity}</p>
@@ -83,7 +83,7 @@ export const JourneySection: React.FC<Props> = ({
       )}
 
       {cleared.length > 0 && (
-        <div className="grid sm:grid-cols-2 gap-3">
+        <div className="grid sm:grid-cols-2 gap-2.5">
           {cleared.map((skill) => (
             <Card key={skill.name} padding="sm" className="flex items-start gap-3">
               <div className="shrink-0 mt-0.5 p-2 rounded-md bg-brand-500/10 text-brand-400 inline-flex">
@@ -106,10 +106,10 @@ export const JourneySection: React.FC<Props> = ({
       {watching.length > 0 && (
         <Card padding="sm">
           <Eyebrow tone="faint" className="mb-1.5">Watching</Eyebrow>
-          <p className="text-xs text-stone-400 leading-relaxed mb-3">
+          <p className="text-xs text-stone-400 leading-relaxed mb-2">
             {GRADUATION_EXPLAINER}
           </p>
-          <ul className="space-y-2.5">
+          <ul className="space-y-2">
             {watching.map((skill, index) => {
               const isFocus = index === 0;
               const filled = Math.max(0, Math.min(STREAK_TARGET, skill.consecutive));
