@@ -19,7 +19,7 @@ interface Props {
 export const InfoTooltip: React.FC<Props> = ({ text, label, className = '' }) => {
   const id = useId();
   return (
-    <span className={`relative inline-flex group align-middle ${className}`}>
+    <span className={`relative inline-flex group/tip align-middle ${className}`}>
       <button
         type="button"
         aria-label={label}
@@ -32,7 +32,7 @@ export const InfoTooltip: React.FC<Props> = ({ text, label, className = '' }) =>
       <span
         id={id}
         role="tooltip"
-        className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 w-56 -translate-x-1/2 rounded-lg border border-warm bg-surface-1 px-3 py-2 text-xs leading-relaxed text-stone-300 shadow-xl opacity-0 translate-y-1 transition-all duration-150 group-hover:opacity-100 group-hover:translate-y-0 group-focus-within:opacity-100 group-focus-within:translate-y-0"
+        className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 w-56 -translate-x-1/2 rounded-lg border border-warm bg-surface-1 px-3 py-2 text-xs leading-relaxed text-stone-300 shadow-xl opacity-0 translate-y-1 transition-all duration-150 group-hover/tip:opacity-100 group-hover/tip:translate-y-0 group-focus-within/tip:opacity-100 group-focus-within/tip:translate-y-0"
       >
         {text}
       </span>
