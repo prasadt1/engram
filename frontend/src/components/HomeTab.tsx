@@ -16,7 +16,7 @@ import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import { AnalyzingOverlay } from './AnalyzingOverlay';
 import { InlineAlertBanner } from './InlineAlertBanner';
 import { JourneySection } from './JourneySection';
-import { MemoryLane, buildMemoryLaneFrames } from './MemoryLane';
+import { MemoryThreads } from './MemoryThreads';
 import { ContactSheet } from './ContactSheet';
 import { LibraryBackdrop } from './LibraryBackdrop';
 import { PhotoMat } from './PhotoMat';
@@ -555,11 +555,6 @@ export const HomeTab: React.FC<Props> = ({
     return vals.reduce((a, b) => a + b, 0) / vals.length;
   })();
 
-  const memoryLaneFrames = useMemo(
-    () => buildMemoryLaneFrames(memoryLaneSource, journey),
-    [memoryLaneSource, journey],
-  );
-
   const showMemoryProofCard = !FEATURES.practice && Boolean(journey);
 
   const latestUpload = contactSheet[0] ?? null;
@@ -736,10 +731,9 @@ export const HomeTab: React.FC<Props> = ({
           />
         )}
 
-        {isReturning && memoryLaneFrames.length > 0 && (
-          <MemoryLane
-            frames={memoryLaneFrames}
-            portfolioTotal={portfolioTotal}
+        {isReturning && memoryLaneSource.length > 0 && (
+          <MemoryThreads
+            photos={memoryLaneSource}
             onOpenPhoto={(photoId) => onOpenPhoto?.(photoId)}
           />
         )}
