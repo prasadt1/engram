@@ -28,6 +28,7 @@ import { buildHeroMentorCaption, type HeroMentorCaption } from '../lib/coachingB
 import { friendlyErrorMessage } from '../lib/friendlyError';
 import { pickHomeHeroPhoto } from '../lib/pickHomeHeroPhoto';
 import { portfolioImageUrl } from '../lib/portfolioImageUrl';
+import { getApiUserScope } from '../lib/apiFetch';
 import {
   fetchAestheticProfile,
   fetchPortfolio,
@@ -68,6 +69,40 @@ interface Props {
 }
 
 const PRACTICE_WIN_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Home is conditionally rendered under `<main key={activeTab}>` in App.tsx, so
+ * every return to Home fully remounts HomeTab — which, uncached, replays all
+ * the portfolio/journey MongoDB reads and flashes the skeleton, losing the
+ * user's place. This module-level snapshot (scoped by user) lets a remount
+ * hydrate instantly from the last successful load, then revalidate silently
+ * in the background (stale-while-revalidate). It intentionally lives outside
+ * React state so it survives unmount; it is per-tab-session memory, not
+ * persistence, and is replaced on every successful load.
+ */
+interface HomeSnapshot {
+  stats: PortfolioStats | null;
+  heroFallbackPool: PortfolioListItem[];
+  bestPhoto: PortfolioListItem | null;
+  earliestPhoto: PortfolioListItem | null;
+  memoryLaneSource: PortfolioListItem[];
+  contactSheet: PortfolioListItem[];
+  profile: AestheticProfileSummary | null;
+  trends: PortfolioTrendsResponse | null;
+  journey: JourneyResponse | null;
+  portfolioTotal: number;
+  latestPracticeWin: Assignment | null;
+  recentCompletedAssignment: Assignment | null;
+  practiceWinPhoto: PortfolioListItem | null;
+  completedAssignmentCount: number;
+  heroSrc: string | null;
+}
+
+const homeSnapshotCache = new Map<string, HomeSnapshot>();
+
+function homeScopeKey(): string {
+  return getApiUserScope() ?? 'anon';
+}
 
 function pickLatestPracticeWin(completed: Assignment[]): Assignment | null {
   const cutoff = Date.now() - PRACTICE_WIN_WINDOW_MS;
@@ -309,41 +344,48 @@ export const HomeTab: React.FC<Props> = ({
   portfolioRefreshKey = 0,
   isActive = true,
 }) => {
-  const [stats, setStats] = useState<PortfolioStats | null>(null);
-  const [bestPhoto, setBestPhoto] = useState<PortfolioListItem | null>(null);
-  const [heroFallbackPool, setHeroFallbackPool] = useState<PortfolioListItem[]>([]);
-  const [earliestPhoto, setEarliestPhoto] = useState<PortfolioListItem | null>(null);
-  const [memoryLaneSource, setMemoryLaneSource] = useState<PortfolioListItem[]>([]);
-  const [contactSheet, setContactSheet] = useState<PortfolioListItem[]>([]);
-  const [profile, setProfile] = useState<AestheticProfileSummary | null>(null);
-  const [trends, setTrends] = useState<PortfolioTrendsResponse | null>(null);
-  const [journey, setJourney] = useState<JourneyResponse | null>(null);
-  const [portfolioTotal, setPortfolioTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
+  // Hydrate synchronously from the last successful load for this user scope
+  // (see homeSnapshotCache) so a remount on Back paints the real page, not the
+  // skeleton. Read once at mount — a fresh fetch still runs to revalidate.
+  const cachedSnapshot = useRef<HomeSnapshot | undefined>(homeSnapshotCache.get(homeScopeKey())).current;
+
+  const [stats, setStats] = useState<PortfolioStats | null>(cachedSnapshot?.stats ?? null);
+  const [bestPhoto, setBestPhoto] = useState<PortfolioListItem | null>(cachedSnapshot?.bestPhoto ?? null);
+  const [heroFallbackPool, setHeroFallbackPool] = useState<PortfolioListItem[]>(cachedSnapshot?.heroFallbackPool ?? []);
+  const [earliestPhoto, setEarliestPhoto] = useState<PortfolioListItem | null>(cachedSnapshot?.earliestPhoto ?? null);
+  const [memoryLaneSource, setMemoryLaneSource] = useState<PortfolioListItem[]>(cachedSnapshot?.memoryLaneSource ?? []);
+  const [contactSheet, setContactSheet] = useState<PortfolioListItem[]>(cachedSnapshot?.contactSheet ?? []);
+  const [profile, setProfile] = useState<AestheticProfileSummary | null>(cachedSnapshot?.profile ?? null);
+  const [trends, setTrends] = useState<PortfolioTrendsResponse | null>(cachedSnapshot?.trends ?? null);
+  const [journey, setJourney] = useState<JourneyResponse | null>(cachedSnapshot?.journey ?? null);
+  const [portfolioTotal, setPortfolioTotal] = useState(cachedSnapshot?.portfolioTotal ?? 0);
+  const [loading, setLoading] = useState(!cachedSnapshot);
   const [loadError, setLoadError] = useState<string | null>(null);
   const auth = useAuth();
-  const [heroSrc, setHeroSrc] = useState<string | null>(null);
+  const [heroSrc, setHeroSrc] = useState<string | null>(cachedSnapshot?.heroSrc ?? null);
   const [imageError, setImageError] = useState(false);
-  const prevHeroIdRef = useRef<string | null>(null);
+  const prevHeroIdRef = useRef<string | null>(cachedSnapshot?.bestPhoto?.id ?? null);
   const heroSrcRef = useRef<string | null>(null);
   heroSrcRef.current = heroSrc;
   const [uploading, setUploading] = useState(false);
   const [analyzingImageUrl, setAnalyzingImageUrl] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [analyzeWaitSec, setAnalyzeWaitSec] = useState(0);
-  const [latestPracticeWin, setLatestPracticeWin] = useState<Assignment | null>(null);
-  const [recentCompletedAssignment, setRecentCompletedAssignment] = useState<Assignment | null>(null);
-  const [practiceWinPhoto, setPracticeWinPhoto] = useState<PortfolioListItem | null>(null);
-  const [completedAssignmentCount, setCompletedAssignmentCount] = useState(0);
+  const [latestPracticeWin, setLatestPracticeWin] = useState<Assignment | null>(cachedSnapshot?.latestPracticeWin ?? null);
+  const [recentCompletedAssignment, setRecentCompletedAssignment] = useState<Assignment | null>(cachedSnapshot?.recentCompletedAssignment ?? null);
+  const [practiceWinPhoto, setPracticeWinPhoto] = useState<PortfolioListItem | null>(cachedSnapshot?.practiceWinPhoto ?? null);
+  const [completedAssignmentCount, setCompletedAssignmentCount] = useState(cachedSnapshot?.completedAssignmentCount ?? 0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const exampleGlassBoxRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const initialLoadDone = useRef(false);
+  // A cached snapshot counts as an initial load already done, so revalidation
+  // after Back refreshes silently instead of flashing the skeleton.
+  const initialLoadDone = useRef(cachedSnapshot != null);
 
   const load = useCallback(async () => {
     // Show skeleton only on the very first load; subsequent calls (e.g. auth
-    // userId stabilising after Firebase init) refresh silently so the hero
-    // doesn't flash away.
+    // userId stabilising after Firebase init, or revalidating a cached
+    // snapshot) refresh silently so the hero doesn't flash away.
     const isInitial = !initialLoadDone.current;
     if (isInitial) setLoading(true);
     setLoadError(null);
@@ -380,26 +422,31 @@ export const HomeTab: React.FC<Props> = ({
       // or the model is briefly slower) it must not blank out a summary
       // the first run already fetched successfully — keep the last
       // non-null result rather than the last result.
+      // Keep the last non-null journey (see comment above); resolve the value
+      // we actually settle on so the cache snapshot matches on-screen state.
+      const scope = homeScopeKey();
+      const resolvedJourney = journeyData ?? homeSnapshotCache.get(scope)?.journey ?? null;
       setJourney((prev) => journeyData ?? prev);
       const win = pickLatestPracticeWin(assignments.completed);
       setLatestPracticeWin(win);
-      setRecentCompletedAssignment(pickMostRecentCompleted(assignments.completed));
+      const recentCompleted = pickMostRecentCompleted(assignments.completed);
+      setRecentCompletedAssignment(recentCompleted);
       setCompletedAssignmentCount(assignments.completed.length);
 
+      let winPhoto: PortfolioListItem | null = null;
       if (win?.completionShootIds?.length) {
         const shootId = win.completionShootIds[0];
         const match = recentPhotos.entries.find((e) => e.shootId === shootId);
         if (match) {
-          setPracticeWinPhoto(match);
+          winPhoto = match;
         } else {
           const more = await fetchPortfolio({ limit: 80, sortBy: 'date', sortOrder: 'desc' }).catch(
             () => ({ entries: [], total: 0 }),
           );
-          setPracticeWinPhoto(more.entries.find((e) => e.shootId === shootId) ?? null);
+          winPhoto = more.entries.find((e) => e.shootId === shootId) ?? null;
         }
-      } else {
-        setPracticeWinPhoto(null);
       }
+      setPracticeWinPhoto(winPhoto);
 
       const validOldest = oldestPortfolio.entries.find(
         (e) => e.imageUrl && e.overallAverage > 0,
@@ -410,11 +457,30 @@ export const HomeTab: React.FC<Props> = ({
       for (const e of [...oldestPortfolio.entries, ...recentPhotos.entries, ...topByScore.entries]) {
         if (e?.id && e.imageUrl?.trim()) poolById.set(e.id, e);
       }
-      setMemoryLaneSource(
-        [...poolById.values()].sort(
-          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-        ),
+      const laneSource = [...poolById.values()].sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
       );
+      setMemoryLaneSource(laneSource);
+
+      // Persist a snapshot so the next remount (Back to Home) hydrates
+      // instantly. heroSrc is patched separately once the image preloads.
+      homeSnapshotCache.set(scope, {
+        stats: portfolioStats,
+        heroFallbackPool: heroPool,
+        bestPhoto: hero,
+        earliestPhoto: validOldest ?? null,
+        memoryLaneSource: laneSource,
+        contactSheet: recentPhotos.entries,
+        profile: aesthetic,
+        trends: trendData,
+        journey: resolvedJourney,
+        portfolioTotal: portfolioStats.total,
+        latestPracticeWin: win,
+        recentCompletedAssignment: recentCompleted,
+        practiceWinPhoto: winPhoto,
+        completedAssignmentCount: assignments.completed.length,
+        heroSrc: homeSnapshotCache.get(scope)?.heroSrc ?? null,
+      });
     } catch (err) {
       setLoadError(
         err instanceof Error
@@ -431,6 +497,14 @@ export const HomeTab: React.FC<Props> = ({
     if (auth.loading || !isActive) return;
     void load();
   }, [auth.loading, load, portfolioRefreshKey, isActive]);
+
+  // Once the hero image URL resolves, patch it into the cached snapshot so a
+  // remount rehydrates the exact frame (the preload effect then short-circuits
+  // via `url === heroSrcRef.current` and never blanks it).
+  useEffect(() => {
+    const snap = homeSnapshotCache.get(homeScopeKey());
+    if (snap) snap.heroSrc = heroSrc;
+  }, [heroSrc]);
 
   useEffect(() => {
     if (!uploading) {
