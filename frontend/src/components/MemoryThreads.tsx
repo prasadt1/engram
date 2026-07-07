@@ -8,8 +8,8 @@
  * new network calls, no invented numbers.
  */
 
-import React, { useCallback, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
 import { Card, Eyebrow } from './primitives';
 import { portfolioImageUrl } from '../lib/portfolioImageUrl';
 import { formatPhotoDate } from '../lib/formatPhotoDate';
@@ -19,6 +19,22 @@ const MAX_THREADS = 5;
 const MIN_THREAD_PHOTOS = 2;
 /** Overall-score gain (first → latest) needed before we claim progress. */
 const PROGRESS_MIN_DELTA = 0.3;
+const AUTOPLAY_MS = 2500;
+
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(() =>
+    typeof window !== 'undefined'
+      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      : false,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const onChange = () => setReduced(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return reduced;
+}
 
 export interface GenreThread {
   genre: string;
@@ -61,15 +77,51 @@ interface ThreadCardProps {
 
 const ThreadCard: React.FC<ThreadCardProps> = ({ thread, onOpenPhoto }) => {
   const { genre, photos } = thread;
+  const prefersReducedMotion = usePrefersReducedMotion();
   const [index, setIndex] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [imgVisible, setImgVisible] = useState(true);
+  const indexRef = useRef(0);
+  indexRef.current = index;
+
+  const pauseAutoplay = useCallback(() => {
+    setPlaying(false);
+  }, []);
 
   const goTo = useCallback(
     (next: number) => {
-      if (next < 0 || next >= photos.length) return;
-      setIndex(next);
+      if (next < 0 || next >= photos.length || next === index) return;
+      setImgVisible(false);
+      window.setTimeout(() => {
+        setIndex(next);
+        setImgVisible(true);
+      }, 180);
     },
-    [photos.length],
+    [index, photos.length],
   );
+
+  useEffect(() => {
+    if (!playing || prefersReducedMotion || photos.length < 2) return;
+    const id = window.setInterval(() => {
+      const i = indexRef.current;
+      if (i >= photos.length - 1) {
+        setPlaying(false);
+        return;
+      }
+      setImgVisible(false);
+      window.setTimeout(() => {
+        setIndex(i + 1);
+        setImgVisible(true);
+      }, 180);
+    }, AUTOPLAY_MS);
+    return () => window.clearInterval(id);
+  }, [playing, prefersReducedMotion, photos.length]);
+
+  const togglePlay = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (prefersReducedMotion || photos.length < 2) return;
+    setPlaying((p) => !p);
+  };
 
   const genreTitle = humanizeGenre(genre);
   const genreLower = genreTitle.toLowerCase();
@@ -105,33 +157,58 @@ const ThreadCard: React.FC<ThreadCardProps> = ({ thread, onOpenPhoto }) => {
         </span>
       </div>
 
-      <button
-        type="button"
-        onClick={() => onOpenPhoto?.(current.id)}
-        className="group relative block aspect-[4/3] overflow-hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400"
-        aria-label={`Open this ${genreLower} photo in My Work`}
+      <div
+        className="group relative aspect-[4/3] overflow-hidden"
+        onMouseEnter={pauseAutoplay}
+        onFocusCapture={pauseAutoplay}
       >
-        <img
-          src={portfolioImageUrl(current.imageUrl)}
-          alt={current.sceneDescription || `${genreTitle} photo`}
-          className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
-          loading="lazy"
-        />
+        <button
+          type="button"
+          onClick={() => onOpenPhoto?.(current.id)}
+          className="absolute inset-0 w-full h-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400"
+          aria-label={`Open this ${genreLower} photo in My Work`}
+        >
+          <img
+            src={portfolioImageUrl(current.imageUrl)}
+            alt={current.sceneDescription || `${genreTitle} photo`}
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
+              imgVisible ? 'opacity-100' : 'opacity-0'
+            } ${
+              playing && !prefersReducedMotion
+                ? 'scale-110 transition-transform duration-[2500ms] ease-linear'
+                : 'scale-100 transition-transform duration-300 group-hover:scale-[1.02]'
+            }`}
+            loading="lazy"
+          />
+        </button>
+        {!prefersReducedMotion && photos.length >= 2 && (
+          <button
+            type="button"
+            onClick={togglePlay}
+            className="absolute top-2 left-2 z-10 inline-flex items-center justify-center w-8 h-8 rounded-full bg-black/60 text-stone-100 hover:bg-black/80 border border-white/20 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400"
+            aria-label={playing ? 'Pause thread playback' : 'Play thread slideshow'}
+          >
+            {playing ? <Pause className="w-3.5 h-3.5" aria-hidden /> : <Play className="w-3.5 h-3.5" aria-hidden />}
+          </button>
+        )}
         {dateChip && (
-          <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/70 text-stone-100 text-[11px] font-medium tabular-nums">
+          <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/70 text-stone-100 text-[11px] font-medium tabular-nums pointer-events-none">
             {dateChip}
           </span>
         )}
         <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black via-black/60 to-transparent pointer-events-none" />
-        <p className="absolute bottom-2 left-3 right-3 text-xs text-white leading-snug drop-shadow-md">
+        <p className="absolute bottom-2 left-3 right-3 text-xs text-white leading-snug drop-shadow-md pointer-events-none">
           {perPhotoLine}
         </p>
-      </button>
+      </div>
 
       <div className="flex items-center justify-between gap-2 px-3 py-2 bg-surface-1 border-t border-warm/50">
         <button
           type="button"
-          onClick={() => goTo(index - 1)}
+          onClick={() => {
+            pauseAutoplay();
+            goTo(index - 1);
+          }}
           disabled={atStart}
           aria-label={`Previous ${genreLower} photo`}
           className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-warm text-stone-300 hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400"
@@ -150,7 +227,10 @@ const ThreadCard: React.FC<ThreadCardProps> = ({ thread, onOpenPhoto }) => {
         </div>
         <button
           type="button"
-          onClick={() => goTo(index + 1)}
+          onClick={() => {
+            pauseAutoplay();
+            goTo(index + 1);
+          }}
           disabled={atEnd}
           aria-label={`Next ${genreLower} photo`}
           className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-warm text-stone-300 hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400"
