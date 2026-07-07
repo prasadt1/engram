@@ -177,6 +177,45 @@ def test_analyze_photo_records_skill_sessions_and_persists_portfolio_entry():
     assert "memory_update" in entry_doc
     assert entry_doc["memory_update"]["skills"]
     assert "portfolioEntryId" in result
+    # EXIF is additive: the key is always present (None here — b"fake" carries
+    # no decodable EXIF), on both the payload and the persisted document.
+    assert "exif" in result
+    assert result["exif"] is None
+    assert "exif" in entry_doc
+    assert entry_doc["exif"] is None
+
+
+def test_analyze_photo_threads_real_exif_into_payload_and_insert():
+    from app.coach import analyze_photo
+
+    fake_call_result = MagicMock(content=VALID_COACH_JSON, model="qwen-vl-max", latency_ms=500, input_tokens=100, output_tokens=200)
+    mock_store = MagicMock()
+    mock_store.recall.return_value = []
+    _wire_mock_memory_store(mock_store)
+
+    sample_exif = {
+        "make": "Apple",
+        "model": "iPhone 13 Pro",
+        "focalLength": "50mm",
+        "aperture": "f/2.8",
+    }
+
+    with patch("app.coach.qwen_client.chat_vision", return_value=fake_call_result), \
+         patch("app.coach.get_storage") as mock_get_storage, \
+         patch("app.coach.extract_exif", return_value=sample_exif) as mock_exif:
+        mock_get_storage.return_value.save.return_value = "photos/fake.jpg"
+        mock_get_storage.return_value.signed_url.return_value = "https://x/fake.jpg"
+
+        result = analyze_photo(
+            image_bytes=b"original-upload-bytes", content_type="image/jpeg", filename="x.jpg",
+            user_id="u1", memory_store=mock_store, weakness_bar=7.5,
+        )
+
+    # Extracted from the ORIGINAL upload bytes, not the resized vision copy.
+    mock_exif.assert_called_once_with(b"original-upload-bytes")
+    assert result["exif"] == sample_exif
+    entry_doc = mock_store.db.portfolio_entries.insert_one.call_args.args[0]
+    assert entry_doc["exif"] == sample_exif
 
 
 def test_analyze_photo_memory_update_streak_advance_with_real_store():

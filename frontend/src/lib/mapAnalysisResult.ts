@@ -102,21 +102,45 @@ export function mapAnalysisResult(result: AnalysisResult): StudioAnalysis {
   }));
 
   // EXIF/CV/coach signals only — principles live in groundingPrinciples (Glass Box panel).
+  // Prefer REAL camera EXIF (app/exif_reader.py) when the upload carried it;
+  // fall back to the vision model's settingsEstimate otherwise, but flag those
+  // rows as estimated so the UI never presents a guess as camera-sourced fact.
   const evidence: EvidenceItem[] = [];
-  const est = result.settingsEstimate;
-  if (est?.aperture && est.aperture !== 'unknown') {
-    evidence.push({
-      field: 'exposure',
-      source: 'EXIF',
-      value: `${est.aperture} · ${est.shutterSpeed} · ISO ${est.iso}`,
-    });
-  }
-  if (est?.focalLength && est.focalLength !== 'unknown') {
-    evidence.push({
-      field: 'lens',
-      source: 'EXIF',
-      value: est.focalLength,
-    });
+  const exif = result.exif;
+  const hasRealExif = !!(
+    exif &&
+    (exif.aperture || exif.shutterSpeed || exif.iso || exif.focalLength || exif.make || exif.model)
+  );
+  if (hasRealExif && exif) {
+    const exposure = [exif.aperture, exif.shutterSpeed, exif.iso].filter(Boolean).join(' · ');
+    if (exposure) {
+      evidence.push({ field: 'exposure', source: 'EXIF', value: exposure });
+    }
+    if (exif.focalLength) {
+      evidence.push({ field: 'lens', source: 'EXIF', value: exif.focalLength });
+    }
+    const camera = [exif.make, exif.model].filter(Boolean).join(' ');
+    if (camera) {
+      evidence.push({ field: 'camera', source: 'EXIF', value: camera });
+    }
+  } else {
+    const est = result.settingsEstimate;
+    if (est?.aperture && est.aperture !== 'unknown') {
+      evidence.push({
+        field: 'exposure',
+        source: 'EXIF',
+        value: `${est.aperture} · ${est.shutterSpeed} · ISO ${est.iso}`,
+        estimated: true,
+      });
+    }
+    if (est?.focalLength && est.focalLength !== 'unknown') {
+      evidence.push({
+        field: 'lens',
+        source: 'EXIF',
+        value: est.focalLength,
+        estimated: true,
+      });
+    }
   }
 
   const baseCritique = result.critique ?? {

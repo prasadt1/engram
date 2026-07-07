@@ -20,6 +20,7 @@ from PIL import Image, ImageOps
 from pydantic import ValidationError
 
 from app import qwen_client
+from app.exif_reader import extract_exif
 from app.grounding import SCENE_TO_DOCS, detect_scene_type_hint, ground_principles
 from app.output_salvage import validate_with_local_salvage
 from app.schema import CoachAnalysisOutput
@@ -316,6 +317,12 @@ def analyze_photo(
         photographer_context=ctx.context_block() if ctx and ctx.packed else None,
     )
 
+    # Real camera metadata off the ORIGINAL upload bytes (not the resized
+    # vision copy). Independent of the model response; never raises — returns
+    # None when the image carries no usable EXIF (screenshots, re-exports,
+    # CDN-stripped images), in which case the AI settings_estimate stands in.
+    exif_result = extract_exif(image_bytes)
+
     storage = get_storage()
     key = stored_key if stored_key is not None else storage.save(image_bytes, filename=filename, content_type=content_type)
     image_url = storage.signed_url(key)
@@ -344,6 +351,7 @@ def analyze_photo(
             "shutterSpeed": output.settings_estimate.shutter_speed,
             "iso": output.settings_estimate.iso,
         },
+        "exif": exif_result,
         "imageUrl": image_url,
         "storageKey": key,
         "memoryReceipt": ctx.receipt() if ctx else None,
@@ -406,6 +414,7 @@ def analyze_photo(
             "colour_notes": output.colour_notes,
             "glass_box": payload["glassBox"],
             "spatial_metadata": payload["spatialMetadata"],
+            "exif": exif_result,
             "memory_update": memory_update,
             "created_at": datetime.now(timezone.utc),
         })
