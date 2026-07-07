@@ -1,6 +1,8 @@
 import React from 'react';
 import { FlaskConical, Settings, ArrowRight } from 'lucide-react';
 import { BrandLogo } from './BrandLogo';
+import { InfoTooltip } from './primitives/InfoTooltip';
+import { getDimensionMeaning } from '../lib/scoreContext';
 import { useLogoEntrance } from '../hooks/useLogoEntrance';
 import type { SidebarFocusDisplay } from '../lib/coachingBrief';
 import type { AppTab } from '../config/navConfig';
@@ -145,7 +147,15 @@ export const AppSidebar: React.FC<Props> = ({
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-brand-400/90 mb-1">
                     Current focus
                   </p>
-                  <p className="text-sm font-medium text-stone-100">{focusDisplay.skillLabel}</p>
+                  <p className="text-sm font-medium text-stone-100 inline-flex items-center gap-1">
+                    {focusDisplay.skillLabel}
+                    {getDimensionMeaning(focusDisplay.skillLabel) && (
+                      <InfoTooltip
+                        text={getDimensionMeaning(focusDisplay.skillLabel)!}
+                        label={`What ${focusDisplay.skillLabel} means`}
+                      />
+                    )}
+                  </p>
                   <p className="text-xs text-stone-400 mt-1 leading-relaxed">{focusDisplay.detail}</p>
                 </div>
               )}

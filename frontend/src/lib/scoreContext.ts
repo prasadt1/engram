@@ -103,6 +103,31 @@ export function getTipsForDimension(dimension: string, _score?: number): string[
   return getDimensionTips(dimension);
 }
 
+/**
+ * One-line "what this is judged against" for each Glass Box dimension —
+ * condensed from the full definitions in ScoreExplainer so tooltips and the
+ * modal stay consistent. Keyed by canonical snake_case name.
+ */
+export const DIMENSION_MEANINGS: Record<string, string> = {
+  composition:
+    'How the frame is arranged — focal point, framing, balance, and how the eye moves through the shot.',
+  lighting:
+    'Quality and direction of light — exposure, shadows, and how the light shapes the subject.',
+  technique:
+    'Technical execution — focus, sharpness, exposure, and camera settings.',
+  creativity:
+    'Originality and vision — fresh perspective, emotion, and what makes the frame memorable.',
+  subject_impact:
+    'How compelling the subject is and how clearly it connects with the viewer.',
+};
+
+/** Short definition for any dimension/skill name, or undefined if it isn't one
+ * of the five scored dimensions (accepts labels like "Subject impact" too). */
+export function getDimensionMeaning(name: string): string | undefined {
+  const key = name.toLowerCase().replace(/\s+/g, '_');
+  return DIMENSION_MEANINGS[key] ?? (key === 'subject' ? DIMENSION_MEANINGS.subject_impact : undefined);
+}
+
 /** Human-readable label for any skill/dimension name. Looks up the sentence
  * -case Glass Box label first (composition, lighting, ...); falls back to a
  * generic snake_case → Title Case split for skills outside the five

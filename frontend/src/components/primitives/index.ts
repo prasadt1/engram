@@ -7,3 +7,4 @@ export { ScoreBadge } from './ScoreBadge';
 export { StatCard } from './StatCard';
 export { SegmentedControl } from './SegmentedControl';
 export { TextInput } from './TextInput';
+export { InfoTooltip } from './InfoTooltip';

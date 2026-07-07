@@ -6,9 +6,9 @@
 
 import React from 'react';
 import { BadgeCheck, Sparkles } from 'lucide-react';
-import { Card, Eyebrow, Tag } from './primitives';
+import { Card, Eyebrow, Tag, InfoTooltip } from './primitives';
 import { EmptyState } from './EmptyState';
-import { humanizeSkillName } from '../lib/scoreContext';
+import { getDimensionMeaning, humanizeSkillName } from '../lib/scoreContext';
 import { orderWatchingByStreak, STREAK_TARGET } from '../lib/coachingBrief';
 import type { JourneySkill, JourneyStats } from '../services/journeyClient';
 import type { UserMode } from '../types/practice';
@@ -91,7 +91,15 @@ export const JourneySection: React.FC<Props> = ({
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <h3 className="text-sm font-medium text-white">{humanizeSkillName(skill.name)}</h3>
+                  <h3 className="text-sm font-medium text-white inline-flex items-center gap-1">
+                    {humanizeSkillName(skill.name)}
+                    {getDimensionMeaning(skill.name) && (
+                      <InfoTooltip
+                        text={getDimensionMeaning(skill.name)!}
+                        label={`What ${humanizeSkillName(skill.name)} means`}
+                      />
+                    )}
+                  </h3>
                   <Tag variant="brand">Cleared</Tag>
                 </div>
                 <p className="text-xs text-stone-400 leading-relaxed">
@@ -120,8 +128,15 @@ export const JourneySection: React.FC<Props> = ({
                     isFocus ? 'bg-brand-500/10 border border-brand-500/30' : ''
                   }`}
                 >
-                  <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex items-center gap-1.5 min-w-0">
                     <span className="text-sm text-stone-200 truncate">{humanizeSkillName(skill.name)}</span>
+                    {getDimensionMeaning(skill.name) && (
+                      <InfoTooltip
+                        text={getDimensionMeaning(skill.name)!}
+                        label={`What ${humanizeSkillName(skill.name)} means`}
+                        className="shrink-0"
+                      />
+                    )}
                     {isFocus && (
                       <Tag variant="brand">
                         Current focus

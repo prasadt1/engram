@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { InfoTooltip } from './primitives/InfoTooltip';
+import { getDimensionMeaning } from '../lib/scoreContext';
 
 interface Props {
   /** Dimension name, e.g. "Composition". */
@@ -13,6 +15,9 @@ interface Props {
   animate?: boolean;
   /** Show the serif numeral on the right. Default true. */
   showValue?: boolean;
+  /** Show the "what this is judged against" info tooltip when the label maps
+   * to one of the five scored dimensions. Default true. */
+  showHint?: boolean;
   className?: string;
 }
 
@@ -29,10 +34,12 @@ export const DimensionBar: React.FC<Props> = ({
   index = 0,
   animate = true,
   showValue = true,
+  showHint = true,
   className = '',
 }) => {
   const pct = Math.max(0, Math.min(100, (value / max) * 100));
   const [w, setW] = useState(animate ? 0 : pct);
+  const hint = showHint ? getDimensionMeaning(label) : undefined;
 
   useEffect(() => {
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -47,7 +54,10 @@ export const DimensionBar: React.FC<Props> = ({
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
       <div className="flex justify-between items-baseline">
-        <span className="text-[13px] text-stone-300">{label}</span>
+        <span className="text-[13px] text-stone-300 inline-flex items-center gap-1">
+          {label}
+          {hint && <InfoTooltip text={hint} label={`What ${label} means`} />}
+        </span>
         {showValue && (
           <span className="font-serif text-[15px] text-white tabular-nums">
             {value.toFixed(1)}
