@@ -21,6 +21,12 @@ export interface EvidenceItem {
   source: 'EXIF' | 'CV' | 'Coach';
   value: string;
   confidence?: number;
+  /**
+   * True when this row is the vision model's best-effort guess (settingsEstimate)
+   * rather than real camera EXIF — so the UI can label a guess as a guess and
+   * never present it as camera-sourced fact.
+   */
+  estimated?: boolean;
 }
 
 export interface StudioScores {

@@ -1,4 +1,4 @@
-import type { AnalysisScores, MemoryUpdate, GroundingCitation } from './index';
+import type { AnalysisScores, MemoryUpdate, GroundingCitation, CameraExif } from './index';
 
 export interface PortfolioListItem {
   id: string;
@@ -26,6 +26,8 @@ export interface PortfolioListItem {
   groundingPrinciples?: string[];
   /** Present on entries analyzed after the narration slice shipped. */
   memoryUpdate?: MemoryUpdate | null;
+  /** Real camera EXIF read from the upload file, or null when it had none. */
+  exif?: CameraExif | null;
 }
 
 export interface PortfolioListResponse {

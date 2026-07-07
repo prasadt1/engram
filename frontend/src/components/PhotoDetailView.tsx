@@ -14,7 +14,7 @@
 
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, X } from 'lucide-react';
+import { ArrowLeft, Camera, MapPin, X } from 'lucide-react';
 import { DimensionBar } from './DimensionBar';
 import { MemoryDelta } from './MemoryDelta';
 import { PrinciplesUsedPanel } from './studio/PrinciplesUsedPanel';
@@ -31,6 +31,40 @@ const DIMENSIONS: { key: keyof PortfolioListItem['scores']; label: string }[] = 
   { key: 'creativity', label: 'Creativity' },
   { key: 'subject_impact', label: 'Subject' },
 ];
+
+/**
+ * Real camera EXIF read from the uploaded file (app/exif_reader.py) — shown
+ * only when present, and labeled plainly as file-sourced so it's never
+ * confused with the vision model's AI-estimated settings. Raw GPS coordinates
+ * are deliberately NOT rendered (privacy); presence is noted as a boolean.
+ */
+const CameraExifPanel: React.FC<{ exif: NonNullable<PortfolioListItem['exif']> }> = ({ exif }) => {
+  const camera = [exif.make, exif.model].filter(Boolean).join(' ');
+  const specs = [exif.focalLength, exif.aperture, exif.shutterSpeed, exif.iso].filter(Boolean);
+  if (!camera && specs.length === 0 && !exif.gps) return null;
+
+  return (
+    <div className="pt-2 border-t border-warm/40">
+      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-stone-400">
+        <Camera className="w-3.5 h-3.5" aria-hidden />
+        Camera data
+        <span className="ml-1 font-normal normal-case tracking-normal text-stone-500">
+          from your photo&apos;s file
+        </span>
+      </div>
+      {camera && <p className="mt-1.5 text-sm text-stone-200">{camera}</p>}
+      {specs.length > 0 && (
+        <p className="mt-1 text-sm text-stone-300 tabular-nums">{specs.join('  ·  ')}</p>
+      )}
+      {exif.gps && (
+        <p className="mt-1 flex items-center gap-1 text-xs text-stone-500">
+          <MapPin className="w-3 h-3" aria-hidden />
+          Location data present
+        </p>
+      )}
+    </div>
+  );
+};
 
 interface Props {
   photo: PortfolioListItem;
@@ -139,6 +173,8 @@ export const PhotoDetailView: React.FC<Props> = ({
               <DimensionBar key={d.key} label={d.label} value={photo.scores[d.key]} index={i} />
             ))}
           </div>
+
+          {photo.exif && <CameraExifPanel exif={photo.exif} />}
 
           {photo.memoryUpdate && (
             <div className="pt-2">

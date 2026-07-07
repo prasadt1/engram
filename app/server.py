@@ -268,6 +268,9 @@ def _serialize_portfolio_entry(doc: dict[str, Any]) -> dict[str, Any]:
         "groundingCitations": (doc.get("glass_box") or {}).get("grounding_citations") or [],
         "groundingPrinciples": (doc.get("glass_box") or {}).get("grounding_principles") or [],
         "memoryUpdate": doc.get("memory_update"),
+        # Real camera EXIF (or None for CDN-stripped/screenshot uploads);
+        # additive, mirrors the optional-field pattern above.
+        "exif": doc.get("exif"),
     }
 
 

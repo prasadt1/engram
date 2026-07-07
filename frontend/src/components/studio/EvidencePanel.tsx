@@ -3,8 +3,14 @@
  */
 
 import React from 'react';
-import { BookOpen, Camera, Eye } from 'lucide-react';
+import { BookOpen, Camera, Eye, Sparkles } from 'lucide-react';
 import type { EvidenceItem } from '../../types/studio';
+
+const ESTIMATED_CONFIG = {
+  label: 'AI estimate',
+  icon: <Sparkles className="w-3.5 h-3.5" aria-hidden />,
+  color: 'text-amber-400/90 bg-amber-500/10 border-amber-500/25',
+};
 
 const SOURCE_CONFIG: Record<
   EvidenceItem['source'],
@@ -60,7 +66,7 @@ const EvidencePanel: React.FC<{ evidence: EvidenceItem[]; className?: string }> 
       </div>
       <ul className="divide-y divide-warm/60" role="list">
         {evidence.map((item, idx) => {
-          const cfg = SOURCE_CONFIG[item.source];
+          const cfg = item.estimated ? ESTIMATED_CONFIG : SOURCE_CONFIG[item.source];
           return (
             <li key={idx} className="px-4 py-3 flex items-center gap-3">
               <div

@@ -146,6 +146,24 @@ export interface MemoryUpdate {
   dominantGenreBefore: string | null;
 }
 
+/**
+ * Real camera metadata read from an upload's EXIF block (app/exif_reader.py).
+ * Distinct from settingsEstimate, which the vision model *guesses* from the
+ * image. Any field may be absent; the whole object is null when the upload
+ * carried no usable EXIF (screenshots, re-exports, CDN-stripped images).
+ * GPS is stored but intentionally not surfaced as raw coordinates yet.
+ */
+export interface CameraExif {
+  make?: string;
+  model?: string;
+  focalLength?: string;
+  aperture?: string;
+  shutterSpeed?: string;
+  iso?: string;
+  capturedAt?: string;
+  gps?: { lat: number; lng: number };
+}
+
 export interface AnalysisResult {
   portfolioEntryId: string;
   assignmentId?: string;
@@ -173,6 +191,8 @@ export interface AnalysisResult {
   memoryReceipt?: MemoryReceipt | null;
   /** Skill/genre transitions after this upload (for honest mentor narration). */
   memoryUpdate?: MemoryUpdate | null;
+  /** Real camera EXIF, or null when the upload carried none. */
+  exif?: CameraExif | null;
 }
 
 // Assignment types (spec §7.2)
