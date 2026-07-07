@@ -6,7 +6,7 @@
  * Implements "Photos are the interface" — gallery first, upload as action.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   ArrowUpDown,
@@ -21,7 +21,7 @@ import {
   Search,
   Sparkles,
   Square,
-  Tag,
+  Layers,
   Trash2,
   TrendingUp,
   Upload,
@@ -42,7 +42,7 @@ import { getScoreContext } from '../lib/scoreContext';
 import { apiUnreachableMessage } from '../lib/apiHelp';
 import { friendlyErrorMessage } from '../lib/friendlyError';
 import { formatSkillLabel } from '../lib/formatSkillLabel';
-import { isListedForSale, LISTED_FOR_SALE_TAG, listedForSaleLabel } from '../lib/listedForSale';
+import { isListedForSale, LISTED_FOR_SALE_TAG } from '../lib/listedForSale';
 import { MemoryGridSkeleton } from './SkeletonBlocks';
 import PhotoUploader from './studio/PhotoUploader';
 import StudioAnalysisResults from './studio/StudioAnalysisResults';
@@ -63,6 +63,12 @@ import type { Assignment, UserMode } from '../types/practice';
 import { useAuth } from '../auth/useAuth';
 
 const TREND_DISPLAY_KEYS = ['composition', 'lighting', 'technique', 'overall'] as const;
+
+function humanizeGenre(genre: string): string {
+  const s = genre.replace(/_/g, ' ').trim();
+  if (!s) return genre;
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 
 const SCORE_LABELS: { key: keyof AestheticProfileSummary['averageScores']; label: string }[] = [
   { key: 'composition', label: 'Composition' },
@@ -131,8 +137,8 @@ export const MyWorkTab: React.FC<MyWorkTabProps> = ({
   // Sort and filter state
   const [sortBy, setSortBy] = useState<SortField>('date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [userTagFilter, setUserTagFilter] = useState<string | null>(null);
-  const [allUserTags, setAllUserTags] = useState<string[]>([]);
+  const [genreFilter, setGenreFilter] = useState<string | null>(null);
+  const [allGenres, setAllGenres] = useState<string[]>([]);
   const [librarySearch, setLibrarySearch] = useState('');
   const [searchResults, setSearchResults] = useState<PortfolioListItem[] | null>(null);
   const [searchMode, setSearchMode] = useState<string | null>(null);
@@ -229,6 +235,13 @@ export const MyWorkTab: React.FC<MyWorkTabProps> = ({
     }
   }, [librarySearch]);
 
+  const galleryEntries = useMemo(() => {
+    const base = searchResults ?? entries;
+    if (!genreFilter) return base;
+    const g = genreFilter.toLowerCase();
+    return base.filter((entry) => (entry.genre ?? '').toLowerCase() === g);
+  }, [searchResults, entries, genreFilter]);
+
   const clearLibrarySearch = useCallback(() => {
     setLibrarySearch('');
     setSearchResults(null);
@@ -254,36 +267,28 @@ export const MyWorkTab: React.FC<MyWorkTabProps> = ({
     setLoading(true);
     setError(null);
     try {
-      const [portfolio, aesthetic, trendData, allPhotos] = await Promise.all([
-        fetchPortfolio({ sortBy, sortOrder, userTag: userTagFilter ?? undefined }),
+      const [portfolio, aesthetic, trendData, allForGenres] = await Promise.all([
+        fetchPortfolio({ sortBy, sortOrder }),
         fetchAestheticProfile(),
         fetchPortfolioTrends(12).catch(() => null),
-        // Fetch all photos once to collect user tags for filter dropdown (unfiltered)
-        userTagFilter ? fetchPortfolio({ sortBy: 'date', sortOrder: 'desc' }) : Promise.resolve(null),
+        fetchPortfolio({ sortBy: 'date', sortOrder: 'desc', limit: 200 }),
       ]);
       setEntries(portfolio.entries);
       setProfile(aesthetic);
       setTrends(trendData);
 
-      // Collect unique user tags from all photos for filter dropdown
-      const photosForTags = allPhotos?.entries ?? portfolio.entries;
-      const tagSet = new Set<string>();
-      for (const entry of photosForTags) {
-        for (const tag of entry.userTags ?? []) {
-          tagSet.add(tag);
-        }
+      const genreSet = new Set<string>();
+      for (const entry of allForGenres.entries) {
+        const genre = entry.genre?.trim();
+        if (genre) genreSet.add(genre);
       }
-      const sorted = Array.from(tagSet).sort();
-      if (!sorted.includes(LISTED_FOR_SALE_TAG)) {
-        sorted.unshift(LISTED_FOR_SALE_TAG);
-      }
-      setAllUserTags(sorted);
+      setAllGenres(Array.from(genreSet).sort());
     } catch (e) {
       setError(friendlyErrorMessage(e));
     } finally {
       setLoading(false);
     }
-  }, [sortBy, sortOrder, userTagFilter, auth.loading, auth.userId]);
+  }, [sortBy, sortOrder, auth.loading, auth.userId]);
 
   const handleConfirmDelete = useCallback(async () => {
     setDeleting(true);
@@ -633,41 +638,42 @@ export const MyWorkTab: React.FC<MyWorkTabProps> = ({
           <p className="text-muted text-sm">
             {searchResults !== null
               ? `Showing search results`
+              : genreFilter
+                ? `${galleryEntries.length} ${humanizeGenre(genreFilter).toLowerCase()} photo${galleryEntries.length === 1 ? '' : 's'}`
               : entries.length > 0
                 ? `${entries.length} photo${entries.length === 1 ? '' : 's'} in your library`
                 : 'Your critiqued photos appear here'}
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          {/* User tag filter dropdown */}
-          {allUserTags.length > 0 && (
+          {/* Genre filter dropdown */}
+          {allGenres.length > 0 && (
             <div className="relative">
               <select
-                value={userTagFilter ?? ''}
-                onChange={(e) => setUserTagFilter(e.target.value || null)}
+                value={genreFilter ?? ''}
+                onChange={(e) => setGenreFilter(e.target.value || null)}
                 className="appearance-none pl-8 pr-8 py-2 rounded-lg border border-warm bg-surface-1 text-stone-300 text-sm hover:bg-surface-2 cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand-500"
+                aria-label="Filter by genre"
               >
                 <option value="">All photos</option>
-                {allUserTags.map((tag) => (
-                  <option key={tag} value={tag}>
-                    {tag === LISTED_FOR_SALE_TAG ? listedForSaleLabel() : tag.replace(/_/g, ' ')}
+                {allGenres.map((genre) => (
+                  <option key={genre} value={genre}>
+                    {humanizeGenre(genre)}
                   </option>
                 ))}
               </select>
-              <Tag className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-400 pointer-events-none" />
+              <Layers className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-400 pointer-events-none" />
               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
             </div>
           )}
           {/* Active filter pill */}
-          {userTagFilter && (
+          {genreFilter && (
             <button
               type="button"
-              onClick={() => setUserTagFilter(null)}
+              onClick={() => setGenreFilter(null)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-brand-500/20 border border-brand-500/40 text-brand-400 text-xs font-medium hover:bg-brand-500/30"
             >
-              {userTagFilter === LISTED_FOR_SALE_TAG
-                ? listedForSaleLabel()
-                : userTagFilter.replace(/_/g, ' ')}
+              {humanizeGenre(genreFilter)}
               <X className="w-3 h-3" />
             </button>
           )}
@@ -892,7 +898,7 @@ export const MyWorkTab: React.FC<MyWorkTabProps> = ({
       )}
 
       {/* Photo gallery or empty state */}
-      {(searchResults !== null ? searchResults : entries).length === 0 ? (
+      {galleryEntries.length === 0 ? (
         <EmptyState
           icon={
             searchResults !== null ? (
@@ -904,17 +910,25 @@ export const MyWorkTab: React.FC<MyWorkTabProps> = ({
           title={
             searchResults !== null
               ? 'No photos matched that search'
-              : 'No frames in your Library yet'
+              : genreFilter
+                ? `No ${humanizeGenre(genreFilter).toLowerCase()} photos yet`
+                : 'No frames in your Library yet'
           }
           description={
             searchResults !== null
               ? 'Try a different word or phrase — I search by meaning, not just keywords.'
-              : "Upload your first photo and I'll critique it on five dimensions — then remember it."
+              : genreFilter
+                ? 'Try another genre, or upload a photo in this category.'
+                : "Upload your first photo and I'll critique it on five dimensions — then remember it."
           }
           action={
             searchResults !== null ? (
               <Button variant="secondary" onClick={clearLibrarySearch}>
                 Clear search
+              </Button>
+            ) : genreFilter ? (
+              <Button variant="secondary" onClick={() => setGenreFilter(null)}>
+                Clear genre filter
               </Button>
             ) : (
               <Button icon={<Upload className="w-4 h-4" />} onClick={() => setViewMode('upload')}>
@@ -925,7 +939,7 @@ export const MyWorkTab: React.FC<MyWorkTabProps> = ({
         />
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
-          {(searchResults !== null ? searchResults : entries).map((entry) => {
+          {galleryEntries.map((entry) => {
             const selected = selectedIds.has(entry.id);
             const dateLabel = formatPhotoDate(entry.createdAt);
             const primaryTag =
