@@ -39,18 +39,16 @@ export function BrandLogo({
   const isLight = theme === 'light';
   const textColor = isLight ? '#292524' : '#e8e0d6';
   const preset = HORIZONTAL_PRESETS[direction];
+  // Transparent, warmth-keyed emblem so the mark merges into the page
+  // instead of sitting inside a visible dark tile. Theme-aware so the
+  // aperture blades stay legible on the light canvas.
+  const markSrc = isLight ? '/engram-mark-light.png' : '/engram-mark.png';
 
   if (variant === 'mark') {
     const soloMark = markSize ?? Math.round((size ?? 28) * markScale);
     return (
       <span className={`inline-flex items-center leading-none ${className}`}>
-        <img
-          src="/engram-icon-192.png"
-          alt=""
-          width={soloMark}
-          height={soloMark}
-          style={{ borderRadius: '20%' }}
-        />
+        <img src={markSrc} alt="" width={soloMark} height={soloMark} />
         <span className="sr-only">Engram</span>
       </span>
     );
@@ -61,13 +59,7 @@ export function BrandLogo({
     const textSize = size ?? 20;
     return (
       <span className={`inline-flex flex-col items-center leading-none ${className}`} style={{ gap: '10px' }}>
-        <img
-          src="/engram-icon-detailed-176.png"
-          alt=""
-          width={iconSize}
-          height={iconSize}
-          style={{ borderRadius: '20%' }}
-        />
+        <img src={markSrc} alt="" width={iconSize} height={iconSize} />
         <span
           style={{
             fontFamily: "'Newsreader', Georgia, serif",
@@ -77,7 +69,7 @@ export function BrandLogo({
             letterSpacing: '-0.01em',
           }}
         >
-          Engram
+          engram
         </span>
       </span>
     );
@@ -92,13 +84,7 @@ export function BrandLogo({
       className={`inline-flex items-center leading-none ${className}`}
       style={{ gap: preset.gap }}
     >
-      <img
-        src="/engram-icon-192.png"
-        alt=""
-        width={resolvedMarkSize}
-        height={resolvedMarkSize}
-        style={{ borderRadius: '20%' }}
-      />
+      <img src={markSrc} alt="" width={resolvedMarkSize} height={resolvedMarkSize} />
       <span
         style={{
           fontFamily: "'Newsreader', Georgia, serif",
@@ -108,7 +94,7 @@ export function BrandLogo({
           letterSpacing: preset.letterSpacing,
         }}
       >
-        Engram
+        engram
       </span>
     </span>
   );
