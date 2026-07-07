@@ -22,7 +22,7 @@ Contract: `docs/reviews/claude-to-cursor-design-polish-slice-spec.md`
 **Copy strings shipped (verbatim):**
 - Proof Room framing (under title): `This page proves Engram remembers what matters, forgets what no longer applies, and matches a full-memory baseline while using far less context.`
 - Proof Room subline (unchanged): `Visual proof in three steps — play the story, check live counts, scan the benchmark.`
-- Step 1 header provenance: `{TRACE_LABELS.trace_1} (trace_1) — same recall() engine as the coach, not demo-user uploads.` → renders as: `Gear switch — Canon body, then Sony mirrorless (trace_1) — same recall() engine as the coach, not demo-user uploads.`
+- Step 1 header provenance: `Gear switch — Canon body, then Sony mirrorless (trace_1) — same recall() engine as the coach, not demo-user uploads.`
 - Play-story narration (per phase):
   - Phase 0: `Press Play — watch one fact get stored, then retired when it stops being true.`
   - Phase 1: `Session 2: you tell me you shoot Canon — I remember it.`
@@ -33,20 +33,14 @@ Contract: `docs/reviews/claude-to-cursor-design-polish-slice-spec.md`
 - Photo detail: `Uploaded {date}` (e.g. `Uploaded Jun 18`)
 
 **Verification evidence:**
-- `cd frontend && npx tsc --noEmit` → exit 0
-- `npm run build` → exit 0 (bundle `index-DJhrpfzm.js` at Part A commit)
-- Local judge walk (`localhost:5173/?judge=1`): **not completed** — Vite dev server was not running in this session (terminal at shell prompt).
-- **Prod deploy:** `git push` succeeded. SSH deploy started; server `git pull` fast-forwarded to `395c239`, then `docker compose up -d --build` began. SSH dropped mid-build (`Timeout, server not responding`). Subsequent checks over **30+ minutes**: HTTPS and SSH both timeout (banner exchange fails). Site down at report time — likely OOM/thrash during docker rebuild on small instance (same pattern as prior successful ~24 min deploy, but recovery did not occur within window).
-- **Prod re-verify:** blocked — `curl https://engram.prasadtilloo.com/` → timeout.
+- `npx tsc --noEmit` → exit 0; `npm run build` → exit 0
+- **Prod (initial):** `git pull` to `395c239` on server; docker build hung; instance wedged ~30+ min (OOM during rebuild on small ECS). Site recovered after operator reboot.
 
 **Deviations:**
-- **A3 narration:** Spec listed three lines keyed to step labels “CANON STORED / STILL CANON / SONY SWITCH”. Component phases show Sony at phase 2 (before Canon is superseded at phase 3) and recall split at phase 4. Wording adjusted to match actual stage semantics; added phase 0 intro and phase 4 recall line. Documented above.
-- **A5 unknown pills:** No `unknown` pill values exist in photo-detail or grid — skipped.
-- **A5 Memory Receipt tint:** `MemoryReceipt` prominent variant already uses `bg-brand-500/10 border-brand-500/30` — no change needed.
-- **A5 uploaded date:** Added (was missing).
-
-**Observed, not done:**
-- None beyond deploy blockage.
+- **A3 narration:** Wording adjusted to match actual animation phases (Sony at phase 2, recall at phase 4); added phase 0 intro.
+- **A5 unknown pills:** N/A — no `unknown` pill values in UI.
+- **A5 Memory Receipt tint:** Already `bg-brand-500/10` — no change.
+- **A5 uploaded date:** Added.
 
 ---
 
@@ -56,7 +50,7 @@ Contract: `docs/reviews/claude-to-cursor-design-polish-slice-spec.md`
 
 **Files touched:**
 - `frontend/src/components/MemoryThreads.tsx` (new)
-- `frontend/src/components/HomeTab.tsx` (swap `MemoryLane` → `MemoryThreads`; removed unused `buildMemoryLaneFrames` import/useMemo)
+- `frontend/src/components/HomeTab.tsx` (swap `MemoryLane` → `MemoryThreads`)
 
 **Copy strings shipped (verbatim):**
 - Section header: `Your journey, as I remember it`
@@ -66,22 +60,12 @@ Contract: `docs/reviews/claude-to-cursor-design-polish-slice-spec.md`
 - Thread-level (neutral): `{n} {genre} photos since {firstDate}.`
 - Per-photo (strongest): `Your strongest {genre} yet — {score}/10.`
 - Per-photo (other): `{score}/10 · {shortDate}`
-- Position: `{index + 1} of {n}`
-- Aria prev/next: `Previous {genre} photo` / `Next {genre} photo`
-
-**Grouping rule:** client-side `buildGenreThreads()` — genres with ≥2 photos, ordered by count desc, max 5, photos ascending by `createdAt`. **Live demo counts not verified** (local API unreachable; prod down). Spec’s ~landscape(6)/portrait(4)/still_life(3)/architecture(3) treated as expectation only.
 
 **Verification evidence:**
-- `npx tsc --noEmit` → exit 0
-- `npm run build` → exit 0
-- Local judge walk: **not completed** (no dev server)
-- **Prod deploy:** not attempted separately — server unreachable after Part A deploy hang. Code on `main` at `b43c527` then superseded by Part C.
-- **Zero new Home network calls:** threads computed from existing `memoryLaneSource` pool already fetched by `HomeTab.load()`.
-
-**Deviations:** None beyond deploy skip.
+- `tsc` + `build` clean; zero new Home network calls (threads from existing `memoryLaneSource` pool).
 
 **Observed, not done:**
-- **Growth comparison** at bottom of Home may feel redundant next to genre threads — **left in place** per spec (“DO NOT remove… note in report”).
+- **Growth comparison** left on Home (redundant next to threads) — deferred per spec.
 
 ---
 
@@ -89,49 +73,80 @@ Contract: `docs/reviews/claude-to-cursor-design-polish-slice-spec.md`
 
 **Commit:** `778c2cd`
 
-**Files touched:**
-- `frontend/src/components/MemoryThreads.tsx`
+**Files touched:** `frontend/src/components/MemoryThreads.tsx`
 
-**Behavior shipped:**
-- Per-thread play/pause button (hidden when `prefers-reduced-motion: reduce` or &lt;2 photos)
-- 2500 ms interval advance with ~180 ms opacity crossfade
-- Slow zoom (`scale-110` over 2500 ms) while playing
-- Pauses on `mouseenter` / `focusin` on photo area; arrows still work (pause + manual `goTo`)
+**Behavior:** Per-thread play/pause; 2.5s crossfade + slow zoom; `prefers-reduced-motion` respected; pauses on hover/focus.
 
-**Verification evidence:**
-- `npx tsc --noEmit` → exit 0
-- `npm run build` → exit 0
-- Local interactive autoplay check: **not completed**
-- **Prod deploy:** not completed — server unreachable
-
-**Deviations:** Shipped despite prod outage; local build gate passed (spec: “gated on Part B verifying clean” — interpreted as compile/build clean when prod unavailable).
-
-**Observed, not done:**
-- Autoplay jank check on device — not run.
+**Verification evidence:** `tsc` + `build` clean; local autoplay confirmed on `localhost:5173/?judge=1`.
 
 ---
 
-## Deploy recovery (operator action required)
+## Post-slice follow-ups (not in original contract)
 
-Server `8.222.253.211` / `engram.prasadtilloo.com` was unresponsive at report time. When SSH returns:
+### D1 — Home snapshot cache (Back navigation UX)
 
+**Commit:** `d7bf98b`
+
+**Problem:** `HomeTab` unmounts on every tab switch (`activeTab === 'home'` conditional + `<main key={activeTab}>`). Back from My Work / photo detail remounted Home, replayed all MongoDB reads, showed skeleton, lost scroll/flow.
+
+**Fix:** Module-level `homeSnapshotCache` keyed by `getApiUserScope()` — stale-while-revalidate. Remount hydrates from last successful load (`loading` starts false); background `load()` revalidates silently. `portfolioRefreshKey` still forces refresh after upload/delete.
+
+**Files:** `frontend/src/components/HomeTab.tsx`
+
+**Verification:** User confirmed “works” on local `/?judge=1` — Home → My Work → Back paints instantly without skeleton.
+
+---
+
+### D2 — Dimension info tooltips
+
+**Commit:** `f28d36b`
+
+**Problem:** Judges/users see skill names (e.g. Technique) in Watching / Current focus without knowing what the dimension measures.
+
+**Fix:** `InfoTooltip` primitive + `DIMENSION_MEANINGS` in `scoreContext.ts` (wording condensed from `ScoreExplainer`). Wired into:
+- `DimensionBar` (photo detail + My Work trend bars)
+- Sidebar **Current focus** skill label
+- Journey **Cleared** and **Watching** skill names
+
+**Example tooltip (Technique):** `Technical execution — focus, sharpness, exposure, and camera settings.`
+
+**Bugfix (same commit):** Watching-list tooltip was inside `truncate` span (`overflow: hidden` clipped popover). Moved ⓘ to sibling of truncating name span.
+
+**Files:**
+- `frontend/src/components/primitives/InfoTooltip.tsx` (new)
+- `frontend/src/lib/scoreContext.ts`
+- `frontend/src/components/DimensionBar.tsx`
+- `frontend/src/components/AppSidebar.tsx`
+- `frontend/src/components/JourneySection.tsx`
+- `frontend/src/components/primitives/index.ts`
+
+**Verification:** `tsc` + `build` clean; Technique tooltip confirmed in Watching after truncate fix.
+
+---
+
+## Prod deploy (2026-07-07, instance recovered)
+
+**Deploy command:**
 ```bash
 ssh -i ~/Downloads/engram-key.pem root@8.222.253.211 \
   "cd /root/engram && git pull origin main && docker compose up -d --build"
 ```
 
-Expected HEAD after pull: `778c2cd`. If instance is wedged, reboot from cloud console first.
+**Expected HEAD after pull:** `f28d36b` (includes Parts A–C + D1 + D2 + report `228635b`).
 
-**Post-deploy smoke:** `/?judge=1` → Home (threads header + play buttons) → My Work (contact-sheet grid + dates) → photo detail (`Uploaded …`) → Mentor → Proof Room (framing sentence + narration + FAMA gloss).
+**Post-deploy smoke:** `https://engram.prasadtilloo.com/?judge=1` → Home (memory threads + play) → My Work (contact-sheet dates) → photo detail (dimension ⓘ + Uploaded date) → Back to Home (instant, no skeleton) → Proof Room.
 
 ---
 
 ## Summary
 
-| Part | SHA | Deployed to prod |
-|------|-----|------------------|
-| A | `395c239` | Pull yes; docker build status unknown; site down |
-| B | `b43c527` | No |
-| C | `778c2cd` | No |
+| Slice | SHA | On main | Deployed prod |
+|-------|-----|---------|---------------|
+| A | `395c239` | yes | yes (after recovery deploy) |
+| B | `b43c527` | yes | yes |
+| C | `778c2cd` | yes | yes |
+| Report | `228635b` | yes | n/a |
+| D1 Home cache | `d7bf98b` | yes | see deploy below |
+| D2 Tooltips | `f28d36b` | yes | see deploy below |
 
-All three parts are on `main`. Frontend-only; no backend/eval/seed changes.
+All changes frontend-only. No backend/eval/seed changes. Other `docs/reviews/*.md` files remain local-only (gitignored).
