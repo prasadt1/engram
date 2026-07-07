@@ -72,8 +72,9 @@ export const JudgeWelcome: React.FC<Props> = ({ onEnterDemo, onStartTour, onOpen
             <li className="flex gap-3">
               <BadgeCheck className="w-5 h-5 text-brand-400 shrink-0 mt-0.5" aria-hidden />
               <span>
-                <strong className="text-white">Home → Memory thread</strong> — visual timeline of
-                remembered / improved / cleared moments (same screen regular users see).
+                <strong className="text-white">Home → Memory threads</strong> — step through each
+                genre with the arrows; captions show real score growth, not filler (same screen
+                regular users see).
               </span>
             </li>
             <li className="flex gap-3">
