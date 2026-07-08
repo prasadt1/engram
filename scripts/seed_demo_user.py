@@ -13,9 +13,9 @@ Run:  python scripts/seed_demo_user.py
       which IS the demo db)
 
 Idempotent: wipes demo-user's existing docs across memory_items, skills,
-portfolio_entries, chat_turns, and users FIRST (scoped to user_id ==
-"demo-user" only — never touches other users, e.g. e2e-prasad), then
-rebuilds from scratch. Safe to re-run.
+portfolio_entries, assignments, chat_turns, and users FIRST (scoped to
+user_id == "demo-user" only — never touches other users, e.g. e2e-prasad),
+then rebuilds from scratch. Safe to re-run.
 
 --- Manifest -----------------------------------------------------------
 (url, attribution, intended genre, session#, staged composition score)
@@ -197,6 +197,7 @@ def wipe_demo_user() -> None:
         ("memory_items", {"user_id": DEMO_USER}),
         ("skills", {"user_id": DEMO_USER}),
         ("portfolio_entries", {"user_id": DEMO_USER}),
+        ("assignments", {"user_id": DEMO_USER}),
         ("chat_turns", {"user_id": DEMO_USER}),
         ("users", {"_id": DEMO_USER}),
     ]:

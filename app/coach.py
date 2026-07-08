@@ -209,7 +209,11 @@ def _normalize_coach_output(parsed: dict) -> dict:
 
 
 def _run_coach_model(
-    image_bytes: bytes, mime_type: str, citations, photographer_context: str | None = None,
+    image_bytes: bytes,
+    mime_type: str,
+    citations,
+    photographer_context: str | None = None,
+    assignment_context: str | None = None,
 ) -> CoachAnalysisOutput:
     system = PROMPT_PATH.read_text(encoding="utf-8")
     principles = _principles_block(citations)
@@ -224,6 +228,13 @@ def _run_coach_model(
             f"{photographer_context}\n"
             "Adapt the critique: acknowledge improvement on skills they've been working on; "
             "don't repeat advice for strengths they've already demonstrated."
+        )
+    if assignment_context:
+        prompt += (
+            "\n\n## Active practice assignment\n"
+            f"{assignment_context}\n"
+            "Explicitly judge how well this upload aligns with the brief's target_skill; "
+            "put alignment notes in glass_box.observations and prioritize related fixes."
         )
     result = qwen_client.chat_vision(data_uri, prompt, json_mode=True)
 
@@ -281,6 +292,7 @@ def analyze_photo(
     memory_store=None,
     weakness_bar: float = 7.0,
     stored_key: str | None = None,
+    assignment_id: str | None = None,
 ) -> dict[str, Any]:
     """Full Coach pipeline → API payload dict.
 
@@ -288,6 +300,9 @@ def analyze_photo(
     upload via get_storage() before calling in, pass the resulting key here
     to skip the redundant internal save — so a model failure never loses the
     upload (spec §12).
+
+    assignment_id: when set, critique is judged against the active Practice
+    Loop brief and the portfolio entry is linked on that assignment.
 
     Raises: openai.APIStatusError (Qwen unreachable after retries),
     ValueError (JSON unparseable after one repair), pydantic.ValidationError
@@ -307,14 +322,33 @@ def analyze_photo(
     # so the receipt we hand back is truthful (it reports what was actually
     # in the prompt, not a decorative afterthought).
     ctx = None
+    assignment_context = None
     if memory_store is not None and user_id is not None:
         from app.context_builder import build_memory_context
         candidates = memory_store.recall(user_id=user_id, k=200, query=None, include_archived=True)
         ctx = build_memory_context(candidates, query=f"{scene} photography", k=5, token_budget=400)
+        if assignment_id:
+            from bson import ObjectId
+
+            try:
+                aid = ObjectId(assignment_id)
+            except Exception:
+                aid = None
+            if aid is not None:
+                adoc = memory_store.db.assignments.find_one(
+                    {"_id": aid, "user_id": user_id, "status": "active"}
+                )
+                if adoc:
+                    assignment_context = (
+                        f"target_skill: {adoc.get('target_skill')}\n"
+                        f"brief:\n{adoc.get('brief', '')}\n"
+                        f"rationale:\n{adoc.get('rationale', '')}"
+                    )
 
     output = _run_coach_model(
         image_bytes, content_type, citations,
         photographer_context=ctx.context_block() if ctx and ctx.packed else None,
+        assignment_context=assignment_context,
     )
 
     # Real camera metadata off the ORIGINAL upload bytes (not the resized
@@ -403,7 +437,7 @@ def analyze_photo(
         # Persist the portfolio entry the frontend contract requires:
         # AnalysisResult.portfolioEntryId is REQUIRED in the frontend types, and
         # the Library/Home read routes (Task 13b) list these documents.
-        entry = memory_store.db.portfolio_entries.insert_one({
+        portfolio_doc: dict[str, Any] = {
             "user_id": user_id,
             "storage_key": key,
             "image_url": image_url,
@@ -417,7 +451,29 @@ def analyze_photo(
             "exif": exif_result,
             "memory_update": memory_update,
             "created_at": datetime.now(timezone.utc),
-        })
+        }
+        if assignment_id and assignment_context is not None:
+            try:
+                from bson import ObjectId
+
+                portfolio_doc["assignment_id"] = ObjectId(assignment_id)
+            except Exception:
+                portfolio_doc["assignment_id"] = assignment_id
+        entry = memory_store.db.portfolio_entries.insert_one(portfolio_doc)
         payload["portfolioEntryId"] = str(entry.inserted_id)
+        if assignment_id and assignment_context is not None:
+            try:
+                from app.assignments import link_upload_to_assignment
+
+                link_upload_to_assignment(
+                    memory_store,
+                    assignment_id=assignment_id,
+                    portfolio_entry_id=entry.inserted_id,
+                    user_id=user_id,
+                )
+            except ValueError:
+                logger.warning(
+                    "analyze_photo: could not link upload to assignment %s", assignment_id
+                )
 
     return payload

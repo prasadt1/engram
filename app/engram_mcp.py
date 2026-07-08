@@ -45,6 +45,57 @@ def get_memory_stats_tool(store: MemoryStore, *, user_id: str) -> dict[str, Any]
     return store.get_memory_stats(user_id=user_id)
 
 
+def _extract_recall_rows(content: list[Any]) -> list[dict[str, Any]]:
+    """Flatten MCP recall JSON blocks into {id, content, ...} rows."""
+    rows: list[dict[str, Any]] = []
+    for block in content:
+        if isinstance(block, list):
+            rows.extend(_extract_recall_rows(block))
+        elif isinstance(block, dict) and "id" in block and "content" in block:
+            rows.append(block)
+    return rows
+
+
+def verify_recall_isolation(transcript_log: list[dict[str, Any]]) -> dict[str, Any]:
+    """Verify recall tool results use distinct memory IDs per user_id (no leakage)."""
+    by_user: dict[str, list[dict[str, Any]]] = {}
+    for entry in transcript_log:
+        if entry.get("step") != "call_tool" or entry.get("tool") != "recall":
+            continue
+        uid = entry.get("request", {}).get("user_id")
+        if not uid:
+            continue
+        content = entry.get("response", {}).get("content") or []
+        by_user.setdefault(uid, []).extend(_extract_recall_rows(content))
+
+    ids_by_user = {uid: {r["id"] for r in rows} for uid, rows in by_user.items()}
+    user_ids = list(ids_by_user.keys())
+    overlaps: list[dict[str, Any]] = []
+    for i, a in enumerate(user_ids):
+        for b in user_ids[i + 1 :]:
+            shared = ids_by_user[a] & ids_by_user[b]
+            if shared:
+                overlaps.append({"users": [a, b], "shared_memory_ids": sorted(shared)})
+
+    stats_by_user: dict[str, Any] = {}
+    for entry in transcript_log:
+        if entry.get("step") == "call_tool" and entry.get("tool") == "get_memory_stats":
+            uid = entry.get("request", {}).get("user_id")
+            if uid:
+                content = entry.get("response", {}).get("content") or []
+                if content and isinstance(content[0], dict):
+                    stats_by_user[uid] = content[0]
+
+    return {
+        "learner_count": len(user_ids),
+        "recall_ids_by_user": {uid: sorted(ids) for uid, ids in ids_by_user.items()},
+        "recall_counts_by_user": {uid: len(ids) for uid, ids in ids_by_user.items()},
+        "stats_by_user": stats_by_user,
+        "shared_memory_ids": overlaps,
+        "isolated": len(overlaps) == 0,
+    }
+
+
 def build_server(store: MemoryStore):
     """Wrap the tool functions in an MCP server (stdio). Called by scripts/run_mcp_server.py."""
     from mcp.server import Server

@@ -162,6 +162,8 @@ function App() {
   }, []);
   const [focusPhotoId, setFocusPhotoId] = useState<string | null>(null);
   const [portfolioRefreshKey, setPortfolioRefreshKey] = useState(0);
+  /** Keep visited primary tabs mounted (hidden) so Home doesn't remount/refetch. */
+  const [visitedTabs, setVisitedTabs] = useState<Set<AppTab>>(() => new Set(['home']));
   const [theme, setTheme] = useState<ThemeMode>(() => getStoredTheme());
   const [showLogoCompare, setShowLogoCompare] = useState(
     () => typeof window !== 'undefined' && window.location.hash === '#logo-compare',
@@ -207,6 +209,12 @@ function App() {
         ? 'home'
         : tab;
     setActiveTab(target);
+    setVisitedTabs((prev) => {
+      if (prev.has(target)) return prev;
+      const next = new Set(prev);
+      next.add(target);
+      return next;
+    });
     setTabHash(target);
     // Glass box lives outside the AppTab union (see showGlassBox above), so
     // it isn't cleared by setActiveTab — without this, a sidebar/bottom-nav
@@ -232,10 +240,7 @@ function App() {
 
   const refreshActiveAssignment = useCallback(async () => {
     // Dedicated poll: fires on every tab switch (see the useEffect below).
-    // FEATURES.practice is off in this build — no /api/v1/assignments*
-    // routes exist on the backend — so skip the network call entirely
-    // rather than firing a guaranteed-404 on every navigation. null is the
-    // truthful state: there is no active assignment to report.
+    // Skip when Practice is gated off; when on, hit /api/v1/assignments/active.
     if (!FEATURES.practice) {
       setActiveAssignment(null);
       return;
@@ -261,6 +266,12 @@ function App() {
     const hashTab = tabFromHash();
     if (hashTab && isAppTab(hashTab)) {
       setActiveTab(hashTab);
+      setVisitedTabs((prev) => {
+        if (prev.has(hashTab)) return prev;
+        const next = new Set(prev);
+        next.add(hashTab);
+        return next;
+      });
     }
     setReady(true);
   }, []);
@@ -510,8 +521,7 @@ function App() {
 
         <main
           id="main-content"
-          key={activeTab}
-          className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-3 py-4 md:py-6 animate-tabEnter"
+          className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-3 py-4 md:py-6"
         >
           {!online && <OfflineBanner />}
           {showSharedDemoBanner && !judgeMode && !auth.userId && (
@@ -592,88 +602,111 @@ function App() {
             <GlassBoxTab />
           ) : (
             <>
-          {activeTab === 'home' && (
-            <HomeTab
-              mode={userMode}
-              activeAssignment={activeAssignment}
-              useDemoLibrary={!auth.userId}
-              isActive={activeTab === 'home'}
-              portfolioRefreshKey={portfolioRefreshKey}
-              onNavigate={navigate}
-              onOpenSettings={() => navigate('settings')}
-              onOpenProof={navigateToGlassBox}
-              onOpenPhoto={openPhotoInWork}
-              onAnalysisComplete={(result, imageUrl, filename) => {
-                toast({
-                  variant: 'brand',
-                  icon: <CheckCircle2 className="w-[18px] h-[18px]" />,
-                  title: 'Critique ready',
-                  message: "I've scored your frame on five dimensions.",
-                });
-                setPendingAnalysis({ result, imageUrl, filename });
-                void refreshActiveAssignment();
-                void refreshSidebarDashboard();
-                navigate('work');
-              }}
-            />
+          {/* Keep visited primary tabs mounted (hidden) so returning to Home
+              doesn't remount and re-fetch. First visit mounts; later visits reuse. */}
+          {(activeTab === 'home' || visitedTabs.has('home')) && (
+            <div className={activeTab === 'home' ? 'animate-tabEnter' : 'hidden'} aria-hidden={activeTab !== 'home'}>
+              <HomeTab
+                mode={userMode}
+                activeAssignment={activeAssignment}
+                useDemoLibrary={!auth.userId}
+                isActive={activeTab === 'home'}
+                portfolioRefreshKey={portfolioRefreshKey}
+                onNavigate={navigate}
+                onOpenSettings={() => navigate('settings')}
+                onOpenProof={navigateToGlassBox}
+                onOpenPhoto={openPhotoInWork}
+                onAnalysisComplete={(result, imageUrl, filename) => {
+                  toast({
+                    variant: 'brand',
+                    icon: <CheckCircle2 className="w-[18px] h-[18px]" />,
+                    title: 'Critique ready',
+                    message: "I've scored your frame on five dimensions.",
+                  });
+                  setPendingAnalysis({ result, imageUrl, filename });
+                  void refreshActiveAssignment();
+                  void refreshSidebarDashboard();
+                  navigate('work');
+                }}
+              />
+            </div>
           )}
 
-          {activeTab === 'work' && (
-            <MyWorkTab
-              mode={userMode}
-              judgeMode={judgeMode}
-              focusPhotoId={focusPhotoId}
-              onFocusPhotoHandled={() => setFocusPhotoId(null)}
-              activeAssignment={activeAssignment}
-              onAssignmentComplete={refreshActiveAssignment}
-              onPortfolioChanged={handlePortfolioChanged}
-              onGoHome={() => navigate('home')}
-              onGoToPractice={(focusDimension) => {
-                if (focusDimension) {
-                  setPracticeFocusSkill(focusDimension);
-                }
-                navigate('practice');
-              }}
-              pendingAnalysis={pendingAnalysis}
-              onClearPendingAnalysis={() => setPendingAnalysis(null)}
-            />
+          {(activeTab === 'work' || visitedTabs.has('work')) && (
+            <div className={activeTab === 'work' ? 'animate-tabEnter' : 'hidden'} aria-hidden={activeTab !== 'work'}>
+              <MyWorkTab
+                mode={userMode}
+                judgeMode={judgeMode}
+                focusPhotoId={focusPhotoId}
+                onFocusPhotoHandled={() => setFocusPhotoId(null)}
+                activeAssignment={activeAssignment}
+                onAssignmentComplete={refreshActiveAssignment}
+                onPortfolioChanged={handlePortfolioChanged}
+                onGoHome={() => navigate('home')}
+                onGoToPractice={(focusDimension) => {
+                  if (focusDimension) {
+                    setPracticeFocusSkill(focusDimension);
+                  }
+                  navigate('practice');
+                }}
+                pendingAnalysis={pendingAnalysis}
+                onClearPendingAnalysis={() => setPendingAnalysis(null)}
+              />
+            </div>
           )}
 
-          {/* Practice tab (assignments + Field capture sub-view) is deferred
-              in this build — FEATURES.practice is false because no
-              /api/v1/assignments* routes exist on the backend yet. Gating
-              the render (not just the nav entry) covers stray entry points
-              like MyWorkTab's "Go to Practice" CTA, which still calls
-              navigate('practice') below. */}
-          {activeTab === 'practice' && FEATURES.practice && (
-            <Tabs
-              value={practiceView}
-              onChange={(v) => setPracticeView(v as 'list' | 'field')}
-              tabs={[
-                { id: 'list', label: 'Assignments', icon: <Target className="w-[15px] h-[15px]" /> },
-                { id: 'field', label: 'Field', icon: <Camera className="w-[15px] h-[15px]" /> },
-              ]}
+          {/* Practice Loop (assignments). Field capture stays FEATURES.field=false. */}
+          {FEATURES.practice && (activeTab === 'practice' || visitedTabs.has('practice')) && (
+            <div
+              className={activeTab === 'practice' ? 'animate-tabEnter' : 'hidden'}
+              aria-hidden={activeTab !== 'practice'}
             >
-              {practiceView === 'list' ? (
+              {FEATURES.field ? (
+                <Tabs
+                  value={practiceView}
+                  onChange={(v) => setPracticeView(v as 'list' | 'field')}
+                  tabs={[
+                    { id: 'list', label: 'Assignments', icon: <Target className="w-[15px] h-[15px]" /> },
+                    { id: 'field', label: 'Field', icon: <Camera className="w-[15px] h-[15px]" /> },
+                  ]}
+                >
+                  {practiceView === 'list' ? (
+                    <PracticeTab
+                      mode={userMode}
+                      focusSkill={practiceFocusSkill}
+                      onClearFocusSkill={() => setPracticeFocusSkill(null)}
+                      onGoToField={() => setPracticeView('field')}
+                      onAssignmentsChange={refreshActiveAssignment}
+                      onPortfolioChanged={handlePortfolioChanged}
+                      detailAssignmentId={practiceDetailId}
+                      onOpenAssignmentDetail={setPracticeDetailId}
+                      onCloseAssignmentDetail={() => setPracticeDetailId(null)}
+                    />
+                  ) : (
+                    <FieldTab
+                      assignment={activeAssignment}
+                      onCaptureAnalyzed={() => {
+                        void refreshActiveAssignment();
+                        handlePortfolioChanged();
+                      }}
+                      onGoToPractice={() => setPracticeView('list')}
+                    />
+                  )}
+                </Tabs>
+              ) : (
                 <PracticeTab
                   mode={userMode}
                   focusSkill={practiceFocusSkill}
                   onClearFocusSkill={() => setPracticeFocusSkill(null)}
-                  onGoToStudio={() => navigate('work')}
                   onGoToField={() => setPracticeView('field')}
                   onAssignmentsChange={refreshActiveAssignment}
+                  onPortfolioChanged={handlePortfolioChanged}
                   detailAssignmentId={practiceDetailId}
                   onOpenAssignmentDetail={setPracticeDetailId}
                   onCloseAssignmentDetail={() => setPracticeDetailId(null)}
                 />
-              ) : (
-                <FieldTab
-                  assignment={activeAssignment}
-                  onCaptureAnalyzed={refreshActiveAssignment}
-                  onGoToPractice={() => setPracticeView('list')}
-                />
               )}
-            </Tabs>
+            </div>
           )}
 
           {activeTab === 'mentor' && (

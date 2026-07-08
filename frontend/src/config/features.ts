@@ -9,9 +9,9 @@
  * ships. Flip to true only alongside the matching backend route landing.
  */
 export const FEATURES = {
-  /** Practice tab (assignment propose/accept/complete) — no
-   * /api/v1/assignments* routes exist on the Engram backend yet. */
-  practice: false,
+  /** Practice tab (assignment propose/accept/complete) — Practice Loop
+   * routes live at /api/v1/assignments*. Field capture stays off. */
+  practice: true,
   /** Field capture + "continue on phone" QR — deferred iOS flow; the QR
    * deep-links to Iris infra that Engram doesn't run. Lives inside the
    * Practice tab's sub-nav, so this is currently moot while practice is

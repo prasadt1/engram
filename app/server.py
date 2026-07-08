@@ -30,6 +30,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 load_dotenv()
 
+from app import assignments as assignment_store  # noqa: E402
 from app.coach import analyze_photo  # noqa: E402
 from app.db import get_db  # noqa: E402
 from app.identity import build_identity_line  # noqa: E402
@@ -59,6 +60,7 @@ async def lifespan(app: FastAPI):
         db.client.admin.command("ping")
         db.memory_items.create_index([("user_id", 1)])
         db.skills.create_index([("user_id", 1)])
+        db.assignments.create_index([("user_id", 1), ("status", 1)])
         boot_logger.info("Mongo reachable; indexes ensured")
     else:
         boot_logger.warning("MONGODB_URI not set — skipping startup DB check (dev/test mode)")
@@ -551,10 +553,11 @@ def analyze_photo_endpoint(
     x_user_id: str = Header(default="demo-user"),
 ):
     # Field name `image` matches Iris agentClient.ts's form.append('image', ...).
-    # shoot_id/assignment_id are accepted for wire compatibility but currently
-    # unused. Plain `def` (not async): the model call inside analyze_photo is
-    # slow and blocking, so let Starlette run this route in its threadpool
-    # alongside the sibling sync routes.
+    # shoot_id is accepted for wire compatibility (unused). assignment_id links
+    # the upload to the active Practice Loop brief when present.
+    # Plain `def` (not async): the model call inside analyze_photo is slow and
+    # blocking, so let Starlette run this route in its threadpool alongside the
+    # sibling sync routes.
     if image.content_type and not image.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image")
     data = image.file.read()
@@ -569,8 +572,81 @@ def analyze_photo_endpoint(
     payload = analyze_photo(
         data, content_type, filename,
         user_id=user_id or x_user_id, memory_store=_store(), stored_key=key,
+        assignment_id=assignment_id,
     )
     return payload
+
+
+@app.get("/api/v1/assignments/active")
+def assignments_active(x_user_id: str = Header(default="demo-user")) -> dict:
+    return {"active": assignment_store.get_active_assignment(_store(), user_id=x_user_id)}
+
+
+@app.get("/api/v1/assignments")
+def assignments_list(x_user_id: str = Header(default="demo-user")) -> dict:
+    return assignment_store.list_assignments(_store(), user_id=x_user_id)
+
+
+@app.post("/api/v1/assignments/propose")
+def assignments_propose(
+    mode: str = Query(default="hobbyist"),
+    focus_skill: str | None = Query(default=None),
+    x_user_id: str = Header(default="demo-user"),
+) -> dict:
+    try:
+        return assignment_store.propose_assignment(
+            _store(), user_id=x_user_id, mode=mode, focus_skill=focus_skill,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/api/v1/assignments/{assignment_id}")
+def assignments_get(
+    assignment_id: str, x_user_id: str = Header(default="demo-user"),
+) -> dict:
+    try:
+        return assignment_store.get_assignment(
+            _store(), assignment_id=assignment_id, user_id=x_user_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.post("/api/v1/assignments/{assignment_id}/accept")
+def assignments_accept(
+    assignment_id: str, x_user_id: str = Header(default="demo-user"),
+) -> dict:
+    try:
+        return assignment_store.accept_assignment(
+            _store(), assignment_id=assignment_id, user_id=x_user_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/v1/assignments/{assignment_id}/decline")
+def assignments_decline(
+    assignment_id: str, x_user_id: str = Header(default="demo-user"),
+) -> dict:
+    try:
+        return assignment_store.decline_assignment(
+            _store(), assignment_id=assignment_id, user_id=x_user_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/v1/assignments/{assignment_id}/complete")
+def assignments_complete(
+    assignment_id: str, x_user_id: str = Header(default="demo-user"),
+) -> dict:
+    try:
+        return assignment_store.complete_assignment(
+            _store(), assignment_id=assignment_id, user_id=x_user_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 class ChatRequest(BaseModel):

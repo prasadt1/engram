@@ -9,6 +9,7 @@ import {
   Target,
   XCircle,
 } from 'lucide-react';
+import { FEATURES } from '../config/features';
 import {
   acceptAssignment,
   completeAssignment,
@@ -21,6 +22,7 @@ import { formatSkillApplicationDelta } from '../lib/formatSkillDelta';
 import { HitlReasoningCallout } from './HitlReasoningCallout';
 import { AssignmentDetailView } from './AssignmentDetailView';
 import { PracticeInlineShootBanner } from './PracticeInlineShootBanner';
+import { PracticeCapturePanel } from './PracticeCapturePanel';
 import { PracticeCardsSkeleton } from './SkeletonBlocks';
 import { EmptyState } from './EmptyState';
 import { MentorMarkdown } from './MentorMarkdown';
@@ -36,9 +38,9 @@ interface Props {
   focusSkill?: string | null;
   /** Clear the focus skill after it's been processed */
   onClearFocusSkill?: () => void;
-  onGoToStudio: () => void;
   onGoToField: () => void;
   onAssignmentsChange?: () => void;
+  onPortfolioChanged?: () => void;
   /** When set, show assignment detail sub-route (A6) */
   detailAssignmentId?: string | null;
   onOpenAssignmentDetail?: (id: string) => void;
@@ -49,9 +51,9 @@ export const PracticeTab: React.FC<Props> = ({
   mode,
   focusSkill,
   onClearFocusSkill,
-  onGoToStudio,
   onGoToField,
   onAssignmentsChange,
+  onPortfolioChanged,
   detailAssignmentId,
   onOpenAssignmentDetail,
   onCloseAssignmentDetail,
@@ -66,6 +68,7 @@ export const PracticeTab: React.FC<Props> = ({
   const [lastReflection, setLastReflection] = useState<ReflectionResult | null>(null);
   const [expandedCompletedId, setExpandedCompletedId] = useState<string | null>(null);
   const [shootBanner, setShootBanner] = useState<Assignment | null>(null);
+  const [captureAssignment, setCaptureAssignment] = useState<Assignment | null>(null);
   const [showHistory, setShowHistory] = useState(false);
 
   const load = useCallback(async () => {
@@ -121,6 +124,7 @@ export const PracticeTab: React.FC<Props> = ({
         message: "It's in your practice queue.",
       });
       setShootBanner(accepted);
+      setCaptureAssignment(accepted);
     } catch (e) {
       setError(friendlyErrorMessage(e));
     } finally {
@@ -147,8 +151,11 @@ export const PracticeTab: React.FC<Props> = ({
     try {
       const result = await completeAssignment(id);
       setLastReflection(result.reflection);
+      setCaptureAssignment(null);
+      setShootBanner(null);
       await load();
       onAssignmentsChange?.();
+      onPortfolioChanged?.();
     } catch (e) {
       setError(friendlyErrorMessage(e));
     } finally {
@@ -161,6 +168,23 @@ export const PracticeTab: React.FC<Props> = ({
       <AssignmentDetailView
         assignmentId={detailAssignmentId}
         onBack={onCloseAssignmentDetail}
+      />
+    );
+  }
+
+  if (captureAssignment) {
+    return (
+      <PracticeCapturePanel
+        assignment={captureAssignment}
+        onBack={() => setCaptureAssignment(null)}
+        onAnalyzed={() => {
+          setShootBanner(null);
+          onAssignmentsChange?.();
+          onPortfolioChanged?.();
+          void load();
+        }}
+        onCompleteAssignment={() => void handleComplete(captureAssignment.id)}
+        completing={acting === `complete-${captureAssignment.id}`}
       />
     );
   }
@@ -186,9 +210,9 @@ export const PracticeTab: React.FC<Props> = ({
             setShootBanner(null);
             onGoToField();
           }}
-          onStudioUpload={() => {
+          onUploadHere={() => {
             setShootBanner(null);
-            onGoToStudio();
+            setCaptureAssignment(shootBanner);
           }}
           onDismiss={() => setShootBanner(null)}
         />
@@ -197,8 +221,9 @@ export const PracticeTab: React.FC<Props> = ({
         <div>
           <h2 className="font-serif text-2xl md:text-3xl text-white mb-1">My Practice</h2>
           <p className="text-muted text-sm">
-            I&apos;ll suggest a focused assignment — you accept or pass — then shoot in the field
-            or Studio.
+            I&apos;ll suggest a focused assignment from your watching skills — you accept or pass —
+            then upload a new practice shot here
+            {FEATURES.field ? ' or shoot in the field' : ''}.
           </p>
         </div>
         <div className="flex gap-2">
@@ -270,7 +295,7 @@ export const PracticeTab: React.FC<Props> = ({
           <ActiveCard
             key={a.id}
             assignment={a}
-            onGoToStudio={onGoToStudio}
+            onUploadHere={() => setCaptureAssignment(a)}
             onGoToField={onGoToField}
             onComplete={() => void handleComplete(a.id)}
             completing={acting === `complete-${a.id}`}
@@ -284,7 +309,7 @@ export const PracticeTab: React.FC<Props> = ({
         <EmptyState
           icon={<Target className="w-6 h-6" />}
           title="No active practice yet"
-          description="Upload a few photos in Studio, then tap Suggest practice."
+          description="Tap Suggest practice to get a brief grounded in your watching skills."
           action={
             <Button
               disabled={acting !== null}
@@ -455,14 +480,14 @@ function ProposedCard({
 
 function ActiveCard({
   assignment,
-  onGoToStudio,
+  onUploadHere,
   onGoToField,
   onComplete,
   completing,
   onViewDetails,
 }: {
   assignment: Assignment;
-  onGoToStudio: () => void;
+  onUploadHere: () => void;
   onGoToField: () => void;
   onComplete: () => void;
   completing: boolean;
@@ -505,13 +530,15 @@ function ActiveCard({
         <Button
           size="sm"
           icon={<Camera className="w-4 h-4" />}
-          onClick={onGoToField}
+          onClick={onUploadHere}
         >
-          Field (camera)
+          Upload practice shot
         </Button>
-        <Button variant="secondary" size="sm" onClick={onGoToStudio}>
-          Studio upload
-        </Button>
+        {FEATURES.field && (
+          <Button variant="secondary" size="sm" onClick={onGoToField}>
+            Field (camera)
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="sm"
@@ -522,7 +549,7 @@ function ActiveCard({
           Mark complete
         </Button>
         <p className="text-xs text-muted w-full">
-          Shoot in Field or upload in Studio — then Mark complete for Reflection.
+          Upload a new shot for this brief — it&apos;s critiqued against the assignment, then mark complete for Reflection.
         </p>
         {onViewDetails && (
           <Button variant="subtle" size="sm" onClick={onViewDetails}>

@@ -15,12 +15,8 @@ import { FEATURES } from './features';
  * Consolidated from 8 tabs to 5:
  * - home: Photo-first dashboard with progress + assignment context
  * - work: Merged Studio + Memory (upload + gallery)
- * - practice: Merged Practice + Field (assignments + capture) — deferred
- *   in this build (FEATURES.practice=false, see ./features.ts): no
- *   backend routes for /api/v1/assignments* exist yet. `AppTab` keeps the
- *   'practice' member so legacy hash routing and App.tsx's switch stay
- *   simple; the gate lives entirely in which nav items are offered and in
- *   tabFromHash() falling back away from it.
+ * - practice: Practice Loop assignments (+ Field when FEATURES.field).
+ *   Nav/hash/render gated by FEATURES.practice (see ./features.ts).
  * - mentor: Merged Mentor + Triage (AI chat + batch labeling)
  * - print: Pro-only print sales
  * - settings: App settings
@@ -40,13 +36,12 @@ const PRACTICE: NavItem = { id: 'practice', label: 'Practice', icon: Target };
 const MENTOR: NavItem = { id: 'mentor', label: 'Mentor', icon: MessageCircle };
 const PRINT: NavItem = { id: 'print', label: 'Print Sales', icon: Store };
 
-/** Mobile bottom bar — 4 core items (3 while Practice is deferred). */
+/** Mobile bottom bar — Practice included when FEATURES.practice is on. */
 export function bottomNavItems(_mode: UserMode): NavItem[] {
   return [HOME, WORK, ...(FEATURES.practice ? [PRACTICE] : []), MENTOR];
 }
 
-/** Desktop sidebar — working pro gets Print Sales (while FEATURES.printSales
- * is on); Practice deferred for all. */
+/** Desktop sidebar — working pro gets Print Sales when FEATURES.printSales. */
 export function sidebarNavItems(mode: UserMode): NavItem[] {
   const base = [HOME, WORK, ...(FEATURES.practice ? [PRACTICE] : []), MENTOR];
   return mode === 'working_pro' && FEATURES.printSales ? [...base, PRINT] : base;

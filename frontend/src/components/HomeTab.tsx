@@ -71,15 +71,14 @@ interface Props {
 const PRACTICE_WIN_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
- * Home is conditionally rendered under `<main key={activeTab}>` in App.tsx, so
- * every return to Home fully remounts HomeTab — which, uncached, replays all
- * the portfolio/journey MongoDB reads and flashes the skeleton, losing the
- * user's place. This module-level snapshot (scoped by user) lets a remount
- * hydrate instantly from the last successful load, then revalidate silently
- * in the background (stale-while-revalidate). It intentionally lives outside
- * React state so it survives unmount; it is per-tab-session memory, not
- * persistence, and is replaced on every successful load.
+ * Module-level Home snapshot (scoped by user). Survives tab switches when
+ * Home stays mounted (hidden) and also covers remount fallback. Fresh loads
+ * replace it; `fetchedAt` drives TTL skip so returning within ~60s does not
+ * re-hit the portfolio/journey stack.
  */
+/** Skip background revalidation when returning to a still-fresh Home. */
+const HOME_CACHE_TTL_MS = 60_000;
+
 interface HomeSnapshot {
   stats: PortfolioStats | null;
   heroFallbackPool: PortfolioListItem[];
@@ -96,6 +95,7 @@ interface HomeSnapshot {
   practiceWinPhoto: PortfolioListItem | null;
   completedAssignmentCount: number;
   heroSrc: string | null;
+  fetchedAt: number;
 }
 
 const homeSnapshotCache = new Map<string, HomeSnapshot>();
@@ -381,6 +381,7 @@ export const HomeTab: React.FC<Props> = ({
   // A cached snapshot counts as an initial load already done, so revalidation
   // after Back refreshes silently instead of flashing the skeleton.
   const initialLoadDone = useRef(cachedSnapshot != null);
+  const lastPortfolioKey = useRef(portfolioRefreshKey);
 
   const load = useCallback(async () => {
     // Show skeleton only on the very first load; subsequent calls (e.g. auth
@@ -480,6 +481,7 @@ export const HomeTab: React.FC<Props> = ({
         practiceWinPhoto: winPhoto,
         completedAssignmentCount: assignments.completed.length,
         heroSrc: homeSnapshotCache.get(scope)?.heroSrc ?? null,
+        fetchedAt: Date.now(),
       });
     } catch (err) {
       setLoadError(
@@ -495,6 +497,18 @@ export const HomeTab: React.FC<Props> = ({
 
   useEffect(() => {
     if (auth.loading || !isActive) return;
+    const snap = homeSnapshotCache.get(homeScopeKey());
+    // Skip revalidation when returning to Home with a still-fresh snapshot
+    // and no explicit portfolio bump (upload elsewhere). portfolioRefreshKey
+    // always forces load.
+    if (
+      snap &&
+      portfolioRefreshKey === lastPortfolioKey.current &&
+      Date.now() - (snap.fetchedAt ?? 0) < HOME_CACHE_TTL_MS
+    ) {
+      return;
+    }
+    lastPortfolioKey.current = portfolioRefreshKey;
     void load();
   }, [auth.loading, load, portfolioRefreshKey, isActive]);
 
