@@ -1,5 +1,5 @@
 import React from 'react';
-import { FlaskConical, Settings, ArrowRight } from 'lucide-react';
+import { FlaskConical, Settings, ArrowRight, Users } from 'lucide-react';
 import { BrandLogo } from './BrandLogo';
 import { InfoTooltip } from './primitives/InfoTooltip';
 import { getDimensionMeaning } from '../lib/scoreContext';
@@ -18,6 +18,9 @@ interface Props {
    * needs its own flag to select the Proof entry and deselect the tabs. */
   glassBoxActive: boolean;
   onNavigateGlassBox: () => void;
+  coachAssistActive?: boolean;
+  onNavigateCoachAssist?: () => void;
+  showCoachAssistLink?: boolean;
   photoCount: number;
   focusDisplay: SidebarFocusDisplay | null;
   nextShotBrief: string | null;
@@ -45,6 +48,9 @@ export const AppSidebar: React.FC<Props> = ({
   onNavigate,
   glassBoxActive,
   onNavigateGlassBox,
+  coachAssistActive = false,
+  onNavigateCoachAssist,
+  showCoachAssistLink = false,
   photoCount,
   focusDisplay,
   nextShotBrief,
@@ -78,7 +84,7 @@ export const AppSidebar: React.FC<Props> = ({
           // While the Glass box page is up, the underlying activeTab is
           // preserved (so navigating back restores it) but must not read as
           // selected — only the Proof entry below is.
-          const selected = !glassBoxActive && activeTab === item.id;
+          const selected = !glassBoxActive && !coachAssistActive && activeTab === item.id;
           const practiceBadge = item.id === 'practice' && activeAssignment ? 1 : 0;
           const mentorBadge = item.id === 'mentor' ? pendingOrganize : 0;
           const printBadge = item.id === 'print' ? pendingPrintDrafts : 0;
@@ -131,6 +137,23 @@ export const AppSidebar: React.FC<Props> = ({
             <FlaskConical className="w-4.5 h-4.5 shrink-0" aria-hidden />
             <span className="truncate">Memory Proof Room</span>
           </button>
+          {showCoachAssistLink && onNavigateCoachAssist && (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={coachAssistActive}
+              onClick={onNavigateCoachAssist}
+              className={`relative w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400 focus-visible:outline-offset-2 ${
+                coachAssistActive
+                  ? 'bg-brand-500/15 text-stone-100 border-l-2 border-brand-400 pl-2.5'
+                  : 'text-stone-400 hover:text-stone-200 hover:bg-surface-1/40'
+              }`}
+              style={{ transitionTimingFunction: 'var(--ease-out-expo)' }}
+            >
+              <Users className="w-4.5 h-4.5 shrink-0" aria-hidden />
+              <span className="truncate">Coach Assist</span>
+            </button>
+          )}
         </div>
       </nav>
 
@@ -231,7 +254,7 @@ export const AppSidebar: React.FC<Props> = ({
             onClick={() => onNavigate('settings')}
             aria-label="Account settings"
             className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400 focus-visible:outline-offset-2 ${
-              activeTab === 'settings' && !glassBoxActive
+              activeTab === 'settings' && !glassBoxActive && !coachAssistActive
                 ? 'bg-surface-1 text-stone-200 border-l-2 border-brand-400 pl-2.5'
                 : 'text-stone-400 hover:text-stone-300 hover:bg-surface-1/40'
             }`}

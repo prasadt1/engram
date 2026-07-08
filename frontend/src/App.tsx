@@ -13,6 +13,7 @@ import { PrintSalesTab } from './components/PrintSalesTab';
 import { SettingsTab } from './components/SettingsTab';
 import { FieldTab } from './components/FieldTab';
 import { GlassBoxTab } from './components/GlassBoxTab';
+import { CoachAssistTab } from './components/CoachAssistTab';
 import { InlineAlertBanner } from './components/InlineAlertBanner';
 import { ScoreExplainer, ScoreExplainerTrigger } from './components/ScoreExplainer';
 import { OnboardingTour, resetTour } from './components/OnboardingTour';
@@ -63,6 +64,7 @@ import {
 } from './lib/judgeMode';
 import type { AnalysisResult } from './types';
 import type { Assignment, UserMode } from './types/practice';
+import type { CoachAssistLearner } from './types/coachAssist';
 
 const JUDGE_TOUR_STORAGE_KEYS = ['engram-tour-completed-v2', 'engram-tour-completed'];
 const JUDGE_BANNER_DISMISSED_KEY = 'engram_judge_banner_dismissed';
@@ -185,6 +187,11 @@ function App() {
       return h === 'glassbox' || h.startsWith('proof-');
     },
   );
+  const [showCoachAssist, setShowCoachAssist] = useState(
+    () => typeof window !== 'undefined' && window.location.hash.replace(/^#/, '') === 'coach-assist',
+  );
+  const [judgeLearnerId, setJudgeLearnerId] = useState<string | null>(null);
+  const [judgeLearnerName, setJudgeLearnerName] = useState<string | null>(null);
   const [practiceDetailId, setPracticeDetailId] = useState<string | null>(null);
   const [onboardingBusy, setOnboardingBusy] = useState(false);
   const [sidebarPhotoCount, setSidebarPhotoCount] = useState(0);
@@ -221,6 +228,7 @@ function App() {
     // click while on #glassbox would update the hash but leave the Glass
     // box page rendered on top of it.
     setShowGlassBox(false);
+    setShowCoachAssist(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
@@ -234,9 +242,34 @@ function App() {
 
   const navigateToGlassBox = useCallback(() => {
     setShowGlassBox(true);
+    setShowCoachAssist(false);
     setAppHash('#glassbox');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
+
+  const navigateToCoachAssist = useCallback(() => {
+    setShowCoachAssist(true);
+    setShowGlassBox(false);
+    setAppHash('#coach-assist');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  const resetJudgeLearnerScope = useCallback(() => {
+    setJudgeLearnerId(null);
+    setJudgeLearnerName(null);
+    setPortfolioRefreshKey((k) => k + 1);
+  }, []);
+
+  const handleViewCoachLearner = useCallback(
+    (learner: CoachAssistLearner) => {
+      setJudgeLearnerId(learner.userId);
+      setJudgeLearnerName(learner.displayName);
+      setShowCoachAssist(false);
+      setPortfolioRefreshKey((k) => k + 1);
+      navigate('home');
+    },
+    [navigate],
+  );
 
   const refreshActiveAssignment = useCallback(async () => {
     // Dedicated poll: fires on every tab switch (see the useEffect below).
@@ -257,6 +290,7 @@ function App() {
       setShowLogoCompare(window.location.hash === '#logo-compare');
       const h = window.location.hash.replace(/^#/, '');
       setShowGlassBox(h === 'glassbox' || h.startsWith('proof-'));
+      setShowCoachAssist(h === 'coach-assist');
     };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
@@ -281,12 +315,14 @@ function App() {
     // Judge mode always wins: it must scope to the seeded demo-user even if
     // a real auth session is (or later becomes) signed in, so a judge
     // opening ?judge=1 never sees — or contaminates — a real account.
-    const scopedUserId = judgeMode ? JUDGE_DEMO_USER_ID : auth.userId;
+    const scopedUserId = judgeMode
+      ? (judgeLearnerId ?? JUDGE_DEMO_USER_ID)
+      : auth.userId;
     setApiUserScope(scopedUserId);
     void fetchUserProfile(scopedUserId ?? undefined)
       .then((p) => setUserMode(effectiveUserMode(personaToUserMode(p.persona))))
       .catch(() => {});
-  }, [auth.loading, auth.userId, judgeMode]);
+  }, [auth.loading, auth.userId, judgeMode, judgeLearnerId]);
 
   useEffect(() => {
     if (auth.userId) setShowSharedDemoBanner(false);
@@ -361,7 +397,7 @@ function App() {
   useEffect(() => {
     if (!ready || auth.loading) return;
     void refreshSidebarDashboard();
-  }, [ready, auth.loading, auth.userId, activeTab, refreshSidebarDashboard]);
+  }, [ready, auth.loading, auth.userId, judgeLearnerId, activeTab, refreshSidebarDashboard]);
 
   const handleOnboardingComplete = useCallback((mode: UserMode) => {
     setOnboardingComplete();
@@ -462,6 +498,9 @@ function App() {
         onNavigate={navigate}
         glassBoxActive={showGlassBox}
         onNavigateGlassBox={navigateToGlassBox}
+        coachAssistActive={showCoachAssist}
+        onNavigateCoachAssist={navigateToCoachAssist}
+        showCoachAssistLink={judgeMode && FEATURES.coachAssist}
         photoCount={sidebarPhotoCount}
         focusDisplay={sidebarFocus}
         nextShotBrief={sidebarNextShotBrief}
@@ -583,10 +622,43 @@ function App() {
                 >
                   Memory Proof Room →
                 </button>
+                {FEATURES.coachAssist && (
+                  <button
+                    type="button"
+                    onClick={navigateToCoachAssist}
+                    className="text-sm px-3 py-1.5 rounded-lg bg-brand-500/20 text-brand-300 border border-brand-500/30 hover:bg-brand-500/30 transition-colors"
+                  >
+                    Coach Assist →
+                  </button>
+                )}
               </div>
             </div>
           )}
-          {personaError && activeTab === 'settings' && !showGlassBox && (
+          {judgeMode &&
+            judgeLearnerId &&
+            judgeLearnerId !== JUDGE_DEMO_USER_ID &&
+            !showCoachAssist && (
+            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-brand-500/30 bg-brand-500/10 px-3 py-2">
+              <p className="text-sm text-brand-200 flex-1 min-w-[12rem]">
+                Coach preview — viewing {judgeLearnerName ?? judgeLearnerId}&apos;s journey
+              </p>
+              <button
+                type="button"
+                onClick={resetJudgeLearnerScope}
+                className="text-xs px-2.5 py-1 rounded-md border border-warm text-stone-300 hover:text-white"
+              >
+                Back to Jordan
+              </button>
+              <button
+                type="button"
+                onClick={navigateToCoachAssist}
+                className="text-xs px-2.5 py-1 rounded-md border border-brand-500/40 text-brand-300 hover:bg-brand-500/20"
+              >
+                Roster
+              </button>
+            </div>
+          )}
+          {personaError && activeTab === 'settings' && !showGlassBox && !showCoachAssist && (
             <p className="mb-4 text-sm text-amber-400" role="alert">
               Could not save your profile mode ({personaError}).
             </p>
@@ -598,7 +670,9 @@ function App() {
               the activeTab-matched block below would render underneath it
               (both share <main>), duplicating whatever tab was active
               before the footer link was clicked. */}
-          {showGlassBox ? (
+          {showCoachAssist ? (
+            <CoachAssistTab onViewLearner={handleViewCoachLearner} />
+          ) : showGlassBox ? (
             <GlassBoxTab />
           ) : (
             <>
@@ -798,7 +872,9 @@ function App() {
         onNavigate={navigate}
         judgeMode={judgeMode}
         glassBoxActive={showGlassBox}
+        coachAssistActive={showCoachAssist}
         onNavigateProof={navigateToGlassBox}
+        onNavigateCoachAssist={FEATURES.coachAssist ? navigateToCoachAssist : undefined}
       />
 
       {/* Global Score Explainer Modal */}

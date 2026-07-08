@@ -32,4 +32,6 @@ export const FEATURES = {
    * at the render site, and its pending-drafts poll skipped so it doesn't
    * fire a guaranteed 404 on every tab switch for working-pro users. */
   printSales: false,
+  /** Coach Assist roster — judge-mode multi-learner preview (read-only). */
+  coachAssist: true,
 } as const;

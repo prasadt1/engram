@@ -34,7 +34,7 @@ export async function apiFetch(path: string, init?: ApiFetchOptions): Promise<Re
   // Judge mode always wins at request time — Firebase scope init and child
   // effects can otherwise race and load the wrong library before App.tsx runs.
   if (isJudgeModeRequested()) {
-    headers.set('X-User-Id', JUDGE_DEMO_USER_ID);
+    headers.set('X-User-Id', scopeUserId ?? JUDGE_DEMO_USER_ID);
   } else if (scopeUserId) {
     headers.set('X-User-Id', scopeUserId);
   }

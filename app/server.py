@@ -31,6 +31,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 load_dotenv()
 
 from app import assignments as assignment_store  # noqa: E402
+from app.coach_assist import build_roster  # noqa: E402
 from app.coach import analyze_photo  # noqa: E402
 from app.db import get_db  # noqa: E402
 from app.identity import build_identity_line  # noqa: E402
@@ -575,6 +576,12 @@ def analyze_photo_endpoint(
         assignment_id=assignment_id,
     )
     return payload
+
+
+@app.get("/api/v1/coach-assist/roster")
+def coach_assist_roster() -> dict:
+    """Read-only multi-learner summaries for Coach Assist (judge demo)."""
+    return build_roster(_store())
 
 
 @app.get("/api/v1/assignments/active")

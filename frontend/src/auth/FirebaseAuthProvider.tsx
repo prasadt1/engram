@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { firebaseAuthEnabled, firebaseConfig } from './firebaseConfig';
 import { setApiUserScope } from '../lib/apiFetch';
-import { isJudgeModeRequested, JUDGE_DEMO_USER_ID } from '../lib/judgeMode';
+import { isJudgeModeRequested } from '../lib/judgeMode';
 
 export interface AuthState {
   userId: string | null;
@@ -51,11 +51,13 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         // child effects (e.g. My Work gallery) run before App's effects,
         // so setting it there raced and could load the demo library.
         // Never override judge-mode demo scope when ?judge=1 is active.
+        // Never override judge-mode scope — App.tsx owns demo-user vs coach preview.
         if (isJudgeModeRequested()) {
-          setApiUserScope(JUDGE_DEMO_USER_ID);
-        } else {
-          setApiUserScope(u?.uid ?? null);
+          setUser(u);
+          setLoading(false);
+          return;
         }
+        setApiUserScope(u?.uid ?? null);
         setUser(u);
         setLoading(false);
       });

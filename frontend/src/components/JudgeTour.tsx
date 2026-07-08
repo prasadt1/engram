@@ -1,5 +1,5 @@
 /**
- * JudgeTour — five-stop walkthrough for hackathon evaluators (?judge=1).
+ * JudgeTour — six-stop walkthrough for hackathon evaluators (?judge=1).
  * Separate from the generic OnboardingTour; focuses on memory proof.
  */
 
@@ -12,6 +12,7 @@ import {
   Images,
   MessageCircle,
   Sparkles,
+  Users,
   X,
 } from 'lucide-react';
 
@@ -65,6 +66,14 @@ const JUDGE_TOUR_STEPS: TourStep[] = [
     description:
       'In Memory Proof Room, read the Canon/Sony scenario first — it shows stale-fact forgetting in one question. Then scan the full FAMA table.',
     tabHint: 'Memory Proof Room',
+  },
+  {
+    id: 'coach',
+    icon: Users,
+    title: 'Coach Assist — and it scales',
+    description:
+      'Open Coach Assist from the Proof section: three learner cards with real memory, skills, and assignments. Click through to scope Home and My Work to any learner.',
+    tabHint: 'Sidebar · Coach Assist',
   },
 ];
 

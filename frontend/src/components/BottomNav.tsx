@@ -1,5 +1,5 @@
 import React from 'react';
-import { FlaskConical } from 'lucide-react';
+import { FlaskConical, Users } from 'lucide-react';
 import type { AppTab } from '../config/navConfig';
 import { bottomNavItems } from '../config/navConfig';
 import type { UserMode } from '../types/practice';
@@ -11,7 +11,9 @@ interface Props {
   /** Judge mode: expose Memory Proof Room on mobile. */
   judgeMode?: boolean;
   glassBoxActive?: boolean;
+  coachAssistActive?: boolean;
   onNavigateProof?: () => void;
+  onNavigateCoachAssist?: () => void;
 }
 
 export const BottomNav: React.FC<Props> = ({
@@ -20,9 +22,12 @@ export const BottomNav: React.FC<Props> = ({
   onNavigate,
   judgeMode = false,
   glassBoxActive = false,
+  coachAssistActive = false,
   onNavigateProof,
+  onNavigateCoachAssist,
 }) => {
   const items = bottomNavItems(mode);
+  const specialPageActive = glassBoxActive || coachAssistActive;
 
   return (
     <nav
@@ -32,7 +37,7 @@ export const BottomNav: React.FC<Props> = ({
       <div className="flex justify-around items-stretch h-16 max-w-lg mx-auto">
         {items.map((item) => {
           const Icon = item.icon;
-          const selected = !glassBoxActive && activeTab === item.id;
+          const selected = !specialPageActive && activeTab === item.id;
           const shortLabel = item.id === 'work' ? 'Work' : item.label.split(' ').pop();
           return (
             <button
@@ -66,6 +71,22 @@ export const BottomNav: React.FC<Props> = ({
           >
             <FlaskConical className="w-5 h-5" aria-hidden />
             <span>Proof</span>
+          </button>
+        )}
+        {judgeMode && onNavigateCoachAssist && (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={coachAssistActive}
+            aria-label="Coach Assist"
+            onClick={onNavigateCoachAssist}
+            className={`flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[44px] min-w-[44px] text-[10px] font-semibold transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400 focus-visible:outline-offset-2 ${
+              coachAssistActive ? 'text-brand-400' : 'text-muted hover:text-stone-300'
+            }`}
+            style={{ transitionTimingFunction: 'var(--ease-out-expo)' }}
+          >
+            <Users className="w-5 h-5" aria-hidden />
+            <span>Coach</span>
           </button>
         )}
       </div>
