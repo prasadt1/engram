@@ -88,6 +88,8 @@ interface PendingAnalysis {
 interface MyWorkTabProps {
   /** Drives the persona for PhotoDetailView's scoped mentor chat. */
   mode: UserMode;
+  /** Mongo user_id for gallery fetches (judge coach preview). */
+  libraryUserId?: string;
   judgeMode?: boolean;
   /** Open this portfolio entry in PhotoDetailView after gallery load (from Home memory thread). */
   focusPhotoId?: string | null;
@@ -108,6 +110,7 @@ type ViewMode = 'gallery' | 'upload' | 'analyzing' | 'result';
 
 export const MyWorkTab: React.FC<MyWorkTabProps> = ({
   mode,
+  libraryUserId,
   judgeMode = false,
   focusPhotoId,
   onFocusPhotoHandled,
@@ -288,7 +291,7 @@ export const MyWorkTab: React.FC<MyWorkTabProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [sortBy, sortOrder, auth.loading, auth.userId]);
+  }, [sortBy, sortOrder, auth.loading, libraryUserId]);
 
   const handleConfirmDelete = useCallback(async () => {
     setDeleting(true);
@@ -351,7 +354,7 @@ export const MyWorkTab: React.FC<MyWorkTabProps> = ({
   useEffect(() => {
     if (auth.loading) return;
     void loadGallery();
-  }, [loadGallery, auth.loading, auth.userId]);
+  }, [loadGallery, auth.loading, libraryUserId]);
 
   useEffect(() => {
     if (viewMode !== 'analyzing') {

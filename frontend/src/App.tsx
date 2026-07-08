@@ -255,6 +255,7 @@ function App() {
   }, []);
 
   const resetJudgeLearnerScope = useCallback(() => {
+    setApiUserScope(JUDGE_DEMO_USER_ID);
     setJudgeLearnerId(null);
     setJudgeLearnerName(null);
     setPortfolioRefreshKey((k) => k + 1);
@@ -262,6 +263,7 @@ function App() {
 
   const handleViewCoachLearner = useCallback(
     (learner: CoachAssistLearner) => {
+      setApiUserScope(learner.userId);
       setJudgeLearnerId(learner.userId);
       setJudgeLearnerName(learner.displayName);
       setShowCoachAssist(false);
@@ -270,6 +272,10 @@ function App() {
     },
     [navigate],
   );
+
+  const libraryUserId = judgeMode
+    ? (judgeLearnerId ?? JUDGE_DEMO_USER_ID)
+    : auth.userId ?? undefined;
 
   const refreshActiveAssignment = useCallback(async () => {
     // Dedicated poll: fires on every tab switch (see the useEffect below).
@@ -349,7 +355,7 @@ function App() {
       setPracticeView('list');
       setPracticeDetailId(null);
     }
-  }, [activeTab, ready, refreshActiveAssignment]);
+  }, [activeTab, ready, refreshActiveAssignment, judgeLearnerId]);
 
   const refreshSidebarDashboard = useCallback(async () => {
     try {
@@ -681,8 +687,10 @@ function App() {
           {(activeTab === 'home' || visitedTabs.has('home')) && (
             <div className={activeTab === 'home' ? 'animate-tabEnter' : 'hidden'} aria-hidden={activeTab !== 'home'}>
               <HomeTab
+                key={`home-${libraryUserId ?? 'guest'}`}
                 mode={userMode}
                 activeAssignment={activeAssignment}
+                libraryUserId={libraryUserId}
                 useDemoLibrary={!auth.userId}
                 isActive={activeTab === 'home'}
                 portfolioRefreshKey={portfolioRefreshKey}
@@ -709,7 +717,9 @@ function App() {
           {(activeTab === 'work' || visitedTabs.has('work')) && (
             <div className={activeTab === 'work' ? 'animate-tabEnter' : 'hidden'} aria-hidden={activeTab !== 'work'}>
               <MyWorkTab
+                key={`work-${libraryUserId ?? 'guest'}`}
                 mode={userMode}
+                libraryUserId={libraryUserId}
                 judgeMode={judgeMode}
                 focusPhotoId={focusPhotoId}
                 onFocusPhotoHandled={() => setFocusPhotoId(null)}

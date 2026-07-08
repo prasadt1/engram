@@ -54,6 +54,8 @@ import type { JourneyResponse } from '../services/journeyClient';
 interface Props {
   mode: UserMode;
   activeAssignment: Assignment | null;
+  /** Mongo user_id for portfolio/journey fetches (judge coach preview). */
+  libraryUserId?: string;
   /** Demo / shared library scope (no signed-in user). */
   useDemoLibrary?: boolean;
   onNavigate: (tab: AppTab) => void;
@@ -100,8 +102,8 @@ interface HomeSnapshot {
 
 const homeSnapshotCache = new Map<string, HomeSnapshot>();
 
-function homeScopeKey(): string {
-  return getApiUserScope() ?? 'anon';
+function homeScopeKey(libraryUserId?: string): string {
+  return libraryUserId ?? getApiUserScope() ?? 'anon';
 }
 
 function pickLatestPracticeWin(completed: Assignment[]): Assignment | null {
@@ -336,6 +338,7 @@ function mentorInsightText(
 export const HomeTab: React.FC<Props> = ({
   mode,
   activeAssignment,
+  libraryUserId,
   useDemoLibrary = false,
   onNavigate,
   onOpenProof,
@@ -347,7 +350,9 @@ export const HomeTab: React.FC<Props> = ({
   // Hydrate synchronously from the last successful load for this user scope
   // (see homeSnapshotCache) so a remount on Back paints the real page, not the
   // skeleton. Read once at mount — a fresh fetch still runs to revalidate.
-  const cachedSnapshot = useRef<HomeSnapshot | undefined>(homeSnapshotCache.get(homeScopeKey())).current;
+  const cachedSnapshot = useRef<HomeSnapshot | undefined>(
+    homeSnapshotCache.get(homeScopeKey(libraryUserId)),
+  ).current;
 
   const [stats, setStats] = useState<PortfolioStats | null>(cachedSnapshot?.stats ?? null);
   const [bestPhoto, setBestPhoto] = useState<PortfolioListItem | null>(cachedSnapshot?.bestPhoto ?? null);
@@ -425,7 +430,7 @@ export const HomeTab: React.FC<Props> = ({
       // non-null result rather than the last result.
       // Keep the last non-null journey (see comment above); resolve the value
       // we actually settle on so the cache snapshot matches on-screen state.
-      const scope = homeScopeKey();
+      const scope = homeScopeKey(libraryUserId);
       const resolvedJourney = journeyData ?? homeSnapshotCache.get(scope)?.journey ?? null;
       setJourney((prev) => journeyData ?? prev);
       const win = pickLatestPracticeWin(assignments.completed);
@@ -493,11 +498,11 @@ export const HomeTab: React.FC<Props> = ({
       initialLoadDone.current = true;
       setLoading(false);
     }
-  }, [auth.userId, useDemoLibrary]);
+  }, [auth.userId, useDemoLibrary, libraryUserId]);
 
   useEffect(() => {
     if (auth.loading || !isActive) return;
-    const snap = homeSnapshotCache.get(homeScopeKey());
+    const snap = homeSnapshotCache.get(homeScopeKey(libraryUserId));
     // Skip revalidation when returning to Home with a still-fresh snapshot
     // and no explicit portfolio bump (upload elsewhere). portfolioRefreshKey
     // always forces load.
@@ -510,15 +515,15 @@ export const HomeTab: React.FC<Props> = ({
     }
     lastPortfolioKey.current = portfolioRefreshKey;
     void load();
-  }, [auth.loading, load, portfolioRefreshKey, isActive]);
+  }, [auth.loading, load, portfolioRefreshKey, isActive, libraryUserId]);
 
   // Once the hero image URL resolves, patch it into the cached snapshot so a
   // remount rehydrates the exact frame (the preload effect then short-circuits
   // via `url === heroSrcRef.current` and never blanks it).
   useEffect(() => {
-    const snap = homeSnapshotCache.get(homeScopeKey());
+    const snap = homeSnapshotCache.get(homeScopeKey(libraryUserId));
     if (snap) snap.heroSrc = heroSrc;
-  }, [heroSrc]);
+  }, [heroSrc, libraryUserId]);
 
   useEffect(() => {
     if (!uploading) {
