@@ -54,8 +54,6 @@ import type { JourneyResponse } from '../services/journeyClient';
 interface Props {
   mode: UserMode;
   activeAssignment: Assignment | null;
-  /** Mongo user_id for portfolio/journey fetches (judge coach preview). */
-  libraryUserId?: string;
   /** Demo / shared library scope (no signed-in user). */
   useDemoLibrary?: boolean;
   onNavigate: (tab: AppTab) => void;
@@ -102,8 +100,8 @@ interface HomeSnapshot {
 
 const homeSnapshotCache = new Map<string, HomeSnapshot>();
 
-function homeScopeKey(libraryUserId?: string): string {
-  return libraryUserId ?? getApiUserScope() ?? 'anon';
+function homeScopeKey(): string {
+  return getApiUserScope() ?? 'anon';
 }
 
 function pickLatestPracticeWin(completed: Assignment[]): Assignment | null {
@@ -338,7 +336,6 @@ function mentorInsightText(
 export const HomeTab: React.FC<Props> = ({
   mode,
   activeAssignment,
-  libraryUserId,
   useDemoLibrary = false,
   onNavigate,
   onOpenProof,
@@ -351,7 +348,7 @@ export const HomeTab: React.FC<Props> = ({
   // (see homeSnapshotCache) so a remount on Back paints the real page, not the
   // skeleton. Read once at mount — a fresh fetch still runs to revalidate.
   const cachedSnapshot = useRef<HomeSnapshot | undefined>(
-    homeSnapshotCache.get(homeScopeKey(libraryUserId)),
+    homeSnapshotCache.get(homeScopeKey()),
   ).current;
 
   const [stats, setStats] = useState<PortfolioStats | null>(cachedSnapshot?.stats ?? null);
@@ -430,7 +427,7 @@ export const HomeTab: React.FC<Props> = ({
       // non-null result rather than the last result.
       // Keep the last non-null journey (see comment above); resolve the value
       // we actually settle on so the cache snapshot matches on-screen state.
-      const scope = homeScopeKey(libraryUserId);
+      const scope = homeScopeKey();
       const resolvedJourney = journeyData ?? homeSnapshotCache.get(scope)?.journey ?? null;
       setJourney((prev) => journeyData ?? prev);
       const win = pickLatestPracticeWin(assignments.completed);
@@ -498,11 +495,11 @@ export const HomeTab: React.FC<Props> = ({
       initialLoadDone.current = true;
       setLoading(false);
     }
-  }, [auth.userId, useDemoLibrary, libraryUserId]);
+  }, [auth.userId, useDemoLibrary]);
 
   useEffect(() => {
     if (auth.loading || !isActive) return;
-    const snap = homeSnapshotCache.get(homeScopeKey(libraryUserId));
+    const snap = homeSnapshotCache.get(homeScopeKey());
     // Skip revalidation when returning to Home with a still-fresh snapshot
     // and no explicit portfolio bump (upload elsewhere). portfolioRefreshKey
     // always forces load.
@@ -515,15 +512,15 @@ export const HomeTab: React.FC<Props> = ({
     }
     lastPortfolioKey.current = portfolioRefreshKey;
     void load();
-  }, [auth.loading, load, portfolioRefreshKey, isActive, libraryUserId]);
+  }, [auth.loading, load, portfolioRefreshKey, isActive]);
 
   // Once the hero image URL resolves, patch it into the cached snapshot so a
   // remount rehydrates the exact frame (the preload effect then short-circuits
   // via `url === heroSrcRef.current` and never blanks it).
   useEffect(() => {
-    const snap = homeSnapshotCache.get(homeScopeKey(libraryUserId));
+    const snap = homeSnapshotCache.get(homeScopeKey());
     if (snap) snap.heroSrc = heroSrc;
-  }, [heroSrc, libraryUserId]);
+  }, [heroSrc]);
 
   useEffect(() => {
     if (!uploading) {
@@ -583,9 +580,10 @@ export const HomeTab: React.FC<Props> = ({
   };
 
   const isFirstVisit = !loading && !loadError && portfolioTotal === 0;
-  const isReturning = !loading && !loadError && portfolioTotal > 0 && bestPhoto != null;
-
-  const heroPhoto = isReturning ? bestPhoto! : null;
+  const hasLibrary = !loading && !loadError && portfolioTotal > 0;
+  const heroCandidate = bestPhoto ?? contactSheet[0] ?? null;
+  const isReturning = hasLibrary && heroCandidate != null;
+  const heroPhoto = isReturning ? heroCandidate : null;
   const heroScore = heroPhoto?.overallAverage ?? EXAMPLE_PHOTO.overallAverage;
   const heroImageReady = heroSrc != null;
   const animatedScore = useCountUp(heroScore, 900, heroImageReady);
@@ -794,6 +792,15 @@ export const HomeTab: React.FC<Props> = ({
                 See demo critique
               </Button>
             </div>
+          </div>
+        )}
+
+        {hasLibrary && !isReturning && (
+          <div className="max-w-4xl mx-auto space-y-4 text-center py-12">
+            <p className="text-stone-400 text-sm">
+              {portfolioTotal} photo{portfolioTotal === 1 ? '' : 's'} in your library — open My Work to browse.
+            </p>
+            <Button onClick={() => onNavigate('work')}>Open My Work</Button>
           </div>
         )}
 

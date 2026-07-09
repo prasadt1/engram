@@ -72,7 +72,7 @@ const JUDGE_TOUR_STEPS: TourStep[] = [
     icon: Users,
     title: 'Coach Assist — and it scales',
     description:
-      'Open Coach Assist from the Proof section: three learner cards with real memory, skills, and assignments. Click through to scope Home and My Work to any learner.',
+      'Open Coach Assist from the Proof section: three learner cards with real MongoDB journeys (isolated memory, skills, assignments). The interactive walkthrough stays on Jordan; the roster proves parallel learners without mixing data.',
     tabHint: 'Sidebar · Coach Assist',
   },
 ];

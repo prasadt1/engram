@@ -3,9 +3,11 @@ import { ArrowRight, Loader2, Users } from 'lucide-react';
 import { fetchCoachAssistRoster } from '../services/coachAssistClient';
 import type { CoachAssistLearner } from '../types/coachAssist';
 import { formatSkillLabel } from '../lib/formatSkillLabel';
+import { JUDGE_DEMO_USER_ID } from '../lib/judgeMode';
 
 interface Props {
-  onViewLearner: (learner: CoachAssistLearner) => void;
+  /** Return judges to the single full walkthrough (Jordan / demo-user). */
+  onGoToJordanDemo?: () => void;
 }
 
 function SkillPill({ label, variant }: { label: string; variant: 'cleared' | 'watching' | 'focus' }) {
@@ -22,17 +24,12 @@ function SkillPill({ label, variant }: { label: string; variant: 'cleared' | 'wa
   );
 }
 
-function LearnerCard({
-  learner,
-  onView,
-}: {
-  learner: CoachAssistLearner;
-  onView: () => void;
-}) {
+function LearnerCard({ learner }: { learner: CoachAssistLearner }) {
   const nextAssignment = learner.activeAssignment ?? learner.proposedAssignment;
+  const isDemoWalkthrough = learner.userId === JUDGE_DEMO_USER_ID;
 
   return (
-    <article className="rounded-xl border border-warm bg-surface-1/60 p-4 md:p-5 flex flex-col gap-3 hover:border-brand-500/35 transition-colors">
+    <article className="rounded-xl border border-warm bg-surface-1/60 p-4 md:p-5 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-lg font-semibold text-stone-100">{learner.displayName}</h3>
@@ -67,23 +64,20 @@ function LearnerCard({
           <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-500 mb-1">
             Next assignment · {formatSkillLabel(nextAssignment.targetSkill)}
           </p>
-          <p className="text-xs text-stone-300 line-clamp-3">{nextAssignment.brief}</p>
+          <p className="text-xs text-stone-300 line-clamp-4">{nextAssignment.brief}</p>
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={onView}
-        className="mt-auto w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-brand-500/20 text-brand-300 border border-brand-500/35 hover:bg-brand-500/30 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400"
-      >
-        View journey
-        <ArrowRight className="w-4 h-4" aria-hidden />
-      </button>
+      {isDemoWalkthrough && (
+        <p className="text-[11px] text-brand-300/90 border border-brand-500/25 rounded-md px-2 py-1.5">
+          Full judge walkthrough — Home, Work, Mentor, Practice
+        </p>
+      )}
     </article>
   );
 }
 
-export const CoachAssistTab: React.FC<Props> = ({ onViewLearner }) => {
+export const CoachAssistTab: React.FC<Props> = ({ onGoToJordanDemo }) => {
   const [learners, setLearners] = useState<CoachAssistLearner[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -105,7 +99,7 @@ export const CoachAssistTab: React.FC<Props> = ({ onViewLearner }) => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-tabEnter">
-      <header className="space-y-2">
+      <header className="space-y-3">
         <div className="flex items-center gap-2 text-brand-400">
           <Users className="w-5 h-5" aria-hidden />
           <p className="text-xs font-semibold uppercase tracking-wider">Coach Assist</p>
@@ -114,9 +108,10 @@ export const CoachAssistTab: React.FC<Props> = ({ onViewLearner }) => {
           One mentor, many learners
         </h1>
         <p className="text-sm text-stone-400 leading-relaxed max-w-2xl">
-          Read-only roster — each card is a real MongoDB journey with its own memory,
-          skills, and practice assignment. Click through to scope Home and My Work to
-          that learner without leaving judge mode.
+          Read-only proof that the memory layer scales — three isolated MongoDB journeys
+          (18 / 10 / 6 photos), each with its own skills, assignments, and receipts.
+          The interactive judge demo follows <strong className="text-stone-200">Jordan</strong>{' '}
+          end-to-end; Alex and Sam show how the same engine holds parallel arcs without mixing data.
         </p>
       </header>
 
@@ -136,12 +131,24 @@ export const CoachAssistTab: React.FC<Props> = ({ onViewLearner }) => {
       {learners && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {learners.map((learner) => (
-            <LearnerCard
-              key={learner.userId}
-              learner={learner}
-              onView={() => onViewLearner(learner)}
-            />
+            <LearnerCard key={learner.userId} learner={learner} />
           ))}
+        </div>
+      )}
+
+      {onGoToJordanDemo && (
+        <div className="rounded-xl border border-brand-500/30 bg-brand-500/10 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <p className="text-sm text-stone-300 flex-1">
+            Walk the full product on Jordan&apos;s journey — upload, memory receipt, practice loop, Proof Room.
+          </p>
+          <button
+            type="button"
+            onClick={onGoToJordanDemo}
+            className="shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-brand-500/25 text-brand-200 border border-brand-500/40 hover:bg-brand-500/35 transition-colors"
+          >
+            Follow Jordan&apos;s journey
+            <ArrowRight className="w-4 h-4" aria-hidden />
+          </button>
         </div>
       )}
     </div>
