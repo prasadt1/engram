@@ -122,6 +122,37 @@ def _baseline_entry_ids(store: MemoryStore, user_id: str, limit: int = 3) -> lis
     return [d["_id"] for d in docs]
 
 
+def _receipt_pattern_line(receipt: dict[str, Any]) -> str:
+    """Judge-facing Pattern line — never leak internal receipt.source tokens."""
+    source = receipt.get("source", "")
+    target = receipt.get("targetSkill", "composition")
+    label = DIMENSION_LABELS.get(target, target.replace("_", " ").title())
+    streak = int(receipt.get("consecutiveAboveBar", 0))
+    threshold = int(receipt.get("graduationThreshold", GRADUATION_THRESHOLD))
+    cleared = receipt.get("cleared") or []
+    watching = receipt.get("watching") or []
+
+    if source == "default_foundation":
+        if cleared and not watching:
+            cleared_labels = ", ".join(
+                DIMENSION_LABELS.get(s, s.replace("_", " ").title()) for s in cleared
+            )
+            return (
+                f"{cleared_labels} cleared — revisiting {label.lower()} "
+                "to keep fundamentals sharp"
+            )
+        return f"foundational practice on {label.lower()} — building your first streak"
+
+    if source == "user_override":
+        return f"focused practice on {label.lower()} (streak {streak}/{threshold})"
+
+    # watching_closest_to_clear — same rule as journey current_focus.
+    return (
+        f"{label} is closest to clearing among active skills "
+        f"(streak {streak}/{threshold})"
+    )
+
+
 def _deterministic_brief(target: str, receipt: dict[str, Any], *, mode: str) -> PlannerAssignmentOutput:
     """Offline / test fallback when the planner model is unavailable."""
     streak = receipt.get("consecutiveAboveBar", 0)
@@ -139,8 +170,7 @@ def _deterministic_brief(target: str, receipt: dict[str, Any], *, mode: str) -> 
         f"- Success: the upload's {target} score sits at or above your bar."
     )
     rationale = (
-        f"- **Pattern:** watching `{target}` at streak {streak}/{threshold}"
-        f" ({receipt.get('source')}).\n"
+        f"- **Pattern:** {_receipt_pattern_line(receipt)}.\n"
         f"- **Why now:** {tone}"
     )
     return PlannerAssignmentOutput(
@@ -238,16 +268,15 @@ def generate_assignment(
         planned = _deterministic_brief(target, receipt, mode=mode)
 
     # Append inspectable Pattern line if model omitted streak facts.
-    if str(receipt.get("consecutiveAboveBar")) not in planned.rationale:
+    streak = receipt.get("consecutiveAboveBar")
+    threshold = receipt.get("graduationThreshold")
+    if str(streak) not in planned.rationale:
         planned = PlannerAssignmentOutput(
             brief=planned.brief,
             target_skill=target,
             rationale=(
                 planned.rationale.rstrip()
-                + f"\n- **Memory:** `{target}` streak "
-                f"{receipt.get('consecutiveAboveBar')}/"
-                f"{receipt.get('graduationThreshold')} "
-                f"({receipt.get('source')})."
+                + f"\n- **Memory:** {_receipt_pattern_line(receipt)}."
             ),
         )
 

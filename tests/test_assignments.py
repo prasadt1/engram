@@ -19,7 +19,6 @@ def _store_for(user_id: str = "u1"):
 
 def test_pick_focus_skill_matches_journey_closest_to_clear():
     from app.assignments import pick_focus_skill
-    from app.memory_engine import SkillStatus
 
     store, uid = _store_for()
     # lighting at streak 2 should beat composition at 1 (journey current_focus).
@@ -38,6 +37,31 @@ def test_pick_focus_skill_matches_journey_closest_to_clear():
     assert receipt["source"] == "watching_closest_to_clear"
     assert receipt["consecutiveAboveBar"] == 2
     assert "composition" in [w["name"] for w in receipt["watching"]]
+
+
+def test_rationale_hides_internal_receipt_source():
+    from app.assignments import _deterministic_brief, pick_focus_skill, propose_assignment
+
+    store, uid = _store_for()
+    for skill in ("composition", "lighting", "technique", "creativity", "subject_impact"):
+        for i in range(3):
+            store.record_skill_session(
+                user_id=uid, skill=skill, bar=7.0, score=8.0, evidence_id=f"{skill}-{i}",
+            )
+
+    _, receipt = pick_focus_skill(store, user_id=uid)
+    assert receipt["source"] == "default_foundation"
+    brief = _deterministic_brief("composition", receipt, mode="hobbyist")
+    assert "default_foundation" not in brief.rationale
+    assert "watching_closest_to_clear" not in brief.rationale
+    assert "cleared" in brief.rationale.lower()
+
+    proposed = propose_assignment(store, user_id=uid, use_llm=False)
+    assert "default_foundation" not in proposed["rationale"]
+    assert (
+        "foundational practice" in proposed["rationale"].lower()
+        or "revisiting" in proposed["rationale"].lower()
+    )
 
 
 def test_propose_does_not_target_cleared_skill_after_graduation():
