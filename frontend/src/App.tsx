@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Camera, CheckCircle2, Settings, Store, Target } from 'lucide-react';
+import { AlertCircle, Camera, CheckCircle2, Settings, Store, Target, X } from 'lucide-react';
 import { AppSidebar } from './components/AppSidebar';
 import { BottomNav } from './components/BottomNav';
 import { BrandLogo } from './components/BrandLogo';
@@ -17,7 +17,6 @@ import { CoachAssistTab } from './components/CoachAssistTab';
 import { InlineAlertBanner } from './components/InlineAlertBanner';
 import { ScoreExplainer, ScoreExplainerTrigger } from './components/ScoreExplainer';
 import { OnboardingTour, resetTour } from './components/OnboardingTour';
-import { JudgeWelcome } from './components/JudgeWelcome';
 import { getStoredTheme, type ThemeMode } from './lib/theme';
 import { ThemeProvider } from './lib/ThemeContext';
 import type { AppTab } from './config/navConfig';
@@ -55,12 +54,7 @@ import {
   clearOnboardingComplete,
 } from './lib/onboarding';
 import { JudgeTour, resetJudgeTour } from './components/JudgeTour';
-import {
-  isJudgeModeRequested,
-  isJudgeWelcomeDismissed,
-  JUDGE_DEMO_USER_ID,
-  setAppHash,
-} from './lib/judgeMode';
+import { isJudgeModeRequested, JUDGE_DEMO_USER_ID, setAppHash } from './lib/judgeMode';
 import type { AnalysisResult } from './types';
 import type { Assignment, UserMode } from './types/practice';
 
@@ -130,9 +124,6 @@ function App() {
   // Onboarding tour
   const [showTour, setShowTour] = useState(false);
   const [showJudgeTour, setShowJudgeTour] = useState(false);
-  const [showJudgeWelcome, setShowJudgeWelcome] = useState(
-    () => judgeMode && !isJudgeWelcomeDismissed(),
-  );
   const [focusPhotoId, setFocusPhotoId] = useState<string | null>(null);
   const [portfolioRefreshKey, setPortfolioRefreshKey] = useState(0);
   /** Keep visited primary tabs mounted (hidden) so Home doesn't remount/refetch. */
@@ -405,18 +396,6 @@ function App() {
     );
   }
 
-  if (showJudgeWelcome && judgeMode) {
-    return (
-      <ThemeProvider theme={theme}>
-        <JudgeWelcome
-          onEnterDemo={() => {
-            setShowJudgeWelcome(false);
-          }}
-        />
-      </ThemeProvider>
-    );
-  }
-
   return (
     <ThemeProvider theme={theme}>
     <div className="min-h-screen bg-canvas text-stone-200 font-sans selection:bg-brand-500/30 flex relative">
@@ -518,16 +497,32 @@ function App() {
           )}
           {showJudgeBanner && (
             <div className="mb-4 space-y-2">
-              <InlineAlertBanner
-                variant="info"
-                message="Judge demo — seeded photographer with live memory proof. Same Home / Work / Mentor UX as regular users; data scoped to demo-user."
-                onDismiss={() => {
-                  if (typeof window !== 'undefined') {
-                    localStorage.setItem(JUDGE_BANNER_DISMISSED_KEY, 'true');
-                  }
-                  setShowJudgeBanner(false);
-                }}
-              />
+              <div
+                className="rounded-lg border border-brand-500/30 bg-brand-500/10 p-3 flex items-start gap-2"
+                role="status"
+              >
+                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-brand-400" aria-hidden />
+                <p className="text-sm flex-1 min-w-0 text-stone-300 leading-snug">
+                  <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-brand-400 mr-2 whitespace-nowrap">
+                    Track 1 · MemoryAgent
+                  </span>
+                  Judge demo — seeded photographer with live memory proof. Same Home / Work / Mentor
+                  UX as regular users; data scoped to demo-user.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      localStorage.setItem(JUDGE_BANNER_DISMISSED_KEY, 'true');
+                    }
+                    setShowJudgeBanner(false);
+                  }}
+                  className="shrink-0 p-1 rounded text-muted hover:text-white"
+                  aria-label="Dismiss judge banner"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"

@@ -2,14 +2,13 @@
  * Judge mode — zero-friction entry for hackathon judges / demo click-testing.
  *
  * `?judge=1` scopes the app to the seeded demo-user journey, skips onboarding,
- * and shows the judge welcome screen first. The query param is preserved on
- * every in-app navigation so refresh/back stay in judge mode.
+ * and lands directly on Home with the in-app judge banner. The query param is
+ * preserved on every in-app navigation so refresh/back stay in judge mode.
  */
 
 const JUDGE_QUERY_KEY = 'judge';
 const JUDGE_HASH = 'judge';
 export const JUDGE_DEMO_USER_ID = 'demo-user';
-export const JUDGE_WELCOME_DISMISSED_KEY = 'engram_judge_welcome_dismissed';
 
 export function isJudgeModeRequested(): boolean {
   if (typeof window === 'undefined') return false;
@@ -33,19 +32,4 @@ export function setAppHash(hash: string): void {
   if (window.location.pathname + window.location.search + window.location.hash !== next) {
     window.history.replaceState(null, '', next);
   }
-}
-
-export function isJudgeWelcomeDismissed(): boolean {
-  if (typeof window === 'undefined') return true;
-  return sessionStorage.getItem(JUDGE_WELCOME_DISMISSED_KEY) === 'true';
-}
-
-export function dismissJudgeWelcome(): void {
-  if (typeof window === 'undefined') return;
-  sessionStorage.setItem(JUDGE_WELCOME_DISMISSED_KEY, 'true');
-}
-
-export function resetJudgeWelcome(): void {
-  if (typeof window === 'undefined') return;
-  sessionStorage.removeItem(JUDGE_WELCOME_DISMISSED_KEY);
 }

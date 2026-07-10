@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Capture a tight Home hero crop for JudgeWelcome landing (frontend/public/).
- * Waits for hero image bytes before screenshot; outputs WebP ≤300 KB when cwebp exists.
+ * DEPRECATED (2026-07-10): Judge interstitial deleted — ?judge=1 lands on Home.
+ * Kept for reference; output file removed from frontend/public/.
  */
 import { readFileSync, mkdirSync, unlinkSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
