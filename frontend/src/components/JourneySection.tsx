@@ -1,7 +1,7 @@
 /**
- * JourneySection — the "since last time" progress surface on Home: the
- * mentor's one-sentence summary, graduation evidence for cleared skills,
- * and a watching list with a single "closest to clearing" callout.
+ * JourneySection — skill progress on Home: graduation evidence for cleared
+ * skills and a watching list with streak dots. Identity lives in the hero
+ * mentor-read only; summary here is elaboration, not a second headline.
  */
 
 import React from 'react';
@@ -17,9 +17,7 @@ interface Props {
   summary: string;
   skills: JourneySkill[];
   stats: JourneyStats;
-  identity: string | null;
-  /** Optional user-set name — the section header becomes "{name}'s journey";
-   * absent, it renders exactly the anonymous "Your journey" it always did. */
+  /** Optional user-set name — "{name}'s skill progress" when set. */
   displayName?: string | null;
   /** Hobbyist vs working pro — adjusts framing copy on Home. */
   mode?: UserMode;
@@ -33,21 +31,14 @@ const GRADUATION_EXPLAINER =
 export const JourneySection: React.FC<Props> = ({
   summary,
   skills,
-  identity,
   displayName,
   mode = 'hobbyist',
 }) => {
   const isPro = mode === 'working_pro';
-  const heading = displayName
-    ? isPro
-      ? `${displayName}'s portfolio journey`
-      : `${displayName}'s journey`
-    : isPro
-      ? 'Your portfolio journey'
-      : 'Your journey';
+  const heading = displayName ? `${displayName}'s skill progress` : 'Skill progress';
   const personaNote = isPro
-    ? 'Consistency across shoots — what I remember for client-ready work.'
-    : 'Skill-building over time — what I remember from each critique.';
+    ? 'What I track across shoots for client-ready work.'
+    : 'Clears and streaks from your critiques — same rules as the sidebar dots.';
 
   if (skills.length === 0) {
     return (
@@ -72,12 +63,8 @@ export const JourneySection: React.FC<Props> = ({
       </div>
       <p className="text-xs text-stone-500 -mt-1.5">{personaNote}</p>
 
-      {identity && (
-        <p className="font-serif text-xl md:text-2xl text-white leading-snug">{identity}</p>
-      )}
-
       {summary && (
-        <p className="font-serif text-lg md:text-xl text-white leading-snug border-l-2 border-brand-500/40 pl-4">
+        <p className="text-sm text-stone-400 leading-relaxed border-l-2 border-brand-500/30 pl-3 max-w-2xl">
           {summary}
         </p>
       )}
@@ -138,9 +125,8 @@ export const JourneySection: React.FC<Props> = ({
                       />
                     )}
                     {isFocus && (
-                      <Tag variant="brand">
-                        Current focus
-                        <span className="sr-only sm:not-sr-only"> — closest to clearing</span>
+                      <Tag variant="brand" className="tabular-nums">
+                        {skill.consecutive}/{STREAK_TARGET}
                       </Tag>
                     )}
                   </div>

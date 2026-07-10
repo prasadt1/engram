@@ -49,6 +49,8 @@ interface Props {
   onOpenPhoto?: (photoId: string) => void;
   onNavigateLibrary: () => void;
   onUpload: () => void;
+  /** Under hero when Memory Threads don't qualify — visual slot, not a second roll. */
+  variant?: 'default' | 'heroFallback';
 }
 
 export const ContactSheet: React.FC<Props> = ({
@@ -58,25 +60,30 @@ export const ContactSheet: React.FC<Props> = ({
   onOpenPhoto,
   onNavigateLibrary,
   onUpload,
+  variant = 'default',
 }) => {
+  const heroFallback = variant === 'heroFallback';
   const [brokenIds, setBrokenIds] = useState<Set<string>>(() => new Set());
 
   if (!loading && photos.length === 0) return null;
 
   return (
     <section
-      className="max-w-6xl mx-auto px-1 pt-6 border-t border-warm/50"
-      aria-label="Recent uploads"
+      className={`max-w-6xl mx-auto px-1 ${heroFallback ? 'pt-2' : 'pt-6 border-t border-warm/50'}`}
+      aria-label={heroFallback ? 'Your library' : 'Recent uploads'}
     >
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-4">
         <div>
-          <Eyebrow tone="faint" className="mb-1">
-            Library roll
+          <Eyebrow tone={heroFallback ? 'brand' : 'faint'} className="mb-1">
+            {heroFallback ? 'Your library' : 'Library roll'}
           </Eyebrow>
-          <h2 className="font-serif text-lg md:text-xl text-white">Recent uploads</h2>
+          <h2 className="font-serif text-lg md:text-xl text-white">
+            {heroFallback ? 'Frames I remember' : 'Recent uploads'}
+          </h2>
           <p className="text-stone-500 text-xs md:text-sm mt-1 max-w-xl">
-            Newest first — every critiqued frame in your library. Not the memory story above; just
-            your full roll, like a contact sheet print.
+            {heroFallback
+              ? 'Tap any frame to open it in My Work — your critiqued roll, newest first.'
+              : 'Newest first — every critiqued frame in your library. Not the memory story above; just your full roll, like a contact sheet print.'}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">

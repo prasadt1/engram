@@ -16,7 +16,7 @@ import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import { AnalyzingOverlay } from './AnalyzingOverlay';
 import { InlineAlertBanner } from './InlineAlertBanner';
 import { JourneySection } from './JourneySection';
-import { MemoryThreads } from './MemoryThreads';
+import { MemoryThreads, buildGenreThreads } from './MemoryThreads';
 import { ContactSheet } from './ContactSheet';
 import { LibraryBackdrop } from './LibraryBackdrop';
 import { PhotoMat } from './PhotoMat';
@@ -237,7 +237,7 @@ function ReturningPhotoHero({
           )}
 
           {heroPhoto.sceneDescription && (
-            <p className="text-xs text-stone-500 leading-relaxed line-clamp-2">
+            <p className="hidden md:block text-xs text-stone-500 leading-relaxed line-clamp-2">
               Shown: {heroPhoto.sceneDescription}
             </p>
           )}
@@ -660,6 +660,12 @@ export const HomeTab: React.FC<Props> = ({
     [journey?.identity, journey?.skills, latestUpload, portfolioTotal],
   );
 
+  const genreThreads = useMemo(
+    () => buildGenreThreads(memoryLaneSource),
+    [memoryLaneSource],
+  );
+  const showMemoryThreads = genreThreads.length > 0;
+
   // Preload hero image; keep the current frame visible when only the signed URL
   // refreshes on a background refetch (auth scope stabilising, etc.).
   useEffect(() => {
@@ -820,21 +826,43 @@ export const HomeTab: React.FC<Props> = ({
           />
         )}
 
+        {isReturning && showMemoryThreads && (
+          <MemoryThreads
+            photos={memoryLaneSource}
+            onOpenPhoto={(photoId) => onOpenPhoto?.(photoId)}
+          />
+        )}
+
+        {isReturning && !showMemoryThreads && (
+          <ContactSheet
+            variant="heroFallback"
+            photos={contactSheet}
+            loading={loading}
+            uploading={uploading}
+            onOpenPhoto={(photoId) => onOpenPhoto?.(photoId)}
+            onNavigateLibrary={() => onNavigate('work')}
+            onUpload={() => fileInputRef.current?.click()}
+          />
+        )}
+
         {isReturning && journey && (
           <JourneySection
             summary={journey.summary}
             skills={journey.skills}
             stats={journey.stats}
-            identity={journey.identity}
             displayName={journey.displayName ?? null}
             mode={mode}
           />
         )}
 
-        {isReturning && memoryLaneSource.length > 0 && (
-          <MemoryThreads
-            photos={memoryLaneSource}
+        {isReturning && showMemoryThreads && (
+          <ContactSheet
+            photos={contactSheet}
+            loading={loading}
+            uploading={uploading}
             onOpenPhoto={(photoId) => onOpenPhoto?.(photoId)}
+            onNavigateLibrary={() => onNavigate('work')}
+            onUpload={() => fileInputRef.current?.click()}
           />
         )}
 
@@ -879,17 +907,6 @@ export const HomeTab: React.FC<Props> = ({
               ))}
             </div>
           </section>
-        )}
-
-        {isReturning && (
-          <ContactSheet
-            photos={contactSheet}
-            loading={loading}
-            uploading={uploading}
-            onOpenPhoto={(photoId) => onOpenPhoto?.(photoId)}
-            onNavigateLibrary={() => onNavigate('work')}
-            onUpload={() => fileInputRef.current?.click()}
-          />
         )}
 
         {/* At a glance — below the library roll so the personal read leads */}
