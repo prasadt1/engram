@@ -1,6 +1,6 @@
 /**
- * JudgeTour — seven-stop walkthrough for hackathon evaluators (?judge=1).
- * Separate from the generic OnboardingTour; focuses on memory proof.
+ * JudgeTour — five-stop walkthrough for hackathon evaluators (?judge=1).
+ * Stop 0 orients; detail that left the landing lives here.
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -10,10 +10,8 @@ import {
   FlaskConical,
   Home,
   Images,
-  MessageCircle,
   Sparkles,
   Target,
-  Users,
   X,
 } from 'lucide-react';
 
@@ -29,6 +27,14 @@ interface TourStep {
 
 const JUDGE_TOUR_STEPS: TourStep[] = [
   {
+    id: 'orient',
+    icon: Sparkles,
+    title: 'What to look for',
+    description:
+      'Follow Jordan (demo-user): Home memory threads with real score growth → Practice assignment grounded in skill state → upload + Memory Receipt in My Work → Proof Room (live MongoDB + forgetting demo) → Coach Assist roster (three isolated journeys).',
+    tabHint: '90-second overview',
+  },
+  {
     id: 'journey',
     icon: BadgeCheck,
     title: 'Journey & graduation',
@@ -37,19 +43,11 @@ const JUDGE_TOUR_STEPS: TourStep[] = [
     tabHint: 'Home · Journey',
   },
   {
-    id: 'upload',
+    id: 'work',
     icon: Images,
-    title: 'Upload + Memory Receipt',
+    title: 'Upload, Mentor & Memory Receipt',
     description:
-      'Upload a photo in My Work. After critique, expand the Memory Receipt — it shows what was recalled, retired, and dropped for token budget.',
-    tabHint: 'My Work · after upload',
-  },
-  {
-    id: 'mentor',
-    icon: MessageCircle,
-    title: 'Photo-scoped Mentor recall',
-    description:
-      'Open any photo and ask the Mentor. Replies draw on scoped memory for that frame — with the same receipt proving recall vs forgetting.',
+      'Upload in My Work or open any thread photo. After critique, expand the Memory Receipt — recalled, retired, and dropped for token budget. Ask the Mentor on that frame; replies use the same scoped memory with the same receipt.',
     tabHint: 'My Work · photo detail',
   },
   {
@@ -57,32 +55,16 @@ const JUDGE_TOUR_STEPS: TourStep[] = [
     icon: Target,
     title: 'Practice Loop — proactive memory',
     description:
-      'Open Practice and tap Suggest practice. The assignment targets lighting (streak 2/3) because that is Jordan\'s current focus — rationale cites the same skill state as Journey, not a weakest-average scoreboard.',
+      'Open Practice and tap Suggest practice. The assignment targets your current focus skill because Journey says so — rationale cites watching/streak state, not a weakest-average scoreboard.',
     tabHint: 'Practice · or Home → Journey card',
   },
   {
     id: 'proof',
     icon: FlaskConical,
-    title: 'Memory Proof Room + live MCP',
+    title: 'Proof Room — and it scales',
     description:
-      'The Proof section shows live memory counts from MongoDB and a frozen FAMA benchmark. Toggle MCP to confirm the stats round-trip through engram-mcp.',
-    tabHint: 'Sidebar · Proof',
-  },
-  {
-    id: 'example',
-    icon: Sparkles,
-    title: 'Canon → Sony worked example',
-    description:
-      'In Memory Proof Room, read the Canon/Sony scenario first — it shows stale-fact forgetting in one question. Then scan the full FAMA table.',
-    tabHint: 'Memory Proof Room',
-  },
-  {
-    id: 'coach',
-    icon: Users,
-    title: 'Coach Assist — and it scales',
-    description:
-      'Open Coach Assist from the Proof section: three learner cards with real MongoDB journeys (isolated memory, skills, assignments). The interactive walkthrough stays on Jordan; the roster proves parallel learners without mixing data.',
-    tabHint: 'Sidebar · Coach Assist',
+      'Sidebar → Memory Proof Room: play Canon→Sony to watch stale facts retire, toggle MCP for the same stats through engram-mcp, scan the FAMA benchmark. Then Coach Assist — three learner cards, isolated MongoDB journeys (Jordan interactive; Alex and Sam as scale proof).',
+    tabHint: 'Sidebar · Proof · Coach Assist',
   },
 ];
 

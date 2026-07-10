@@ -1,141 +1,157 @@
 /**
  * JudgeWelcome — one-screen precursor for ?judge=1 evaluators.
- * Explains the demo setup and where to find memory proof; the main app
- * uses the same Home / Work / Mentor UX as regular users afterward.
+ * Orient in ~10s: live stat chips, one product screenshot, single Enter CTA.
+ * Detail lives in JudgeTour (launched from Home banner after enter).
  */
 
-import React, { useEffect } from 'react';
-import {
-  ArrowLeft,
-  ArrowRight,
-  BadgeCheck,
-  FlaskConical,
-  Images,
-  Sparkles,
-  Target,
-  Users,
-} from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { ArrowRight, Sparkles } from 'lucide-react';
 import { BrandLogo } from './BrandLogo';
-import { Button, Card, Eyebrow } from './primitives';
+import { Button, Eyebrow } from './primitives';
 import { dismissJudgeWelcome } from '../lib/judgeMode';
+import { fetchJudgeDemoStats, type JudgeDemoStats } from '../lib/judgeDemoStats';
+import { useCountUp } from '../hooks/useCountUp';
 
 interface Props {
   onEnterDemo: () => void;
-  onStartTour: () => void;
-  onOpenProof: () => void;
-  /** When set, the user reopened this guide from inside the app — show Back to Home. */
-  onBack?: () => void;
 }
 
-export const JudgeWelcome: React.FC<Props> = ({ onEnterDemo, onStartTour, onOpenProof, onBack }) => {
+function JudgeStatChip({
+  label,
+  value,
+  animate,
+  delayMs,
+}: {
+  label: string;
+  value: string;
+  animate: boolean;
+  delayMs: number;
+}) {
+  const numeric = /^\d+$/.test(value);
+  const target = numeric ? Number(value) : 0;
+  const counted = useCountUp(target, 900, animate && numeric);
+  const display = numeric ? String(Math.round(counted)) : value;
+  const [visible, setVisible] = useState(!animate);
+
+  useEffect(() => {
+    if (!animate) return;
+    const t = window.setTimeout(() => setVisible(true), delayMs);
+    return () => window.clearTimeout(t);
+  }, [animate, delayMs]);
+
+  return (
+    <div
+      className={`rounded-xl border border-brand-500/25 bg-brand-500/5 px-4 py-3 text-center transition-all duration-500 ${
+        visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+      }`}
+    >
+      <p className="font-serif text-2xl text-white tabular-nums leading-none">{display}</p>
+      <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-wider text-stone-400">
+        {label}
+      </p>
+    </div>
+  );
+}
+
+export const JudgeWelcome: React.FC<Props> = ({ onEnterDemo }) => {
+  const [stats, setStats] = useState<JudgeDemoStats | null>(null);
+  const [statsReady, setStatsReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchJudgeDemoStats()
+      .then((data) => {
+        if (!cancelled) {
+          setStats(data);
+          setStatsReady(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setStatsReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const handleEnter = () => {
     dismissJudgeWelcome();
     onEnterDemo();
   };
 
-  useEffect(() => {
-    if (!onBack) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onBack();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onBack]);
+  const photoCount = stats?.photoCount;
+  const clearedCount = stats?.skillsCleared;
+  const focusLabel = stats?.focusLabel ?? '…';
 
   return (
     <div className="min-h-screen bg-canvas text-stone-200 flex flex-col">
       <header className="border-b border-warm px-6 py-5 flex items-center justify-between gap-3">
-        {onBack ? (
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex items-center gap-2 text-sm font-medium text-stone-300 hover:text-white transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400 focus-visible:outline-offset-2 rounded-md"
-          >
-            <ArrowLeft className="w-4 h-4 shrink-0" aria-hidden />
-            Back to Home
-          </button>
-        ) : (
-          <div className="flex items-center gap-3 min-w-0">
-            <BrandLogo variant="horizontal" direction="simplified" />
-            <Eyebrow tone="brand">Hackathon judge entry</Eyebrow>
-          </div>
-        )}
-        {onBack && <Eyebrow tone="brand">Judge guide</Eyebrow>}
+        <div className="flex items-center gap-3 min-w-0">
+          <BrandLogo variant="horizontal" direction="simplified" />
+          <Eyebrow tone="brand">Hackathon judge entry</Eyebrow>
+        </div>
       </header>
 
-      <main className="flex-1 max-w-3xl mx-auto w-full px-6 py-10 space-y-8">
-        <div className="space-y-3">
-          <h1 className="font-serif text-3xl md:text-4xl text-white leading-tight">
-            Evaluating Engram — Track 1 MemoryAgent
-          </h1>
-          <p className="text-stone-400 text-base leading-relaxed">
-            You&apos;re viewing a <strong className="text-stone-300">seeded demo photographer</strong>{' '}
-            (<code className="font-mono text-sm text-brand-300">demo-user</code>) with 16 real
-            Qwen-VL critiques across five sessions — composition has graduated, lighting is one strong
-            shoot from clearing, and a memory-derived Practice assignment is ready. Live MongoDB
-            counts throughout; not an empty sandbox.
-          </p>
-        </div>
+      <main className="flex-1 max-w-5xl mx-auto w-full px-6 py-10">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-center">
+          <div className="space-y-6">
+            <div className="space-y-3">
+              <h1 className="font-serif text-3xl md:text-4xl text-white leading-tight">
+                Evaluating Engram — Track 1 MemoryAgent
+              </h1>
+              <p className="text-stone-400 text-base leading-relaxed">
+                A seeded photographer with real critiques, skill graduation, and live memory —
+                not an empty sandbox.
+              </p>
+            </div>
 
-        <Card padding="lg" className="border-brand-500/30 bg-brand-500/5 space-y-4">
-          <Eyebrow tone="brand">What to look for</Eyebrow>
-          <ul className="space-y-3 text-sm text-stone-300">
-            <li className="flex gap-3">
-              <BadgeCheck className="w-5 h-5 text-brand-400 shrink-0 mt-0.5" aria-hidden />
-              <span>
-                <strong className="text-white">Home → Memory threads</strong> — step through each
-                genre with the arrows; captions show real score growth, not filler (same screen
-                regular users see).
-              </span>
-            </li>
-            <li className="flex gap-3">
-              <Target className="w-5 h-5 text-brand-400 shrink-0 mt-0.5" aria-hidden />
-              <span>
-                <strong className="text-white">Practice → memory-derived assignment</strong> — open
-                Practice (or the Journey card on Home); Suggest practice cites watching/streak state
-                (lighting at 2/3) and explains why — not a generic prompt.
-              </span>
-            </li>
-            <li className="flex gap-3">
-              <Images className="w-5 h-5 text-brand-400 shrink-0 mt-0.5" aria-hidden />
-              <span>
-                <strong className="text-white">Click any thread photo</strong> — opens that frame in
-                My Work with scoped Mentor chat and a Memory Receipt.
-              </span>
-            </li>
-            <li className="flex gap-3">
-              <FlaskConical className="w-5 h-5 text-brand-400 shrink-0 mt-0.5" aria-hidden />
-              <span>
-                <strong className="text-white">Memory Proof Room</strong> — live MongoDB stats, MCP
-                round-trip toggle, and FAMA benchmark with Canon/Sony worked example.
-              </span>
-            </li>
-            <li className="flex gap-3">
-              <Users className="w-5 h-5 text-brand-400 shrink-0 mt-0.5" aria-hidden />
-              <span>
-                <strong className="text-white">Coach Assist roster</strong> — three learner cards
-                with isolated MongoDB journeys (Jordan interactive; Alex and Sam as scale proof).
-              </span>
-            </li>
-          </ul>
-        </Card>
+            <div className="grid grid-cols-3 gap-3">
+              <JudgeStatChip
+                label="Photos in library"
+                value={photoCount != null ? String(photoCount) : '—'}
+                animate={statsReady && photoCount != null}
+                delayMs={0}
+              />
+              <JudgeStatChip
+                label="Skills cleared"
+                value={clearedCount != null ? String(clearedCount) : '—'}
+                animate={statsReady && clearedCount != null}
+                delayMs={80}
+              />
+              <JudgeStatChip
+                label="Current focus"
+                value={focusLabel}
+                animate={statsReady && stats != null}
+                delayMs={160}
+              />
+            </div>
 
-        <p className="text-sm text-stone-500">
-          After you enter, navigation matches the normal app — judge mode only scopes data to the demo
-          library and keeps <code className="font-mono text-xs">?judge=1</code> in the URL when you move
-          between tabs.
-        </p>
+            <p className="text-sm text-stone-500 leading-relaxed">
+              After you enter, navigation matches the normal app — judge mode only scopes data to
+              the demo library and keeps{' '}
+              <code className="font-mono text-xs">?judge=1</code> in the URL when you move between
+              tabs.
+            </p>
 
-        <div className="flex flex-wrap gap-3">
-          <Button size="lg" iconRight={<ArrowRight className="w-4 h-4" />} onClick={handleEnter}>
-            Enter demo
-          </Button>
-          <Button variant="secondary" size="lg" onClick={onStartTour}>
-            Run judge walkthrough
-          </Button>
-          <Button variant="subtle" size="lg" onClick={onOpenProof}>
-            Memory Proof Room
-          </Button>
+            <Button size="lg" iconRight={<ArrowRight className="w-4 h-4" />} onClick={handleEnter}>
+              Enter demo
+            </Button>
+          </div>
+
+          <figure className="relative rounded-2xl border border-warm overflow-hidden bg-surface-1 shadow-2xl">
+            <img
+              src="/judge-welcome-home.webp"
+              alt="Engram Home — mentor-read hero and memory threads from the seeded demo library"
+              className="w-full h-auto block"
+              width={760}
+              height={500}
+              loading="eager"
+              decoding="async"
+            />
+            <figcaption className="sr-only">
+              Home screen showing mentor-read identity, genre memory threads, and journey progress.
+            </figcaption>
+          </figure>
         </div>
       </main>
 

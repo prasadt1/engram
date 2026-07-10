@@ -56,7 +56,6 @@ import {
 } from './lib/onboarding';
 import { JudgeTour, resetJudgeTour } from './components/JudgeTour';
 import {
-  dismissJudgeWelcome,
   isJudgeModeRequested,
   isJudgeWelcomeDismissed,
   JUDGE_DEMO_USER_ID,
@@ -134,33 +133,6 @@ function App() {
   const [showJudgeWelcome, setShowJudgeWelcome] = useState(
     () => judgeMode && !isJudgeWelcomeDismissed(),
   );
-  /** True when judge guide was reopened from the in-app banner (not first load). */
-  const [judgeGuideReopened, setJudgeGuideReopened] = useState(false);
-
-  const closeJudgeGuide = useCallback(() => {
-    setShowJudgeWelcome(false);
-    setJudgeGuideReopened(false);
-    dismissJudgeWelcome();
-  }, []);
-
-  const openJudgeGuide = useCallback(() => {
-    setJudgeGuideReopened(true);
-    setShowJudgeWelcome(true);
-    window.history.pushState({ engramJudgeGuide: true }, '');
-  }, []);
-
-  useEffect(() => {
-    const onPop = () => {
-      setShowJudgeWelcome((open) => {
-        if (!open) return open;
-        setJudgeGuideReopened(false);
-        dismissJudgeWelcome();
-        return false;
-      });
-    };
-    window.addEventListener('popstate', onPop);
-    return () => window.removeEventListener('popstate', onPop);
-  }, []);
   const [focusPhotoId, setFocusPhotoId] = useState<string | null>(null);
   const [portfolioRefreshKey, setPortfolioRefreshKey] = useState(0);
   /** Keep visited primary tabs mounted (hidden) so Home doesn't remount/refetch. */
@@ -438,35 +410,9 @@ function App() {
       <ThemeProvider theme={theme}>
         <JudgeWelcome
           onEnterDemo={() => {
-            setJudgeGuideReopened(false);
             setShowJudgeWelcome(false);
           }}
-          onStartTour={() => {
-            setJudgeGuideReopened(false);
-            setShowJudgeWelcome(false);
-            resetJudgeTour();
-            setShowJudgeTour(true);
-          }}
-          onOpenProof={() => {
-            setJudgeGuideReopened(false);
-            setShowJudgeWelcome(false);
-            navigateToGlassBox();
-          }}
-          onBack={
-            judgeGuideReopened
-              ? () => {
-                  if (window.history.state?.engramJudgeGuide) {
-                    window.history.back();
-                  } else {
-                    closeJudgeGuide();
-                  }
-                }
-              : undefined
-          }
         />
-        {showJudgeTour && (
-          <JudgeTour forceShow onComplete={() => setShowJudgeTour(false)} />
-        )}
       </ThemeProvider>
     );
   }
@@ -585,37 +531,14 @@ function App() {
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={openJudgeGuide}
-                  className="text-sm px-3 py-1.5 rounded-lg border border-warm text-stone-300 hover:text-white hover:border-brand-500/40 transition-colors"
-                >
-                  Judge guide
-                </button>
-                <button
-                  type="button"
                   onClick={() => {
                     resetJudgeTour();
                     setShowJudgeTour(true);
                   }}
                   className="text-sm px-3 py-1.5 rounded-lg bg-brand-500/20 text-brand-300 border border-brand-500/30 hover:bg-brand-500/30 transition-colors"
                 >
-                  Run judge walkthrough
+                  Take the 90-second walkthrough
                 </button>
-                <button
-                  type="button"
-                  onClick={navigateToGlassBox}
-                  className="text-sm px-3 py-1.5 rounded-lg border border-warm text-stone-300 hover:text-white hover:border-brand-500/40 transition-colors"
-                >
-                  Memory Proof Room →
-                </button>
-                {FEATURES.coachAssist && (
-                  <button
-                    type="button"
-                    onClick={navigateToCoachAssist}
-                    className="text-sm px-3 py-1.5 rounded-lg bg-brand-500/20 text-brand-300 border border-brand-500/30 hover:bg-brand-500/30 transition-colors"
-                  >
-                    Coach Assist →
-                  </button>
-                )}
               </div>
             </div>
           )}
