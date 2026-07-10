@@ -72,6 +72,7 @@ export const ContactSheet: React.FC<Props> = ({
     <section
       className={`w-full ${heroFallback ? 'pt-2' : 'pt-8 md:pt-10 border-t border-warm/40'}`}
       aria-label={heroFallback ? 'Your library' : 'Recent uploads'}
+      data-tour="home-library"
     >
       <HomeSectionHeader
         tone={heroFallback ? 'brand' : 'faint'}

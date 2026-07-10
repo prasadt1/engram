@@ -170,6 +170,7 @@ function ReturningPhotoHero({
   return (
     <div
       data-testid="home-mentor-hero"
+      data-tour="home-hero"
       className={`grid grid-cols-1 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,1fr)] overflow-hidden bg-photo-black rounded-2xl border border-warm/60 ${
         compact ? 'opacity-95' : ''
       }`}
@@ -870,6 +871,7 @@ export const HomeTab: React.FC<Props> = ({
               <section
                 className="w-full pt-8 md:pt-10 border-t border-warm/40"
                 aria-label="At a glance"
+                data-tour="home-stats"
               >
                 <HomeSectionHeader
                   eyebrow="At a glance"

@@ -43,7 +43,7 @@ export const JourneySection: React.FC<Props> = ({
 
   if (skills.length === 0) {
     return (
-      <section className="w-full" aria-label="Skill progress">
+      <section className="w-full" aria-label="Skill progress" data-tour="home-skills">
         <HomeSectionHeader
           eyebrow="Skill progress"
           title={heading}
@@ -62,7 +62,7 @@ export const JourneySection: React.FC<Props> = ({
   const watching = orderWatchingByStreak(skills.filter((s) => s.status === 'watching'));
 
   return (
-    <section className="w-full space-y-3">
+    <section className="w-full space-y-3" aria-label="Skill progress" data-tour="home-skills">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <HomeSectionHeader
           eyebrow="Skill progress"

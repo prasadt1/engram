@@ -1,187 +1,153 @@
 /**
- * JudgeTour — five-stop walkthrough for hackathon evaluators (?judge=1).
- * Stop 0 orients; detail that left the landing lives here.
+ * JudgeTour — spotlight walkthrough for hackathon evaluators (?judge=1).
+ * Highlights live Home regions step-by-step (Outturn-style), then nav + Proof.
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import {
-  ArrowRight,
-  BadgeCheck,
-  FlaskConical,
-  Home,
-  Images,
-  Sparkles,
-  Target,
-  X,
-} from 'lucide-react';
+import { SpotlightTour, type SpotlightStep } from './SpotlightTour';
 
 const STORAGE_KEY = 'engram-judge-tour-completed';
 
-interface TourStep {
-  id: string;
-  icon: React.ElementType;
-  title: string;
-  description: string;
-  tabHint?: string;
-}
-
-const JUDGE_TOUR_STEPS: TourStep[] = [
+const JUDGE_TOUR_STEPS: SpotlightStep[] = [
   {
     id: 'orient',
-    icon: Sparkles,
     title: 'What to look for',
     description:
-      'Follow Jordan (demo-user): Home memory threads with real score growth → Practice assignment grounded in skill state → upload + Memory Receipt in My Work → Proof Room (live MongoDB + forgetting demo) → 3 isolated journeys (Jordan interactive; Alex and Sam as scale proof).',
+      'You are on Jordan\'s seeded journey (demo-user): real critiques, skill graduation, live MongoDB memory, and a reproducible benchmark. This tour spotlights each region — follow the glow.',
     tabHint: '90-second overview',
+    placement: 'center',
   },
   {
-    id: 'journey',
-    icon: BadgeCheck,
-    title: 'Journey & graduation',
+    id: 'banner',
+    title: 'Judge demo scope',
     description:
-      'Home leads with what Engram remembers: identity, cleared skills, and the skill closest to clearing. Each dot is a strong upload (7+ out of 10) — three in a row and that advice retires.',
-    tabHint: 'Home · Journey',
+      'Track 1 · MemoryAgent — same Home / Work / Mentor UX as regular users, but data is scoped to the demo library and ?judge=1 stays in the URL as you move between tabs.',
+    target: 'judge-banner',
+    placement: 'bottom',
+    tabHint: 'Top of Home',
   },
   {
-    id: 'work',
-    icon: Images,
-    title: 'Upload, Mentor & Memory Receipt',
+    id: 'hero',
+    title: 'Mentor read — identity',
     description:
-      'Upload in My Work or open any thread photo. After critique, expand the Memory Receipt — recalled, retired, and dropped for token budget. Ask the Mentor on that frame; replies use the same scoped memory with the same receipt.',
-    tabHint: 'My Work · photo detail',
+      'The hero is the orientation surface: your mentor\'s read of this frame, current focus skill, and latest upload context. Identity lives here once — not repeated below.',
+    target: 'home-hero',
+    placement: 'bottom',
+    tabHint: 'Home · Hero',
   },
   {
-    id: 'practice',
-    icon: Target,
-    title: 'Practice Loop — proactive memory',
+    id: 'threads',
+    title: 'Memory threads',
     description:
-      'Open Practice and tap Suggest practice. The assignment targets your current focus skill because Journey says so — rationale cites watching/streak state, not a weakest-average scoreboard.',
-    tabHint: 'Practice · or Home → Journey card',
+      'Genre threads show score growth across your uploads — step through frames chronologically. Each dot is a real critiqued photo; captions tell the memory story (e.g. 5.9 → 7.5 on Landscape).',
+    target: 'home-threads',
+    placement: 'bottom',
+    tabHint: 'Home · Threads',
+  },
+  {
+    id: 'skills',
+    title: 'Skill graduation',
+    description:
+      'Cleared skills stop getting beginner advice. Watching skills show streak dots — three strong uploads (7+ out of 10) in a row and the skill clears.',
+    target: 'home-skills',
+    placement: 'bottom',
+    tabHint: 'Home · Skill progress',
+  },
+  {
+    id: 'library',
+    title: 'Library roll',
+    description:
+      'Your full critiqued roll, newest first — a contact sheet, not the memory story above. Tap any thumb to open that frame in My Work.',
+    target: 'home-library',
+    placement: 'top',
+    tabHint: 'Home · Recent uploads',
+  },
+  {
+    id: 'stats',
+    title: 'At a glance',
+    description:
+      'Closing band: average scores, recent trend, practice assignments, and a portfolio-aware mentor sentence — with one tap into Mentor chat.',
+    target: 'home-stats',
+    placement: 'top',
+    tabHint: 'Home · Stats',
   },
   {
     id: 'proof',
-    icon: FlaskConical,
-    title: 'Proof Room — and it scales',
+    title: 'Memory Proof Room',
     description:
-      'Sidebar → Memory Proof Room: play Canon→Sony to watch stale facts retire, toggle MCP for the same stats through engram-mcp, scan the FAMA benchmark. Then 3 isolated journeys — three learner cards, separate MongoDB arcs (Jordan interactive; Alex and Sam as scale proof).',
-    tabHint: 'Sidebar · Proof · Coach Assist',
+      'Sidebar (desktop) or Proof tab (mobile): play Canon→Sony to watch stale facts retire, toggle MCP for the same stats through engram-mcp, and scan the FAMA benchmark.',
+    target: 'nav-proof',
+    placement: 'right',
+    tabHint: 'Proof',
+  },
+  {
+    id: 'work',
+    title: 'Upload & Memory Receipt',
+    description:
+      'My Work: upload for Glass Box critique, then expand the Memory Receipt on any frame — recalled, retired, and dropped for token budget.',
+    target: 'nav-work',
+    placement: 'right',
+    tabHint: 'My Work tab',
+  },
+  {
+    id: 'practice',
+    title: 'Practice Loop',
+    description:
+      'Practice proposes assignments grounded in skill state — accept a challenge, upload against the brief, and complete to see a skill delta receipt.',
+    target: 'nav-practice',
+    placement: 'right',
+    tabHint: 'Practice tab',
   },
 ];
 
 interface Props {
   forceShow?: boolean;
   onComplete?: () => void;
+  onNavigateHome?: () => void;
 }
 
-export const JudgeTour: React.FC<Props> = ({ forceShow, onComplete }) => {
+export const JudgeTour: React.FC<Props> = ({
+  forceShow,
+  onComplete,
+  onNavigateHome,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0);
 
   useEffect(() => {
-    if (forceShow) {
-      setIsOpen(true);
-      setCurrentStep(0);
-      return;
-    }
-    setIsOpen(false);
+    setIsOpen(Boolean(forceShow));
   }, [forceShow]);
 
-  const finish = useCallback(() => {
-    if (typeof window !== 'undefined') localStorage.setItem(STORAGE_KEY, 'true');
+  const handleClose = useCallback(() => {
     setIsOpen(false);
+  }, []);
+
+  const handleComplete = useCallback(() => {
+    if (typeof window !== 'undefined') localStorage.setItem(STORAGE_KEY, 'true');
     onComplete?.();
   }, [onComplete]);
 
-  const handleNext = useCallback(() => {
-    if (currentStep < JUDGE_TOUR_STEPS.length - 1) {
-      setCurrentStep((s) => s + 1);
-    } else {
-      finish();
-    }
-  }, [currentStep, finish]);
-
-  const handleSkip = useCallback(() => {
-    finish();
-  }, [finish]);
-
-  if (!isOpen) return null;
-
-  const step = JUDGE_TOUR_STEPS[currentStep];
-  const StepIcon = step.icon;
-  const isLast = currentStep === JUDGE_TOUR_STEPS.length - 1;
+  const handleStepChange = useCallback(
+    (step: SpotlightStep) => {
+      if (
+        step.target?.startsWith('home-') ||
+        step.target === 'judge-banner' ||
+        step.target?.startsWith('nav-')
+      ) {
+        onNavigateHome?.();
+      }
+    },
+    [onNavigateHome],
+  );
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-canvas/90 backdrop-blur-sm animate-overlayFadeIn">
-      <div className="relative max-w-md w-full animate-springIn">
-        <div className="flex justify-center gap-1.5 mb-4">
-          {JUDGE_TOUR_STEPS.map((s, i) => (
-            <div
-              key={s.id}
-              className={`h-1.5 rounded-full transition-all duration-150 ${
-                i === currentStep ? 'w-8 bg-brand-400' : 'w-1.5 bg-warm-border'
-              }`}
-            />
-          ))}
-        </div>
-
-        <div className="rounded-2xl border border-warm bg-canvas overflow-hidden shadow-2xl">
-          <div className="bg-brand-500/20 border-b border-brand-500/30 p-6 flex justify-center">
-            <div className="w-16 h-16 rounded-2xl bg-brand-500/25 border border-brand-500/40 flex items-center justify-center">
-              <StepIcon className="w-8 h-8 text-brand-400" />
-            </div>
-          </div>
-
-          <div className="p-6 text-center space-y-3">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-brand-400">
-              Judge walkthrough · {currentStep + 1}/{JUDGE_TOUR_STEPS.length}
-            </p>
-            <h2 className="font-serif text-xl text-white">{step.title}</h2>
-            {step.tabHint && (
-              <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500">
-                {step.tabHint}
-              </p>
-            )}
-            <p className="text-sm text-stone-300 leading-relaxed">{step.description}</p>
-          </div>
-
-          <div className="p-4 border-t border-warm flex items-center justify-between">
-            <button
-              type="button"
-              onClick={handleSkip}
-              className="text-sm text-muted hover:text-white transition-colors"
-            >
-              Skip
-            </button>
-            <button
-              type="button"
-              onClick={handleNext}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-brand-500 text-on-brand text-sm font-semibold hover:bg-brand-400 transition-colors"
-            >
-              {isLast ? (
-                <>
-                  Start exploring
-                  <Home className="w-4 h-4" />
-                </>
-              ) : (
-                <>
-                  Next
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleSkip}
-          className="absolute -top-2 -right-2 p-2 rounded-full bg-surface-2 border border-warm text-muted hover:text-white transition-colors"
-          aria-label="Close judge tour"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-    </div>
+    <SpotlightTour
+      steps={JUDGE_TOUR_STEPS}
+      isOpen={isOpen}
+      onClose={handleClose}
+      onComplete={handleComplete}
+      onStepChange={handleStepChange}
+      tourLabel="Judge walkthrough"
+    />
   );
 };
 

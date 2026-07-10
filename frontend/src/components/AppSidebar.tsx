@@ -99,6 +99,9 @@ export const AppSidebar: React.FC<Props> = ({
               role="tab"
               aria-selected={selected}
               onClick={() => onNavigate(item.id)}
+              data-tour={
+                item.id === 'work' ? 'nav-work' : item.id === 'practice' ? 'nav-practice' : undefined
+              }
               className={`relative w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400 focus-visible:outline-offset-2 ${
                 selected
                   ? 'bg-brand-500/15 text-stone-100 border-l-2 border-brand-400 pl-2.5'
@@ -127,6 +130,7 @@ export const AppSidebar: React.FC<Props> = ({
             role="tab"
             aria-selected={glassBoxActive}
             onClick={onNavigateGlassBox}
+            data-tour="nav-proof"
             className={`relative w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400 focus-visible:outline-offset-2 ${
               glassBoxActive
                 ? 'bg-brand-500/15 text-stone-100 border-l-2 border-brand-400 pl-2.5'

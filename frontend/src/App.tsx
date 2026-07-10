@@ -496,7 +496,7 @@ function App() {
             </div>
           )}
           {showJudgeBanner && (
-            <div className="mb-4 space-y-2">
+            <div className="mb-4 space-y-2" data-tour="judge-banner">
               <div
                 className="rounded-lg border border-brand-500/30 bg-brand-500/10 p-3 flex items-start gap-2"
                 role="status"
@@ -532,7 +532,7 @@ function App() {
                   }}
                   className="text-sm px-3 py-1.5 rounded-lg bg-brand-500/20 text-brand-300 border border-brand-500/30 hover:bg-brand-500/30 transition-colors"
                 >
-                  Take the 90-second walkthrough
+                  Take the guided tour
                 </button>
               </div>
             </div>
@@ -769,6 +769,7 @@ function App() {
         <JudgeTour
           forceShow={showJudgeTour}
           onComplete={() => setShowJudgeTour(false)}
+          onNavigateHome={() => navigate('home')}
         />
       )}
     </div>

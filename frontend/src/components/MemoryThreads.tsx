@@ -253,7 +253,7 @@ export const MemoryThreads: React.FC<Props> = ({ photos, onOpenPhoto }) => {
   if (threads.length === 0) return null;
 
   return (
-    <section className="w-full" aria-label="Memory threads">
+    <section className="w-full" aria-label="Memory threads" data-tour="home-threads">
       <Card padding="lg" className="border-brand-500/35 bg-gradient-to-b from-brand-500/10 to-surface-1/80 border-l-4 border-l-brand-500/50">
         <HomeSectionHeader
           eyebrow="Memory threads"
