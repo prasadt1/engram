@@ -23,10 +23,10 @@ echo "→ Backfill local data/media from Atlas portfolio storage_key list"
 .venv/bin/python scripts/backfill_demo_media.py
 
 echo "→ Build file list for demo-user portfolio"
-FILES="$(.venv/bin/python - <<'PY'
+FILES="$(.venv/bin/python - <<PY
 from pathlib import Path
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv("${ROOT}/.env")
 from app.db import get_db
 
 db = get_db()
