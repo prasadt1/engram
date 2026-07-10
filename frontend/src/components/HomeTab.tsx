@@ -16,10 +16,10 @@ import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import { AnalyzingOverlay } from './AnalyzingOverlay';
 import { InlineAlertBanner } from './InlineAlertBanner';
 import { JourneySection } from './JourneySection';
+import { HomeSectionHeader } from './HomeSectionHeader';
 import { MemoryThreads, buildGenreThreads } from './MemoryThreads';
 import { ContactSheet } from './ContactSheet';
 import { LibraryBackdrop } from './LibraryBackdrop';
-import { PhotoMat } from './PhotoMat';
 import { Button, Card, Tag, Eyebrow, StatCard } from './primitives';
 import { useCountUp } from '../hooks/useCountUp';
 import { formatSkillLabel } from '../lib/formatSkillLabel';
@@ -72,6 +72,8 @@ interface Props {
   isActive?: boolean;
 }
 
+const HOME_LAYOUT = 'max-w-4xl mx-auto w-full';
+const HOME_SECTION_GAP = 'space-y-8 md:space-y-10';
 const PRACTICE_WIN_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
@@ -168,8 +170,8 @@ function ReturningPhotoHero({
   return (
     <div
       data-testid="home-mentor-hero"
-      className={`grid grid-cols-1 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,1fr)] overflow-hidden bg-photo-black -mx-3 md:-mx-6 rounded-none md:rounded-2xl md:mx-0 border border-warm/40 md:border-warm/60 ${
-        compact ? 'max-w-4xl mx-auto opacity-95' : ''
+      className={`grid grid-cols-1 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,1fr)] overflow-hidden bg-photo-black rounded-2xl border border-warm/60 ${
+        compact ? 'opacity-95' : ''
       }`}
     >
       <div
@@ -279,7 +281,7 @@ function ReturningPhotoHero({
               onClick={() => onNavigate('practice')}
               fullWidth
             >
-              Practice →
+              Practice
             </Button>
           )}
         </div>
@@ -359,7 +361,6 @@ export const HomeTab: React.FC<Props> = ({
   const [stats, setStats] = useState<PortfolioStats | null>(cachedSnapshot?.stats ?? null);
   const [bestPhoto, setBestPhoto] = useState<PortfolioListItem | null>(cachedSnapshot?.bestPhoto ?? null);
   const [heroFallbackPool, setHeroFallbackPool] = useState<PortfolioListItem[]>(cachedSnapshot?.heroFallbackPool ?? []);
-  const [earliestPhoto, setEarliestPhoto] = useState<PortfolioListItem | null>(cachedSnapshot?.earliestPhoto ?? null);
   const [memoryLaneSource, setMemoryLaneSource] = useState<PortfolioListItem[]>(cachedSnapshot?.memoryLaneSource ?? []);
   const [contactSheet, setContactSheet] = useState<PortfolioListItem[]>(cachedSnapshot?.contactSheet ?? []);
   const [profile, setProfile] = useState<AestheticProfileSummary | null>(cachedSnapshot?.profile ?? null);
@@ -380,7 +381,6 @@ export const HomeTab: React.FC<Props> = ({
   const [analyzeWaitSec, setAnalyzeWaitSec] = useState(0);
   const [latestPracticeWin, setLatestPracticeWin] = useState<Assignment | null>(cachedSnapshot?.latestPracticeWin ?? null);
   const [recentCompletedAssignment, setRecentCompletedAssignment] = useState<Assignment | null>(cachedSnapshot?.recentCompletedAssignment ?? null);
-  const [practiceWinPhoto, setPracticeWinPhoto] = useState<PortfolioListItem | null>(cachedSnapshot?.practiceWinPhoto ?? null);
   const [completedAssignmentCount, setCompletedAssignmentCount] = useState(cachedSnapshot?.completedAssignmentCount ?? 0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const exampleGlassBoxRef = useRef<HTMLDivElement>(null);
@@ -454,12 +454,9 @@ export const HomeTab: React.FC<Props> = ({
           winPhoto = more.entries.find((e) => e.shootId === shootId) ?? null;
         }
       }
-      setPracticeWinPhoto(winPhoto);
 
-      const validOldest = oldestPortfolio.entries.find(
-        (e) => e.imageUrl && e.overallAverage > 0,
-      );
-      setEarliestPhoto(validOldest ?? null);
+      const validOldest =
+        oldestPortfolio.entries.find((e) => e.imageUrl && e.overallAverage > 0) ?? null;
 
       const poolById = new Map<string, PortfolioListItem>();
       for (const e of [...oldestPortfolio.entries, ...recentPhotos.entries, ...topByScore.entries]) {
@@ -476,7 +473,7 @@ export const HomeTab: React.FC<Props> = ({
         stats: portfolioStats,
         heroFallbackPool: heroPool,
         bestPhoto: hero,
-        earliestPhoto: validOldest ?? null,
+        earliestPhoto: validOldest,
         memoryLaneSource: laneSource,
         contactSheet: recentPhotos.entries,
         profile: aesthetic,
@@ -640,24 +637,9 @@ export const HomeTab: React.FC<Props> = ({
   })();
 
   const mentorThreshold = useDemoLibrary ? 1 : 3;
-  const showMentorCard = Boolean(profile && portfolioTotal >= mentorThreshold);
+  const showMentorInsight = Boolean(profile && portfolioTotal >= mentorThreshold);
 
-  const GROWTH_MIN_PHOTOS = 6;
-  const showGrowth =
-    isReturning &&
-    portfolioTotal >= GROWTH_MIN_PHOTOS &&
-    earliestPhoto &&
-    bestPhoto &&
-    earliestPhoto.id !== bestPhoto.id;
-
-  /** Delta between the two frames shown in Then/Now (not the portfolio trend series). */
-  const growthFrameOverallDelta = bestPhoto && earliestPhoto
-    ? bestPhoto.overallAverage - earliestPhoto.overallAverage
-    : null;
-  const growthFrameCompositionDelta =
-    bestPhoto && earliestPhoto
-      ? bestPhoto.scores.composition - earliestPhoto.scores.composition
-      : null;
+  const showMemoryProofCard = !FEATURES.practice && Boolean(journey);
 
   const avgLibraryScore = (() => {
     const scores = profile?.averageScores;
@@ -667,8 +649,6 @@ export const HomeTab: React.FC<Props> = ({
     if (vals.length === 0) return null;
     return vals.reduce((a, b) => a + b, 0) / vals.length;
   })();
-
-  const showMemoryProofCard = !FEATURES.practice && Boolean(journey);
 
   const latestUpload = contactSheet[0] ?? null;
   const mentorCaption = useMemo(
@@ -762,9 +742,7 @@ export const HomeTab: React.FC<Props> = ({
         />
       )}
 
-      <div
-        className={`relative z-10 pb-8 ${isReturning ? 'space-y-5 md:space-y-6' : 'space-y-10'}`}
-      >
+      <div className={`relative z-10 pb-8 ${isReturning ? HOME_SECTION_GAP : 'space-y-10'}`}>
         {uploadError && (
           <InlineAlertBanner message={uploadError} onDismiss={() => setUploadError(null)} />
         )}
@@ -832,60 +810,223 @@ export const HomeTab: React.FC<Props> = ({
           </div>
         )}
 
-        {isReturning && heroPhoto && (
-          <ReturningPhotoHero
-            heroPhoto={heroPhoto}
-            heroSrc={heroSrc}
-            heroImageReady={heroImageReady}
-            imageError={imageError}
-            animatedScore={animatedScore}
-            portfolioTotal={portfolioTotal}
-            stats={stats}
-            uploading={uploading}
-            fileInputRef={fileInputRef}
-            onNavigate={onNavigate}
-            mentorCaption={mentorCaption}
-          />
-        )}
+        {isReturning && (
+          <div className={`${HOME_LAYOUT} ${HOME_SECTION_GAP}`}>
+            {heroPhoto && (
+              <ReturningPhotoHero
+                heroPhoto={heroPhoto}
+                heroSrc={heroSrc}
+                heroImageReady={heroImageReady}
+                imageError={imageError}
+                animatedScore={animatedScore}
+                portfolioTotal={portfolioTotal}
+                stats={stats}
+                uploading={uploading}
+                fileInputRef={fileInputRef}
+                onNavigate={onNavigate}
+                mentorCaption={mentorCaption}
+              />
+            )}
 
-        {isReturning && showMemoryThreads && (
-          <MemoryThreads
-            photos={memoryLaneSource}
-            onOpenPhoto={(photoId) => onOpenPhoto?.(photoId)}
-          />
-        )}
+            {showMemoryThreads ? (
+              <MemoryThreads
+                photos={memoryLaneSource}
+                onOpenPhoto={(photoId) => onOpenPhoto?.(photoId)}
+              />
+            ) : (
+              <ContactSheet
+                variant="heroFallback"
+                photos={contactSheet}
+                loading={loading}
+                uploading={uploading}
+                onOpenPhoto={(photoId) => onOpenPhoto?.(photoId)}
+                onNavigateLibrary={() => onNavigate('work')}
+                onUpload={() => fileInputRef.current?.click()}
+              />
+            )}
 
-        {isReturning && !showMemoryThreads && (
-          <ContactSheet
-            variant="heroFallback"
-            photos={contactSheet}
-            loading={loading}
-            uploading={uploading}
-            onOpenPhoto={(photoId) => onOpenPhoto?.(photoId)}
-            onNavigateLibrary={() => onNavigate('work')}
-            onUpload={() => fileInputRef.current?.click()}
-          />
-        )}
+            {journey && (
+              <JourneySection
+                summary={journey.summary}
+                skills={journey.skills}
+                stats={journey.stats}
+                displayName={journey.displayName ?? null}
+                mode={mode}
+              />
+            )}
 
-        {isReturning && journey && (
-          <JourneySection
-            summary={journey.summary}
-            skills={journey.skills}
-            stats={journey.stats}
-            displayName={journey.displayName ?? null}
-            mode={mode}
-          />
-        )}
+            {showMemoryThreads && (
+              <ContactSheet
+                photos={contactSheet}
+                loading={loading}
+                uploading={uploading}
+                onOpenPhoto={(photoId) => onOpenPhoto?.(photoId)}
+                onNavigateLibrary={() => onNavigate('work')}
+                onUpload={() => fileInputRef.current?.click()}
+              />
+            )}
 
-        {isReturning && showMemoryThreads && (
-          <ContactSheet
-            photos={contactSheet}
-            loading={loading}
-            uploading={uploading}
-            onOpenPhoto={(photoId) => onOpenPhoto?.(photoId)}
-            onNavigateLibrary={() => onNavigate('work')}
-            onUpload={() => fileInputRef.current?.click()}
-          />
+            {!loading && (
+              <section
+                className="w-full pt-8 md:pt-10 border-t border-warm/40"
+                aria-label="At a glance"
+              >
+                <HomeSectionHeader
+                  eyebrow="At a glance"
+                  title="Where you stand"
+                  subtitle="Scores, trends, and practice — plus a read from your mentor."
+                  tone="faint"
+                />
+
+                {latestPracticeWin?.skillDelta && (
+                  <Card padding="sm" className="mb-4 flex flex-col sm:flex-row sm:items-center gap-3 bg-brand-500/5 border-brand-500/25">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-serif text-white">
+                        Practice win — {formatSkillLabel(latestPracticeWin.targetSkill)}{' '}
+                        +{latestPracticeWin.skillDelta.delta.toFixed(1)} pts
+                      </p>
+                      <p className="text-xs text-stone-400 mt-0.5 line-clamp-2">{latestPracticeWin.brief}</p>
+                    </div>
+                    <Button variant="subtle" size="sm" onClick={() => onNavigate('practice')}>
+                      Practice
+                    </Button>
+                  </Card>
+                )}
+
+                <div className="grid sm:grid-cols-3 gap-4">
+                  <StatCard
+                    icon={<BarChart3 className="w-5 h-5" />}
+                    label="Avg score"
+                    value={avgLibraryScore != null ? avgLibraryScore.toFixed(1) : '—'}
+                    unit={avgLibraryScore != null ? '/ 10' : undefined}
+                    note={
+                      avgLibraryScore != null
+                        ? portfolioTotal <= 20
+                          ? `All five skills, averaged across your ${portfolioTotal} photos`
+                          : 'All five skills, averaged across your last 20 photos'
+                        : 'Upload more to see averages'
+                    }
+                  />
+
+                  <Card padding="sm" className="bg-surface-1/80">
+                    <div className="flex items-start gap-4">
+                      <div className="shrink-0 mt-0.5 p-2 rounded-md bg-surface-2 text-brand-400 inline-flex">
+                        <TrendingUp className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <Eyebrow tone="faint" className="mb-1">Recent trend</Eyebrow>
+                        {trendDelta != null && trendLabel ? (
+                          <>
+                            <p className="text-sm font-serif text-white">
+                              {trendBeforeNow
+                                ? `${trendLabel}: ${trendBeforeNow.before.toFixed(1)} → ${trendBeforeNow.now.toFixed(1)}`
+                                : `${trendLabel} up +${trendDelta.toFixed(1)} pts`}
+                            </p>
+                            <p className="text-xs text-stone-400 mt-0.5">
+                              Out of 10 · {trendComparisonNote ?? 'vs your earlier uploads'}
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-sm font-serif text-white">
+                              {portfolioTotal} photos in your library
+                            </p>
+                            <p className="text-xs text-stone-400 mt-0.5">Upload a few more to see score trends</p>
+                          </>
+                        )}
+                        {trends && trends.points.length >= 2 && !trends.insufficientData && (
+                          <div className="mt-2">
+                            <div className="h-8">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={trends.points}>
+                                  <Line
+                                    type="monotone"
+                                    dataKey="overall"
+                                    stroke="#f59e0b"
+                                    strokeWidth={2}
+                                    dot={false}
+                                    isAnimationActive={false}
+                                  />
+                                </LineChart>
+                              </ResponsiveContainer>
+                            </div>
+                            <p className="text-[10px] text-stone-500 mt-1">
+                              Overall score · your last {trends.points.length} uploads
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+
+                  {showMemoryProofCard ? (
+                    <StatCard
+                      icon={<Database className="w-5 h-5" />}
+                      label="Memory proof"
+                      value={journey!.stats.skills_cleared}
+                      unit={journey!.stats.skills_cleared === 1 ? 'skill cleared' : 'skills cleared'}
+                      note={`${journey!.stats.live_memories} live · ${journey!.stats.superseded_memories} retired`}
+                      action={
+                        onOpenProof ? (
+                          <Button variant="subtle" size="sm" onClick={onOpenProof}>
+                            See proof →
+                          </Button>
+                        ) : undefined
+                      }
+                    />
+                  ) : (
+                    <StatCard
+                      icon={<Award className="w-5 h-5" />}
+                      label="Assignments done"
+                      value={
+                        completedAssignmentCount === 0
+                          ? FEATURES.practice
+                            ? 'Accept your first challenge in Practice →'
+                            : 'Coming soon'
+                          : completedAssignmentCount
+                      }
+                      detail={
+                        completedAssignmentCount > 0 &&
+                        (activeAssignment ?? recentCompletedAssignment)
+                          ? shortAssignmentBrief((activeAssignment ?? recentCompletedAssignment)!.brief)
+                          : undefined
+                      }
+                      note={
+                        activeAssignment
+                          ? 'Active practice brief'
+                          : completedAssignmentCount > 0
+                            ? 'Completed practice briefs'
+                            : undefined
+                      }
+                      action={
+                        FEATURES.practice ? (
+                          <Button variant="subtle" size="sm" onClick={() => onNavigate('practice')}>
+                            Practice
+                          </Button>
+                        ) : undefined
+                      }
+                    />
+                  )}
+                </div>
+
+                {showMentorInsight && profile && (
+                  <div className="mt-4 pt-4 border-t border-warm/40 flex flex-col sm:flex-row sm:items-center gap-4">
+                    <p className="flex-1 min-w-0 text-stone-300 text-sm leading-relaxed font-serif">
+                      {mentorInsightText(profile, trendDelta, trendLabel, mode)}
+                    </p>
+                    <Button
+                      size="sm"
+                      iconRight={<ArrowRight className="w-4 h-4" />}
+                      onClick={() => onNavigate('mentor')}
+                      className="shrink-0"
+                    >
+                      Ask mentor
+                    </Button>
+                  </div>
+                )}
+              </section>
+            )}
+          </div>
         )}
 
         {/* First visit: example Glass Box */}
@@ -931,246 +1072,6 @@ export const HomeTab: React.FC<Props> = ({
           </section>
         )}
 
-        {/* At a glance — below the library roll so the personal read leads */}
-        {isReturning && !loading && (
-          <div className="max-w-4xl mx-auto px-1 space-y-2">
-            <Eyebrow>At a glance</Eyebrow>
-            <div className="grid sm:grid-cols-3 gap-4">
-              <StatCard
-                icon={<BarChart3 className="w-5 h-5" />}
-                label="Avg score"
-                value={avgLibraryScore != null ? avgLibraryScore.toFixed(1) : '—'}
-                unit={avgLibraryScore != null ? '/ 10' : undefined}
-                note={
-                  avgLibraryScore != null
-                    ? // 20 mirrors the server's window: aesthetic_profile uses
-                      // .limit(20) in app/server.py — keep the two in sync.
-                      portfolioTotal <= 20
-                      ? `All five skills, averaged across your ${portfolioTotal} photos`
-                      : 'All five skills, averaged across your last 20 photos'
-                    : 'Upload more to see averages'
-                }
-              />
-
-              <Card padding="sm" className="bg-surface-1/80">
-                <div className="flex items-start gap-4">
-                  <div className="shrink-0 mt-0.5 p-2 rounded-md bg-surface-2 text-brand-400 inline-flex">
-                    <TrendingUp className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <Eyebrow tone="faint" className="mb-1">Recent trend</Eyebrow>
-                    {trendDelta != null && trendLabel ? (
-                      <>
-                        <p className="text-sm font-serif text-white">
-                          {trendBeforeNow
-                            ? `${trendLabel}: ${trendBeforeNow.before.toFixed(1)} → ${trendBeforeNow.now.toFixed(1)}`
-                            : `${trendLabel} up +${trendDelta.toFixed(1)} pts`}
-                        </p>
-                        <p className="text-xs text-stone-400 mt-0.5">
-                          Out of 10 · {trendComparisonNote ?? 'vs your earlier uploads'}
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="text-sm font-serif text-white">
-                          {portfolioTotal} photos in your library
-                        </p>
-                        <p className="text-xs text-stone-400 mt-0.5">Upload a few more to see score trends</p>
-                      </>
-                    )}
-                    {trends && trends.points.length >= 2 && !trends.insufficientData && (
-                      <div className="mt-2">
-                        <div className="h-8">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={trends.points}>
-                              <Line
-                                type="monotone"
-                                dataKey="overall"
-                                stroke="#f59e0b"
-                                strokeWidth={2}
-                                dot={false}
-                                isAnimationActive={false}
-                              />
-                            </LineChart>
-                          </ResponsiveContainer>
-                        </div>
-                        <p className="text-[10px] text-stone-500 mt-1">
-                          Overall score · your last {trends.points.length} uploads
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </Card>
-
-              {showMemoryProofCard ? (
-                <StatCard
-                  icon={<Database className="w-5 h-5" />}
-                  label="Memory proof"
-                  value={journey!.stats.skills_cleared}
-                  unit={journey!.stats.skills_cleared === 1 ? 'skill cleared' : 'skills cleared'}
-                  note={`${journey!.stats.live_memories} live · ${journey!.stats.superseded_memories} retired`}
-                  action={
-                    onOpenProof ? (
-                      <Button variant="subtle" size="sm" onClick={onOpenProof}>
-                        See proof →
-                      </Button>
-                    ) : undefined
-                  }
-                />
-              ) : (
-                <StatCard
-                  icon={<Award className="w-5 h-5" />}
-                  label="Assignments done"
-                  value={
-                    completedAssignmentCount === 0
-                      ? FEATURES.practice
-                        ? 'Accept your first challenge in Practice →'
-                        : 'Coming soon'
-                      : completedAssignmentCount
-                  }
-                  detail={
-                    completedAssignmentCount > 0 &&
-                    (activeAssignment ?? recentCompletedAssignment)
-                      ? shortAssignmentBrief((activeAssignment ?? recentCompletedAssignment)!.brief)
-                      : undefined
-                  }
-                  note={
-                    activeAssignment
-                      ? 'Active practice brief'
-                      : completedAssignmentCount > 0
-                        ? 'Completed practice briefs'
-                        : undefined
-                  }
-                  action={
-                    FEATURES.practice ? (
-                      <Button variant="subtle" size="sm" onClick={() => onNavigate('practice')}>
-                        Practice →
-                      </Button>
-                    ) : undefined
-                  }
-                />
-              )}
-            </div>
-          </div>
-        )}
-
-        {isReturning && showMentorCard && profile && (
-          <Card padding="sm" className="max-w-4xl mx-auto flex flex-col sm:flex-row sm:items-center gap-4">
-            <div className="flex-1 min-w-0">
-              <Eyebrow tone="faint" className="mb-1">From your mentor</Eyebrow>
-              <p className="text-stone-300 text-sm leading-relaxed font-serif line-clamp-2">
-                {mentorInsightText(profile, trendDelta, trendLabel, mode)}
-              </p>
-            </div>
-            <Button
-              size="sm"
-              iconRight={<ArrowRight className="w-4 h-4" />}
-              onClick={() => onNavigate('mentor')}
-            >
-              Ask mentor
-            </Button>
-          </Card>
-        )}
-
-        {isReturning && latestPracticeWin?.skillDelta && (
-          <Card padding="sm" className="max-w-4xl mx-auto flex flex-col sm:flex-row sm:items-center gap-4">
-            {practiceWinPhoto?.imageUrl ? (
-              <PhotoMat variant="contact" aspect="aspect-square" className="w-20 shrink-0">
-                <img
-                  src={practiceWinPhoto.imageUrl}
-                  alt=""
-                  className="w-full h-full object-cover"
-                />
-              </PhotoMat>
-            ) : (
-              <div
-                className="w-20 h-20 shrink-0 rounded-lg bg-surface-2 border border-warm flex items-center justify-center"
-                aria-hidden
-              >
-                <Award className="w-8 h-8 text-stone-500" />
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <Eyebrow tone="brand" className="mb-1">Practice win</Eyebrow>
-              <p className="text-sm font-serif text-white">
-                {formatSkillLabel(latestPracticeWin.targetSkill)} +{latestPracticeWin.skillDelta.delta.toFixed(1)} pts
-              </p>
-              <p className="text-xs text-stone-400 mt-0.5 line-clamp-2">{latestPracticeWin.brief}</p>
-              {latestPracticeWin.appliedBrief != null && (
-                <p className="text-xs text-stone-400 mt-1">
-                  Brief {latestPracticeWin.appliedBrief ? 'applied' : 'not yet applied'}
-                </p>
-              )}
-            </div>
-            <Button variant="subtle" size="sm" onClick={() => onNavigate('practice')}>
-              Practice →
-            </Button>
-          </Card>
-        )}
-
-        {/* Growth comparison — below library strip; large comparison last */}
-        {showGrowth && (
-          <section className="max-w-5xl mx-auto px-1">
-            <div className="mb-4">
-              <h2 className="font-serif text-xl md:text-2xl text-white mb-1">Your growth</h2>
-              <p className="text-stone-400 text-xs md:text-sm">
-                Your oldest upload vs highest-scoring photo · {portfolioTotal} photos in library
-              </p>
-            </div>
-            <div className="flex flex-col md:flex-row items-stretch gap-4 md:gap-8">
-              <div className="flex-1">
-                <Eyebrow tone="faint" className="mb-3">Then</Eyebrow>
-                <PhotoMat variant="contact" aspect="aspect-[4/3]">
-                  <img
-                    src={earliestPhoto!.imageUrl}
-                    alt="Earlier work"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                </PhotoMat>
-                <p className="mt-2 text-sm text-stone-400 flex justify-between">
-                  <span>Earlier work</span>
-                  <span className="text-stone-300 tabular-nums">{earliestPhoto!.overallAverage.toFixed(1)}</span>
-                </p>
-              </div>
-              <div className="hidden md:flex items-center text-brand-400/60">
-                <ArrowRight className="w-8 h-8" />
-              </div>
-              <div className="flex-1">
-                <Eyebrow tone="brand" className="mb-3">Now</Eyebrow>
-                <PhotoMat variant="contact" aspect="aspect-[4/3]">
-                  <img
-                    src={bestPhoto!.imageUrl}
-                    alt="Strongest work"
-                    className="w-full h-full object-cover ring-1 ring-brand-500/40"
-                  />
-                </PhotoMat>
-                <p className="mt-2 text-sm text-stone-400 flex justify-between">
-                  <span>Strongest</span>
-                  <span className="text-brand-400 font-semibold tabular-nums">
-                    {bestPhoto!.overallAverage.toFixed(1)}
-                  </span>
-                </p>
-              </div>
-            </div>
-            {growthFrameOverallDelta != null && growthFrameOverallDelta > 0 && (
-              <p className="text-center mt-4 text-brand-400 font-medium text-sm">
-                <TrendingUp className="w-4 h-4 inline mr-1.5" />
-                This photo scores +{growthFrameOverallDelta.toFixed(1)} overall vs your first
-                upload
-                {growthFrameCompositionDelta != null && growthFrameCompositionDelta > 0 && (
-                  <span className="text-stone-400 font-normal">
-                    {' '}
-                    (composition +{growthFrameCompositionDelta.toFixed(1)})
-                  </span>
-                )}
-              </p>
-            )}
-          </section>
-        )}
       </div>
 
       <input

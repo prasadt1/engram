@@ -5,7 +5,8 @@
 
 import React, { useState } from 'react';
 import { ImageIcon, Upload } from 'lucide-react';
-import { Button, Eyebrow } from './primitives';
+import { Button } from './primitives';
+import { HomeSectionHeader } from './HomeSectionHeader';
 import { portfolioImageUrl } from '../lib/portfolioImageUrl';
 import type { PortfolioListItem } from '../types/memory';
 
@@ -69,24 +70,20 @@ export const ContactSheet: React.FC<Props> = ({
 
   return (
     <section
-      className={`max-w-6xl mx-auto px-1 ${heroFallback ? 'pt-2' : 'pt-6 border-t border-warm/50'}`}
+      className={`w-full ${heroFallback ? 'pt-2' : 'pt-8 md:pt-10 border-t border-warm/40'}`}
       aria-label={heroFallback ? 'Your library' : 'Recent uploads'}
     >
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-4">
-        <div>
-          <Eyebrow tone={heroFallback ? 'brand' : 'faint'} className="mb-1">
-            {heroFallback ? 'Your library' : 'Library roll'}
-          </Eyebrow>
-          <h2 className="font-serif text-lg md:text-xl text-white">
-            {heroFallback ? 'Frames I remember' : 'Recent uploads'}
-          </h2>
-          <p className="text-stone-500 text-xs md:text-sm mt-1 max-w-xl">
-            {heroFallback
-              ? 'Tap any frame to open it in My Work — your critiqued roll, newest first.'
-              : 'Newest first — every critiqued frame in your library. Not the memory story above; just your full roll, like a contact sheet print.'}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
+      <HomeSectionHeader
+        tone={heroFallback ? 'brand' : 'faint'}
+        eyebrow={heroFallback ? 'Your library' : 'Library roll'}
+        title={heroFallback ? 'Frames I remember' : 'Recent uploads'}
+        subtitle={
+          heroFallback
+            ? 'Tap any frame to open it in My Work — your critiqued roll, newest first.'
+            : 'Newest first — every critiqued frame in your library. Not the memory story above; just your full roll, like a contact sheet print.'
+        }
+      />
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 -mt-2 mb-4">
           <Button
             size="sm"
             icon={<Upload className="w-4 h-4" />}
@@ -99,7 +96,6 @@ export const ContactSheet: React.FC<Props> = ({
             Open library →
           </Button>
         </div>
-      </div>
 
       {loading ? (
         <div className="flex flex-wrap gap-2">

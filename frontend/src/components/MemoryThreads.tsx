@@ -10,7 +10,8 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
-import { Card, Eyebrow } from './primitives';
+import { Card } from './primitives';
+import { HomeSectionHeader } from './HomeSectionHeader';
 import { portfolioImageUrl } from '../lib/portfolioImageUrl';
 import { formatPhotoDate } from '../lib/formatPhotoDate';
 import type { PortfolioListItem } from '../types/memory';
@@ -252,20 +253,13 @@ export const MemoryThreads: React.FC<Props> = ({ photos, onOpenPhoto }) => {
   if (threads.length === 0) return null;
 
   return (
-    <section className="max-w-6xl mx-auto px-1" aria-label="Memory threads">
+    <section className="w-full" aria-label="Memory threads">
       <Card padding="lg" className="border-brand-500/35 bg-gradient-to-b from-brand-500/10 to-surface-1/80 border-l-4 border-l-brand-500/50">
-        <div className="mb-4">
-          <Eyebrow tone="brand" className="mb-1">
-            Memory threads
-          </Eyebrow>
-          <h2 className="font-serif text-xl md:text-2xl text-white leading-snug">
-            Your journey, as I remember it
-          </h2>
-          <p className="text-sm text-stone-400 mt-1 max-w-2xl">
-            One thread per genre I&apos;ve seen enough of — step through each to watch your eye
-            develop. Tap a frame to open it in My Work.
-          </p>
-        </div>
+        <HomeSectionHeader
+          eyebrow="Memory threads"
+          title="Your journey, as I remember it"
+          subtitle="One thread per genre I've seen enough of — step through each to watch your eye develop. Tap a frame to open it in My Work."
+        />
 
         <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide -mx-1 px-1">
           {threads.map((thread) => (

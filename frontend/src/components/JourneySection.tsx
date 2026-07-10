@@ -7,6 +7,7 @@
 import React from 'react';
 import { BadgeCheck, Sparkles } from 'lucide-react';
 import { Card, Eyebrow, Tag, InfoTooltip } from './primitives';
+import { HomeSectionHeader } from './HomeSectionHeader';
 import { EmptyState } from './EmptyState';
 import { getDimensionMeaning, humanizeSkillName } from '../lib/scoreContext';
 import { orderWatchingByStreak, STREAK_TARGET } from '../lib/coachingBrief';
@@ -42,8 +43,13 @@ export const JourneySection: React.FC<Props> = ({
 
   if (skills.length === 0) {
     return (
-      <section className="max-w-4xl mx-auto px-1">
-        <Eyebrow className="mb-3">{heading}</Eyebrow>
+      <section className="w-full" aria-label="Skill progress">
+        <HomeSectionHeader
+          eyebrow="Skill progress"
+          title={heading}
+          subtitle={personaNote}
+          tone="faint"
+        />
         <EmptyState
           icon={<Sparkles className="w-6 h-6" />}
           description="Upload your first photos and I'll start learning your strengths."
@@ -56,12 +62,19 @@ export const JourneySection: React.FC<Props> = ({
   const watching = orderWatchingByStreak(skills.filter((s) => s.status === 'watching'));
 
   return (
-    <section className="max-w-4xl mx-auto px-1 space-y-2.5">
-      <div className="flex flex-wrap items-center gap-2">
-        <Eyebrow>{heading}</Eyebrow>
-        <Tag variant="outline">{isPro ? 'Working pro' : 'Hobbyist'}</Tag>
+    <section className="w-full space-y-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <HomeSectionHeader
+          eyebrow="Skill progress"
+          title={heading}
+          subtitle={personaNote}
+          tone="faint"
+          className="mb-0 flex-1 min-w-0"
+        />
+        <Tag variant="outline" className="shrink-0 mt-1">
+          {isPro ? 'Working pro' : 'Hobbyist'}
+        </Tag>
       </div>
-      <p className="text-xs text-stone-500 -mt-1.5">{personaNote}</p>
 
       {summary && (
         <p className="text-sm text-stone-400 leading-relaxed border-l-2 border-brand-500/30 pl-3 max-w-2xl">
