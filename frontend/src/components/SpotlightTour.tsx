@@ -3,7 +3,7 @@
  * (Outturn-style focus ring + tooltip), not a centered modal deck.
  */
 
-import React, { useCallback, useEffect, useLayoutEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ArrowRight, X } from 'lucide-react';
 
 export type SpotlightPlacement = 'top' | 'bottom' | 'left' | 'right' | 'center';
@@ -61,6 +61,19 @@ function measureTarget(targetId: string): Rect | null {
   };
 }
 
+/** True when enough of the spotlight rect is on-screen to read the tour. */
+function isRectMostlyVisible(rect: Rect): boolean {
+  const vh = window.innerHeight;
+  const vw = window.innerWidth;
+  const visibleHeight = Math.min(rect.top + rect.height, vh - 16) - Math.max(rect.top, 16);
+  const visibleWidth = Math.min(rect.left + rect.width, vw - 16) - Math.max(rect.left, 16);
+  return visibleHeight > 48 && visibleWidth > 48;
+}
+
+function scrollTourTargetIntoView(el: Element): void {
+  el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' });
+}
+
 function clamp(n: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, n));
 }
@@ -116,7 +129,9 @@ export const SpotlightTour: React.FC<Props> = ({
   const step = steps[currentStep];
   const isLast = currentStep >= steps.length - 1;
   const placement = step?.placement ?? (step?.target ? 'bottom' : 'center');
-  const hasTarget = Boolean(step?.target && targetRect);
+  const hasTarget = Boolean(
+    step?.target && targetRect && isRectMostlyVisible(targetRect),
+  );
   const effectivePlacement = hasTarget ? placement : 'center';
 
   const remeasure = useCallback(() => {
@@ -137,17 +152,41 @@ export const SpotlightTour: React.FC<Props> = ({
     onStepChange?.(step, currentStep);
   }, [isOpen, step, currentStep, onStepChange]);
 
-  useLayoutEffect(() => {
+  // Scroll + measure after onStepChange effects (tab switch) so nothing
+  // resets scroll back to the hero before we align the spotlight.
+  useEffect(() => {
     if (!isOpen || !step) return;
 
-    if (step.target) {
-      const el = findVisibleTourTarget(step.target);
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    if (!step.target) {
+      setTargetRect(null);
+      return;
     }
 
-    const t = window.setTimeout(remeasure, step.target ? 320 : 0);
-    return () => window.clearTimeout(t);
-  }, [isOpen, step, currentStep, remeasure]);
+    let cancelled = false;
+    const targetId = step.target;
+
+    const alignTarget = () => {
+      if (cancelled) return;
+      const el = findVisibleTourTarget(targetId);
+      if (!el) {
+        setTargetRect(null);
+        return;
+      }
+      scrollTourTargetIntoView(el);
+      setTargetRect(measureTarget(targetId));
+    };
+
+    const t0 = window.setTimeout(alignTarget, 0);
+    const t1 = window.setTimeout(alignTarget, 50);
+    const t2 = window.setTimeout(alignTarget, 200);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t0);
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [isOpen, step, currentStep]);
 
   useEffect(() => {
     if (!isOpen) return;

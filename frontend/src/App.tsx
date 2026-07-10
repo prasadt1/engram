@@ -200,6 +200,21 @@ function App() {
     [navigate],
   );
 
+  /** Switch to Home for tour steps without scrolling to top — SpotlightTour owns scroll. */
+  const ensureHomeTabForTour = useCallback(() => {
+    if (activeTab === 'home' && !showGlassBox && !showCoachAssist) return;
+    setActiveTab('home');
+    setVisitedTabs((prev) => {
+      if (prev.has('home')) return prev;
+      const next = new Set(prev);
+      next.add('home');
+      return next;
+    });
+    setTabHash('home');
+    setShowGlassBox(false);
+    setShowCoachAssist(false);
+  }, [activeTab, showGlassBox, showCoachAssist]);
+
   const navigateToGlassBox = useCallback(() => {
     setShowGlassBox(true);
     setShowCoachAssist(false);
@@ -769,7 +784,7 @@ function App() {
         <JudgeTour
           forceShow={showJudgeTour}
           onComplete={() => setShowJudgeTour(false)}
-          onNavigateHome={() => navigate('home')}
+          onNavigateHome={ensureHomeTabForTour}
         />
       )}
     </div>
