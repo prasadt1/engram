@@ -1,0 +1,14 @@
+{
+  "name": "engram-devpost-gallery",
+  "private": true,
+  "type": "module",
+  "description": "Playwright capture pipeline for Engram Devpost gallery images (not shipped in prod Docker image).",
+  "scripts": {
+    "capture": "node capture.mjs",
+    "capture:01": "node capture.mjs --screen 01",
+    "install-browser": "playwright install chromium"
+  },
+  "dependencies": {
+    "playwright": "^1.52.0"
+  }
+}

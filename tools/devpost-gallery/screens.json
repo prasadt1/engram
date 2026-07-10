@@ -1,0 +1,477 @@
+{
+  "viewport": {
+    "width": 1280,
+    "height": 900
+  },
+  "deviceScaleFactor": 2,
+  "baseUrl": "https://engram.prasadtilloo.com/?judge=1",
+  "storageKeys": {
+    "welcomeDismissed": {
+      "storage": "sessionStorage",
+      "key": "engram_judge_welcome_dismissed",
+      "value": "true"
+    },
+    "judgeTour": {
+      "storage": "localStorage",
+      "key": "engram-judge-tour-completed",
+      "value": "true"
+    },
+    "onboardingTourV2": {
+      "storage": "localStorage",
+      "key": "engram-tour-completed-v2",
+      "value": "true"
+    },
+    "onboardingTour": {
+      "storage": "localStorage",
+      "key": "engram-tour-completed",
+      "value": "true"
+    },
+    "judgeBanner": {
+      "storage": "localStorage",
+      "key": "engram_judge_banner_dismissed",
+      "value": "true"
+    },
+    "sharedDemoBanner": {
+      "storage": "localStorage",
+      "key": "engram_shared_demo_banner_dismissed",
+      "value": "true"
+    }
+  },
+  "screens": [
+    {
+      "id": "00",
+      "slug": "judge-entry",
+      "hash": null,
+      "navTab": null,
+      "preserveWelcome": true,
+      "tag": "JUDGE",
+      "title": "Judge entry",
+      "urlBar": "engram.prasadtilloo.com/?judge=1",
+      "readySelector": "button:has-text(\"Enter demo\")",
+      "viewport": {
+        "width": 1520,
+        "height": 1000
+      },
+      "capture": "viewport",
+      "fitMode": "cover",
+      "galleryTitle": "Judge entry — orient in 10 seconds",
+      "galleryCaption": "Live stat chips, one product screenshot, single Enter CTA — detail lives in the 90-second walkthrough.",
+      "takeawayTitle": "Judge entry — orient in 10 seconds.",
+      "takeawayBody": "Live stat chips, one product screenshot, single Enter CTA — detail lives in the 90-second walkthrough.",
+      "chips": ["Track 1", "MemoryAgent", "Judge mode"],
+      "cards": [
+        {
+          "label": "ONBOARDING",
+          "title": "One door in",
+          "detail": "Enter demo → Home banner walkthrough → Proof sidebar",
+          "accent": "amber"
+        },
+        {
+          "label": "LIVE DATA",
+          "title": "API-driven chips",
+          "detail": "portfolio/stats + journey — counts never hardcoded",
+          "accent": "mongo"
+        },
+        {
+          "label": "DEPLOY",
+          "title": "Alibaba ECS",
+          "detail": "engram.prasadtilloo.com · Docker · Caddy TLS",
+          "accent": "alibaba"
+        },
+        {
+          "label": "DEMO",
+          "title": "Seeded demo-user",
+          "detail": "real critiques · composition cleared · lighting focus",
+          "accent": "default"
+        }
+      ]
+    },
+    {
+      "id": "01",
+      "slug": "home",
+      "hash": "#home",
+      "navTab": null,
+      "tag": "MEMORY",
+      "title": "Home",
+      "urlBar": "engram.prasadtilloo.com/?judge=1#home",
+      "readySelector": "[aria-label='Memory threads']",
+      "viewport": {
+        "width": 1520,
+        "height": 1000
+      },
+      "capture": "viewport",
+      "fitMode": "cover",
+      "galleryTitle": "Home \u2014 your library, remembered",
+      "galleryCaption": "Mentor-read hero, genre memory threads, and journey progress \u2014 derived from portfolio memory across sessions, not a one-shot critique.",
+      "takeawayTitle": "Home \u2014 your library, remembered.",
+      "takeawayBody": "Mentor-read hero, genre memory threads, and journey progress \u2014 derived from portfolio memory across sessions, not a one-shot critique.",
+      "chips": [
+        "Forgetting-aware memory",
+        "engram-mcp",
+        "Judge mode"
+      ],
+      "cards": [
+        {
+          "label": "FRONTEND",
+          "title": "React 19 + Vite",
+          "detail": "memory threads \u00b7 mentor-read hero \u00b7 contact sheet",
+          "accent": "default"
+        },
+        {
+          "label": "API",
+          "title": "FastAPI on Alibaba ECS",
+          "detail": "GET /api/v1/journey \u00b7 /portfolio \u00b7 /trends",
+          "accent": "alibaba"
+        },
+        {
+          "label": "MEMORY ENGINE",
+          "title": "Salience + graduation",
+          "detail": "recall() \u00b7 supersession \u00b7 token-budget packing",
+          "accent": "amber"
+        },
+        {
+          "label": "DATABASE",
+          "title": "MongoDB Atlas",
+          "detail": "portfolio_entries \u00b7 skills \u00b7 journey state",
+          "accent": "mongo"
+        },
+        {
+          "label": "PHOTO STORAGE",
+          "title": "Alibaba Cloud ECS",
+          "detail": "served at /media \u00b7 OSS one env flip away",
+          "accent": "alibaba"
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "slug": "my-work",
+      "hash": "#work",
+      "navTab": "My Work",
+      "tag": "LIBRARY",
+      "title": "My Work",
+      "urlBar": "engram.prasadtilloo.com/?judge=1#work",
+      "readySelector": "[data-testid='portfolio-grid'], .contact-sheet, main",
+      "viewport": {
+        "width": 1520,
+        "height": 1000
+      },
+      "capture": "viewport",
+      "fitMode": "cover",
+      "galleryTitle": "My Work \u2014 every frame, findable",
+      "galleryCaption": "Search your critiqued library by what's in it; open any frame to talk to the mentor about exactly that photo.",
+      "takeawayTitle": "My Work \u2014 every frame, findable.",
+      "takeawayBody": "Search your critiqued library by what's in it; open any frame to talk to the mentor about exactly that photo.",
+      "chips": [
+        "NL-ish search",
+        "similar photos",
+        "date-stamped"
+      ],
+      "cards": [
+        {
+          "label": "FRONTEND",
+          "title": "Contact-sheet grid",
+          "detail": "score pills \u00b7 date stamps \u00b7 genre tags",
+          "accent": "default"
+        },
+        {
+          "label": "API",
+          "title": "Search + similar",
+          "detail": "GET /portfolio/search \u00b7 /{id}/similar",
+          "accent": "alibaba"
+        },
+        {
+          "label": "MATCHING \u00b7 BY DESIGN",
+          "title": "Structured, not semantic",
+          "detail": "genre synonyms \u00b7 tag overlap \u00b7 no embeddings",
+          "accent": "amber"
+        },
+        {
+          "label": "MEMORY ENGINE",
+          "title": "Photo-scoped memory",
+          "detail": "storageKey = recall scope for each frame",
+          "accent": "amber"
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "slug": "mentor",
+      "hash": "#mentor",
+      "navTab": "Mentor",
+      "tag": "CHAT",
+      "title": "Mentor",
+      "urlBar": "engram.prasadtilloo.com/?judge=1#mentor",
+      "readySelector": "text=Memory Receipt",
+      "viewport": {
+        "width": 1520,
+        "height": 1000
+      },
+      "capture": "viewport",
+      "fitMode": "cover",
+      "interactions": [
+        {
+          "type": "wait",
+          "selector": "input[placeholder*='Ask about']",
+          "timeoutMs": 30000
+        },
+        {
+          "type": "ask_mentor",
+          "text": "How am I doing so far?"
+        },
+        {
+          "type": "wait",
+          "selector": "text=Memory Receipt",
+          "timeoutMs": 120000
+        },
+        {
+          "type": "click",
+          "selector": "summary:has-text('Memory Receipt'), button:has-text('Memory Receipt')",
+          "optional": true
+        }
+      ],
+      "galleryTitle": "Mentor \u2014 answers from YOUR history",
+      "galleryCaption": "Every reply ships a Memory Receipt: what was recalled, what was retired, what got dropped by budget \u2014 checkable, not vibes.",
+      "takeawayTitle": "Mentor \u2014 answers from YOUR history.",
+      "takeawayBody": "Every reply ships a Memory Receipt: what was recalled, what was retired, what got dropped by budget \u2014 checkable, not vibes.",
+      "chips": [
+        "Memory Receipt",
+        "SSE streaming",
+        "grounded replies"
+      ],
+      "cards": [
+        {
+          "label": "STREAMING",
+          "title": "Token-by-token SSE",
+          "detail": "chat_fast_stream \u00b7 qwen3.6-flash",
+          "accent": "qwen"
+        },
+        {
+          "label": "REPLY CONTRACT",
+          "title": "Headline \u00b7 beats \u00b7 full note",
+          "detail": "parsed client-side \u00b7 voiceover-ready",
+          "accent": "default"
+        },
+        {
+          "label": "MEMORY ENGINE",
+          "title": "Recall with receipts",
+          "detail": "salience-ranked \u00b7 recalled/retired listed per reply",
+          "accent": "amber"
+        },
+        {
+          "label": "PERSONA",
+          "title": "Tone-aware coaching",
+          "detail": "hobbyist vs pro framing, server-side prompt",
+          "accent": "default"
+        }
+      ]
+    },
+    {
+      "id": "04",
+      "slug": "proof-room",
+      "hash": "#glassbox",
+      "navTab": "Memory Proof Room",
+      "tag": "PROOF",
+      "title": "Memory Proof Room",
+      "urlBar": "engram.prasadtilloo.com/?judge=1#glassbox",
+      "readySelector": "text=Canon → Sony — forgetting in one question",
+      "viewport": {
+        "width": 1520,
+        "height": 1000
+      },
+      "capture": "viewport",
+      "fitMode": "cover",
+      "interactions": [
+        {
+          "type": "scroll",
+          "selector": "#proof-start"
+        },
+        {
+          "type": "wait",
+          "selector": "text=What you're watching",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "click",
+          "selector": "button:has-text(\"Play story\")"
+        },
+        {
+          "type": "wait",
+          "selector": "text=recall only Sony",
+          "timeoutMs": 25000
+        },
+        {
+          "type": "wait",
+          "selector": "button:has-text(\"Play story\")",
+          "timeoutMs": 10000
+        },
+        {
+          "type": "scroll",
+          "selector": "#proof-start",
+          "waitMs": 600
+        }
+      ],
+      "focusSelector": "#proof-start",
+      "galleryTitle": "Proof, not theatre",
+      "galleryCaption": "Play the Canon→Sony story to completion with the what-you-are-watching legend visible — stale Canon retires; never-forgets leaks it back.",
+      "takeawayTitle": "Proof, not theatre.",
+      "takeawayBody": "Play the Canon→Sony story to completion with the what-you-are-watching legend visible — stale Canon retires; never-forgets leaks it back.",
+      "chips": [
+        "Canon to Sony",
+        "supersession",
+        "audit-kept"
+      ],
+      "cards": [
+        {
+          "label": "PROTOCOL",
+          "title": "engram-mcp",
+          "detail": "typed tools \u00b7 stdio \u00b7 ?via=mcp live round-trip",
+          "accent": "qwen"
+        },
+        {
+          "label": "BENCHMARK",
+          "title": "/eval \u2014 frozen",
+          "detail": "26 traces \u00b7 FAMA 1.00 vs 0.64 \u00b7 recall unchanged",
+          "accent": "amber"
+        },
+        {
+          "label": "TOKEN COST",
+          "title": "1.72\u00d7 fewer context tokens",
+          "detail": "vs full-history stuffing, same recall",
+          "accent": "amber"
+        },
+        {
+          "label": "FORGETTING",
+          "title": "Supersession, not deletion",
+          "detail": "Canon\u2192Sony story \u00b7 retired facts audit-kept",
+          "accent": "amber"
+        }
+      ]
+    },
+    {
+      "id": "05",
+      "slug": "architecture",
+      "hash": null,
+      "navTab": null,
+      "tag": "SYSTEM",
+      "title": "Architecture",
+      "urlBar": "github.com/prasadt1/engram",
+      "source": "architecture-svg",
+      "architectureSvg": "docs/architecture-dark.svg",
+      "layout": "architecture",
+      "crop": null,
+      "capture": "asset",
+      "fitMode": "contain",
+      "galleryTitle": "One memory layer, many products",
+      "galleryCaption": "The coach is the first product on the engine \u2014 LENS and print-sales workflows mount the same memory over MCP.",
+      "takeawayTitle": "One memory layer, many products.",
+      "takeawayBody": "The coach is the first product on the engine \u2014 LENS and print-sales workflows mount the same memory over MCP.",
+      "chips": [
+        "Alibaba ECS",
+        "MongoDB Atlas",
+        "Apache-2.0"
+      ],
+      "cards": [
+        {
+          "label": "MODELS \u00b7 QWEN CLOUD",
+          "title": "Three tiers, one client",
+          "detail": "qwen-vl-max \u00b7 qwen3.7-max \u00b7 qwen3.6-flash",
+          "accent": "qwen"
+        },
+        {
+          "label": "RELIABILITY",
+          "title": "Salvage before repair",
+          "detail": "local JSON/enum fixes \u00b7 0.1ms vs 93s spiral",
+          "accent": "amber"
+        },
+        {
+          "label": "PROTOCOL",
+          "title": "engram-mcp",
+          "detail": "typed tools \u00b7 stdio \u00b7 any Qwen agent can mount it",
+          "accent": "qwen"
+        },
+        {
+          "label": "EVAL",
+          "title": "Deterministic benchmark",
+          "detail": "one command \u00b7 frozen traces \u00b7 \u03bb disclosed",
+          "accent": "amber"
+        }
+      ]
+    },
+    {
+      "id": "06",
+      "slug": "photo-detail",
+      "hash": "#work",
+      "navTab": "My Work",
+      "tag": "NARRATION",
+      "title": "Photo detail",
+      "urlBar": "engram.prasadtilloo.com/?judge=1#work",
+      "readySelector": "text=Back to library",
+      "focusSelector": "[role='dialog'][aria-label='Photo detail and mentor chat']",
+      "viewport": {
+        "width": 1600,
+        "height": 900
+      },
+      "capture": "viewport",
+      "fitMode": "cover",
+      "interactions": [
+        {
+          "type": "wait",
+          "selector": "button[aria-label*='Open photo detail and ask']",
+          "timeoutMs": 45000
+        },
+        {
+          "type": "click",
+          "selector": "button[aria-label*='Open photo detail and ask']",
+          "index": 0
+        },
+        {
+          "type": "wait",
+          "selector": "text=Back to library",
+          "timeoutMs": 30000
+        },
+        {
+          "type": "click",
+          "selector": "summary:has-text('Memory Receipt'), button:has-text('Memory Receipt')",
+          "optional": true
+        }
+      ],
+      "optional": true,
+      "galleryTitle": "Click a photo, get the memory",
+      "galleryCaption": "The critique, what the coach learned from it, and a chat that only recalls this frame's memory.",
+      "takeawayTitle": "Click a photo, get the memory.",
+      "takeawayBody": "The critique, what the coach learned from it, and a chat that only recalls this frame's memory.",
+      "chips": [
+        "memoryUpdate",
+        "scoped recall",
+        "glass box"
+      ],
+      "cards": [
+        {
+          "label": "NARRATION",
+          "title": "What I learned, stated",
+          "detail": "deterministic \u2014 derived from real state transitions",
+          "accent": "amber"
+        },
+        {
+          "label": "SCORES",
+          "title": "Five dimensions + tooltips",
+          "detail": "DimensionBar \u00b7 \u24d8 meanings",
+          "accent": "default"
+        },
+        {
+          "label": "SCOPED CHAT",
+          "title": "This frame only",
+          "detail": "recall(scope = storageKey)",
+          "accent": "amber"
+        },
+        {
+          "label": "GROUNDING",
+          "title": "Principles cited",
+          "detail": "curated photography docs, per-genre",
+          "accent": "default"
+        }
+      ]
+    }
+  ]
+}
