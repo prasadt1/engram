@@ -1,5 +1,5 @@
 /**
- * JudgeTour — six-stop walkthrough for hackathon evaluators (?judge=1).
+ * JudgeTour — seven-stop walkthrough for hackathon evaluators (?judge=1).
  * Separate from the generic OnboardingTour; focuses on memory proof.
  */
 
@@ -12,6 +12,7 @@ import {
   Images,
   MessageCircle,
   Sparkles,
+  Target,
   Users,
   X,
 } from 'lucide-react';
@@ -50,6 +51,14 @@ const JUDGE_TOUR_STEPS: TourStep[] = [
     description:
       'Open any photo and ask the Mentor. Replies draw on scoped memory for that frame — with the same receipt proving recall vs forgetting.',
     tabHint: 'My Work · photo detail',
+  },
+  {
+    id: 'practice',
+    icon: Target,
+    title: 'Practice Loop — proactive memory',
+    description:
+      'Open Practice and tap Suggest practice. The assignment targets lighting (streak 2/3) because that is Jordan\'s current focus — rationale cites the same skill state as Journey, not a weakest-average scoreboard.',
+    tabHint: 'Practice · or Home → Journey card',
   },
   {
     id: 'proof',

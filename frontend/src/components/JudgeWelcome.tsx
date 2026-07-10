@@ -5,7 +5,16 @@
  */
 
 import React, { useEffect } from 'react';
-import { ArrowLeft, ArrowRight, BadgeCheck, FlaskConical, Images, Sparkles } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  BadgeCheck,
+  FlaskConical,
+  Images,
+  Sparkles,
+  Target,
+  Users,
+} from 'lucide-react';
 import { BrandLogo } from './BrandLogo';
 import { Button, Card, Eyebrow } from './primitives';
 import { dismissJudgeWelcome } from '../lib/judgeMode';
@@ -61,8 +70,10 @@ export const JudgeWelcome: React.FC<Props> = ({ onEnterDemo, onStartTour, onOpen
           </h1>
           <p className="text-stone-400 text-base leading-relaxed">
             You&apos;re viewing a <strong className="text-stone-300">seeded demo photographer</strong>{' '}
-            (<code className="font-mono text-sm text-brand-300">demo-user</code>) with 17 real critiques,
-            skill graduation, and live memory counts — not an empty sandbox.
+            (<code className="font-mono text-sm text-brand-300">demo-user</code>) with 16 real
+            Qwen-VL critiques across five sessions — composition has graduated, lighting is one strong
+            shoot from clearing, and a memory-derived Practice assignment is ready. Live MongoDB
+            counts throughout; not an empty sandbox.
           </p>
         </div>
 
@@ -78,6 +89,14 @@ export const JudgeWelcome: React.FC<Props> = ({ onEnterDemo, onStartTour, onOpen
               </span>
             </li>
             <li className="flex gap-3">
+              <Target className="w-5 h-5 text-brand-400 shrink-0 mt-0.5" aria-hidden />
+              <span>
+                <strong className="text-white">Practice → memory-derived assignment</strong> — open
+                Practice (or the Journey card on Home); Suggest practice cites watching/streak state
+                (lighting at 2/3) and explains why — not a generic prompt.
+              </span>
+            </li>
+            <li className="flex gap-3">
               <Images className="w-5 h-5 text-brand-400 shrink-0 mt-0.5" aria-hidden />
               <span>
                 <strong className="text-white">Click any thread photo</strong> — opens that frame in
@@ -89,6 +108,13 @@ export const JudgeWelcome: React.FC<Props> = ({ onEnterDemo, onStartTour, onOpen
               <span>
                 <strong className="text-white">Memory Proof Room</strong> — live MongoDB stats, MCP
                 round-trip toggle, and FAMA benchmark with Canon/Sony worked example.
+              </span>
+            </li>
+            <li className="flex gap-3">
+              <Users className="w-5 h-5 text-brand-400 shrink-0 mt-0.5" aria-hidden />
+              <span>
+                <strong className="text-white">Coach Assist roster</strong> — three learner cards
+                with isolated MongoDB journeys (Jordan interactive; Alex and Sam as scale proof).
               </span>
             </li>
           </ul>
