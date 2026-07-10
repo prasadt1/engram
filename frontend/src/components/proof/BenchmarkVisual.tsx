@@ -4,12 +4,15 @@
 
 import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { Eyebrow, Tag } from '../primitives';
+import { Eyebrow, InfoTooltip, Tag } from '../primitives';
 import { useCountUp } from '../../hooks/useCountUp';
 import {
+  BENCHMARK_PROVENANCE,
   CONTROL_TRACE_COUNT,
   defaultResults,
   DIVERGED_TRACE_COUNT,
+  FAMA_HEADING,
+  FAMA_TOOLTIP,
   JUDGE_GUIDE_URL,
   LEAKED_ANSWER_COUNT,
   noForgettingByTrace,
@@ -26,10 +29,12 @@ function ScoreRing({
   label,
   value,
   tone,
+  showFamaTooltip = false,
 }: {
   label: string;
   value: number;
   tone: 'good' | 'bad';
+  showFamaTooltip?: boolean;
 }) {
   const animated = useCountUp(value, 1000, true);
   const pct = Math.min(100, value * 100);
@@ -62,7 +67,12 @@ function ScoreRing({
           </span>
         </div>
       </div>
-      <p className="text-xs text-stone-400 text-center max-w-[8rem]">{label}</p>
+      <p className="text-xs text-stone-400 text-center max-w-[8rem]">
+        {label}
+        {showFamaTooltip && (
+          <InfoTooltip text={FAMA_TOOLTIP} label="What FAMA means" className="ml-0.5" />
+        )}
+      </p>
     </div>
   );
 }
@@ -85,8 +95,9 @@ export const BenchmarkVisual: React.FC = () => {
 
       {/* Headline comparison */}
       <div className="rounded-2xl border border-warm bg-surface-1/40 p-5 md:p-6">
+        <p className="text-sm text-center text-stone-200 font-medium mb-5">{FAMA_HEADING}</p>
         <div className="grid sm:grid-cols-3 gap-6 items-center">
-          <ScoreRing label="Mean FAMA · Engram shipped" value={meanShipped} tone="good" />
+          <ScoreRing label="Mean · Engram shipped" value={meanShipped} tone="good" showFamaTooltip />
           <div className="text-center space-y-2 px-2">
             <p className="text-xs uppercase tracking-wider text-stone-500">vs never forgets</p>
             <p className="font-serif text-3xl text-white tabular-nums">{meanAblated.toFixed(2)}</p>
@@ -99,13 +110,13 @@ export const BenchmarkVisual: React.FC = () => {
               {tokenAnimated.toFixed(2)}× smaller context
             </p>
           </div>
-          <ScoreRing label="Mean FAMA · never forgets" value={meanAblated} tone="bad" />
+          <ScoreRing label="Mean · never forgets" value={meanAblated} tone="bad" showFamaTooltip />
         </div>
-        <p className="mt-4 pt-3 border-t border-warm/50 text-xs text-stone-400 text-center max-w-2xl mx-auto">
-          <span className="text-stone-300 font-semibold">Mean FAMA</span> rewards recalling every
-          still-true fact and penalizes surfacing outdated ones — 1.00 is perfect.
-        </p>
       </div>
+
+      <p className="text-xs text-stone-500 leading-relaxed rounded-lg border border-warm/60 bg-surface-2/30 px-3 py-2.5">
+        {BENCHMARK_PROVENANCE}
+      </p>
 
       {/* Trace heatmap */}
       <div className="rounded-xl border border-warm/70 p-4 space-y-3">
@@ -168,7 +179,10 @@ export const BenchmarkVisual: React.FC = () => {
           className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-surface-2/50 transition-colors"
           aria-expanded={tableOpen}
         >
-          <span className="text-sm text-stone-300">Full FAMA table (all {defaultResults.summary.trace_count} rows)</span>
+          <span className="text-sm text-stone-300 inline-flex items-center gap-1">
+            Full FAMA table (all {defaultResults.summary.trace_count} rows)
+            <InfoTooltip text={FAMA_TOOLTIP} label="What FAMA means" />
+          </span>
           <ChevronDown className={`w-5 h-5 text-stone-500 transition-transform ${tableOpen ? 'rotate-180' : ''}`} />
         </button>
         {tableOpen && (
@@ -177,8 +191,14 @@ export const BenchmarkVisual: React.FC = () => {
               <thead className="sticky top-0 bg-surface-2 text-muted uppercase text-[10px]">
                 <tr>
                   <th className="text-left px-3 py-2">Scenario</th>
-                  <th className="text-right px-3 py-2">Shipped</th>
-                  <th className="text-right px-3 py-2">Never forgets</th>
+                  <th className="text-right px-3 py-2">
+                    Shipped
+                    <InfoTooltip text={FAMA_TOOLTIP} label="What FAMA means" className="ml-0.5" />
+                  </th>
+                  <th className="text-right px-3 py-2">
+                    Never forgets
+                    <InfoTooltip text={FAMA_TOOLTIP} label="What FAMA means" className="ml-0.5" />
+                  </th>
                   <th className="text-right px-3 py-2">Tokens</th>
                 </tr>
               </thead>

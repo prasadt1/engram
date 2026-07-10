@@ -5,7 +5,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Play, RotateCcw } from 'lucide-react';
 import { Button, Eyebrow, Tag } from '../primitives';
-import { JUDGE_GUIDE_URL, TRACE_LABELS, WORKED_TRACE_ID, workedDefault, workedNoForgetting } from './proofData';
+import { JUDGE_GUIDE_URL, CANON_SONY_PRECURSOR, TRACE_LABELS, WORKED_TRACE_ID, workedDefault, workedNoForgetting } from './proofData';
+import { WhatYouAreWatchingBox } from './WhatYouAreWatchingBox';
 
 type Phase = 0 | 1 | 2 | 3 | 4;
 
@@ -95,7 +96,10 @@ export const CanonSonyVisual: React.FC = () => {
             <Tag variant="outline">Eval harness</Tag>
           </div>
           <h2 className="font-serif text-xl md:text-2xl text-white">Canon → Sony — forgetting in one question</h2>
-          <p className="text-sm text-stone-400 max-w-xl">
+          <p className="text-sm text-stone-300 max-w-2xl leading-relaxed border-l-2 border-brand-500/40 pl-3">
+            {CANON_SONY_PRECURSOR}
+          </p>
+          <p className="text-sm text-stone-500 max-w-xl">
             {TRACE_LABELS[WORKED_TRACE_ID]}{' '}
             <span className="font-mono text-xs text-stone-600">({WORKED_TRACE_ID})</span> — same{' '}
             <code className="font-mono text-xs">recall()</code> engine as the coach, not demo-user uploads.
@@ -148,6 +152,9 @@ export const CanonSonyVisual: React.FC = () => {
         </ol>
       </div>
 
+      {/* Play stage + side legend */}
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,15rem)] gap-4 items-start">
+        <div className="space-y-4 min-w-0">
       {/* Memory store visualization */}
       <div className="grid md:grid-cols-2 gap-4">
         <div className="rounded-xl border border-warm/70 bg-photo-black/40 p-4 space-y-3 min-h-[8rem]">
@@ -206,6 +213,10 @@ export const CanonSonyVisual: React.FC = () => {
             <p className="text-[11px] text-stone-500">Stale Canon leaks back in.</p>
           </div>
         </div>
+      </div>
+        </div>
+
+        <WhatYouAreWatchingBox />
       </div>
 
       <p className="text-xs text-stone-500 text-center">

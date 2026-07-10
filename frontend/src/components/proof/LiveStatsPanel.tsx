@@ -7,7 +7,7 @@ import { ChevronDown, Loader2, Sparkles, Zap } from 'lucide-react';
 import { Card, Eyebrow, Tag } from '../primitives';
 import { useCountUp } from '../../hooks/useCountUp';
 import { apiFetch } from '../../lib/apiFetch';
-import { JUDGE_GUIDE_URL } from './proofData';
+import { JUDGE_GUIDE_URL, LIVE_LIBRARY_EXPLAINER, MCP_TOGGLE_CAPTION } from './proofData';
 
 interface MemoryStats {
   total_memories: number;
@@ -115,39 +115,42 @@ export const LiveStatsPanel: React.FC = () => {
 
   return (
     <Card padding="md" className="scroll-mt-6 space-y-4" id="proof-live">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="space-y-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <Eyebrow>Step 2 · Live demo library</Eyebrow>
             <Tag variant="outline">MongoDB · demo-user</Tag>
           </div>
-          <p className="mt-1 text-sm text-stone-400 max-w-lg">
-            Production memory for the photographer you&apos;ve been browsing — fetched just now.
+          <p className="mt-2 text-sm text-stone-300 max-w-2xl leading-relaxed">{LIVE_LIBRARY_EXPLAINER}</p>
+        </div>
+        <div className="flex flex-wrap items-start gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              const next = !viaMcp;
+              setViaMcp(next);
+              load(next);
+            }}
+            disabled={refreshing}
+            aria-pressed={viaMcp}
+            title="Round-trip the same counts through engram-mcp"
+            className={`inline-flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-md border transition-colors disabled:opacity-50 shrink-0 ${
+              viaMcp
+                ? 'bg-brand-500/15 border-brand-500/40 text-brand-400'
+                : 'bg-surface-2 border-warm text-stone-300 hover:text-white'
+            }`}
+          >
+            {refreshing && viaMcp ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+            ) : (
+              <Zap className="w-3.5 h-3.5" aria-hidden />
+            )}
+            MCP path
+          </button>
+          <p className="text-xs text-stone-500 max-w-xl leading-relaxed flex-1 min-w-[12rem]">
+            {MCP_TOGGLE_CAPTION}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            const next = !viaMcp;
-            setViaMcp(next);
-            load(next);
-          }}
-          disabled={refreshing}
-          aria-pressed={viaMcp}
-          title="Round-trip the same counts through engram-mcp"
-          className={`inline-flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-md border transition-colors disabled:opacity-50 shrink-0 ${
-            viaMcp
-              ? 'bg-brand-500/15 border-brand-500/40 text-brand-400'
-              : 'bg-surface-2 border-warm text-stone-300 hover:text-white'
-          }`}
-        >
-          {refreshing && viaMcp ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-          ) : (
-            <Zap className="w-3.5 h-3.5" aria-hidden />
-          )}
-          MCP path
-        </button>
       </div>
 
       {!stats && refreshing && (
@@ -175,7 +178,7 @@ export const LiveStatsPanel: React.FC = () => {
 
       {stats?.served_via && (
         <Tag variant="brand" icon={<Sparkles className="w-3 h-3" aria-hidden />}>
-          MCP round trip confirmed
+          served_via: {stats.served_via}
         </Tag>
       )}
 

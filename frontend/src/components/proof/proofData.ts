@@ -86,3 +86,20 @@ export const TRACE_LABELS: Record<string, string> = {
 
 export const JUDGE_GUIDE_URL =
   'https://github.com/prasadt1/engram/blob/main/docs/judge-memory-proof-room.md';
+
+/** Part B — judge clarity copy (verbatim from claude-to-cursor-judge-clarity-spec.md). */
+export const FAMA_HEADING = 'FAMA — Forgetting-Aware Memory Accuracy';
+export const FAMA_TOOLTIP =
+  'Forgetting-Aware Memory Accuracy — rewards recalling every still-true fact, penalizes surfacing outdated ones. 1.00 is perfect.';
+
+export const CANON_SONY_PRECURSOR =
+  'Why this story? Photographers change gear. A mentor who remembers everything forever keeps coaching you on a camera you sold last month. Press Play to watch Engram handle the moment a fact stops being true — it retires the old fact to an audit trail and never lets it contaminate advice again.';
+
+export const LIVE_LIBRARY_EXPLAINER =
+  "These counts are fetched from the demo photographer's MongoDB as you load this page — the same memory behind every critique in this demo. Upload a photo and Total goes up; nothing here is staged.";
+
+export const MCP_TOGGLE_CAPTION =
+  'Same numbers, different door: this re-runs the identical call through the engram-mcp server — proof that any Qwen agent could mount this memory, not just this app.';
+
+export const BENCHMARK_PROVENANCE =
+  '26 scripted photographer histories, frozen before any results were computed — committed in the repo (eval/traces.py). A control is a history where nothing changes: both configs must tie at 1.00 there, and they do. Rerun everything yourself: python -m eval.run --compare.';
