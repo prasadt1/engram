@@ -21,6 +21,25 @@ export interface JudgeDemoStats {
   focus: JudgeProofLine;
 }
 
+/** Numberless proof sentences when live stats cannot be fetched — not loading copy. */
+export const JUDGE_DEMO_STATS_FAILURE_FALLBACK: Pick<
+  JudgeDemoStats,
+  'library' | 'cleared' | 'focus'
+> = {
+  library: { emphasis: 'A full library', rest: ' of real critiques' },
+  cleared: {
+    emphasis: 'Skill graduation built in',
+    rest: ' — coaching retires what you master',
+  },
+  focus: { emphasis: 'Live memory', rest: ' — fetched from the demo database.' },
+};
+
+export const JUDGE_DEMO_STATS_LOADING: Pick<JudgeDemoStats, 'library' | 'cleared' | 'focus'> = {
+  library: { emphasis: '…', rest: ' loading library proof' },
+  cleared: { emphasis: '…', rest: ' loading skill state' },
+  focus: { emphasis: '…', rest: ' loading focus streak' },
+};
+
 export function buildLibraryProofLine(count: number): JudgeProofLine {
   const critique = count === 1 ? 'real critique' : 'real critiques';
   return {

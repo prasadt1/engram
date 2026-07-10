@@ -24,7 +24,11 @@ import { Button, Card, Tag, Eyebrow, StatCard } from './primitives';
 import { useCountUp } from '../hooks/useCountUp';
 import { formatSkillLabel } from '../lib/formatSkillLabel';
 import { formatTagLabel } from '../lib/formatTagLabel';
-import { buildHeroMentorCaption, type HeroMentorCaption } from '../lib/coachingBrief';
+import {
+  buildHeroMentorCaption,
+  currentFocusFromJourney,
+  type HeroMentorCaption,
+} from '../lib/coachingBrief';
 import { friendlyErrorMessage } from '../lib/friendlyError';
 import { pickHomeHeroPhoto } from '../lib/pickHomeHeroPhoto';
 import { portfolioImageUrl } from '../lib/portfolioImageUrl';
@@ -275,7 +279,7 @@ function ReturningPhotoHero({
               onClick={() => onNavigate('practice')}
               fullWidth
             >
-              Continue practice
+              Practice →
             </Button>
           )}
         </div>
@@ -589,9 +593,26 @@ export const HomeTab: React.FC<Props> = ({
   const heroImageReady = heroSrc != null;
   const animatedScore = useCountUp(heroScore, 900, heroImageReady);
 
-  const bestTrend = trends?.dimensions?.find(
-    (d) => d.delta != null && d.delta > 0 && ['composition', 'lighting', 'overall'].includes(d.key),
-  );
+  /** Prefer current-focus or overall trend when the best raw delta belongs to a
+   *  skill already cleared — avoids "Composition 8.0 → 8.6" right after the
+   *  mentor stopped coaching composition. */
+  const bestTrend = useMemo(() => {
+    const dims =
+      trends?.dimensions?.filter(
+        (d) => d.delta != null && d.delta > 0 && ['composition', 'lighting', 'overall'].includes(d.key),
+      ) ?? [];
+    if (dims.length === 0) return undefined;
+
+    const clearedKeys = new Set(
+      journey?.skills?.filter((s) => s.status === 'cleared').map((s) => s.name) ?? [],
+    );
+    const focus = currentFocusFromJourney(journey?.skills);
+    if (focus) {
+      const focusTrend = dims.find((d) => d.key === focus.name);
+      if (focusTrend) return focusTrend;
+    }
+    return dims.find((d) => d.key === 'overall' || !clearedKeys.has(d.key)) ?? dims[0];
+  }, [trends, journey]);
   const trendDelta = bestTrend?.delta ?? null;
   const trendLabel = bestTrend?.label ?? null;
 
@@ -1001,8 +1022,15 @@ export const HomeTab: React.FC<Props> = ({
                 <StatCard
                   icon={<Award className="w-5 h-5" />}
                   label="Assignments done"
-                  value={completedAssignmentCount}
+                  value={
+                    completedAssignmentCount === 0
+                      ? FEATURES.practice
+                        ? 'Accept your first challenge in Practice →'
+                        : 'Coming soon'
+                      : completedAssignmentCount
+                  }
                   detail={
+                    completedAssignmentCount > 0 &&
                     (activeAssignment ?? recentCompletedAssignment)
                       ? shortAssignmentBrief((activeAssignment ?? recentCompletedAssignment)!.brief)
                       : undefined
@@ -1010,11 +1038,9 @@ export const HomeTab: React.FC<Props> = ({
                   note={
                     activeAssignment
                       ? 'Active practice brief'
-                      : completedAssignmentCount === 0
-                        ? FEATURES.practice
-                          ? 'Accept a challenge in Practice'
-                          : 'Coming soon'
-                        : 'Completed practice briefs'
+                      : completedAssignmentCount > 0
+                        ? 'Completed practice briefs'
+                        : undefined
                   }
                   action={
                     FEATURES.practice ? (

@@ -151,7 +151,7 @@ export const AppSidebar: React.FC<Props> = ({
               style={{ transitionTimingFunction: 'var(--ease-out-expo)' }}
             >
               <Users className="w-4.5 h-4.5 shrink-0" aria-hidden />
-              <span className="truncate">Coach Assist</span>
+              <span className="truncate">3 isolated journeys</span>
             </button>
           )}
         </div>

@@ -9,7 +9,13 @@ import { ArrowRight, Sparkles } from 'lucide-react';
 import { BrandLogo } from './BrandLogo';
 import { Button, Eyebrow } from './primitives';
 import { dismissJudgeWelcome } from '../lib/judgeMode';
-import { fetchJudgeDemoStats, type JudgeDemoStats, type JudgeProofLine } from '../lib/judgeDemoStats';
+import {
+  fetchJudgeDemoStats,
+  JUDGE_DEMO_STATS_FAILURE_FALLBACK,
+  JUDGE_DEMO_STATS_LOADING,
+  type JudgeDemoStats,
+  type JudgeProofLine,
+} from '../lib/judgeDemoStats';
 
 interface Props {
   onEnterDemo: () => void;
@@ -70,9 +76,9 @@ export const JudgeWelcome: React.FC<Props> = ({ onEnterDemo }) => {
     onEnterDemo();
   };
 
-  const fallbackLibrary: JudgeProofLine = { emphasis: '…', rest: ' loading library proof' };
-  const fallbackCleared: JudgeProofLine = { emphasis: '…', rest: ' loading skill state' };
-  const fallbackFocus: JudgeProofLine = { emphasis: '…', rest: ' loading focus streak' };
+  const proofLines =
+    stats ??
+    (statsReady ? JUDGE_DEMO_STATS_FAILURE_FALLBACK : JUDGE_DEMO_STATS_LOADING);
 
   return (
     <div className="min-h-screen bg-canvas text-stone-200 flex flex-col">
@@ -101,18 +107,18 @@ export const JudgeWelcome: React.FC<Props> = ({ onEnterDemo }) => {
 
             <ul className="space-y-2.5" aria-label="Live demo proof">
               <JudgeProofLineItem
-                line={stats?.library ?? fallbackLibrary}
-                animate={statsReady && stats != null}
+                line={proofLines.library}
+                animate={stats != null}
                 delayMs={0}
               />
               <JudgeProofLineItem
-                line={stats?.cleared ?? fallbackCleared}
-                animate={statsReady && stats != null}
+                line={proofLines.cleared}
+                animate={stats != null}
                 delayMs={80}
               />
               <JudgeProofLineItem
-                line={stats?.focus ?? fallbackFocus}
-                animate={statsReady && stats != null}
+                line={proofLines.focus}
+                animate={stats != null}
                 delayMs={160}
               />
             </ul>

@@ -102,7 +102,7 @@ export const CoachAssistTab: React.FC<Props> = ({ onGoToJordanDemo }) => {
       <header className="space-y-3">
         <div className="flex items-center gap-2 text-brand-400">
           <Users className="w-5 h-5" aria-hidden />
-          <p className="text-xs font-semibold uppercase tracking-wider">Coach Assist</p>
+          <p className="text-xs font-semibold uppercase tracking-wider">Proof · isolation</p>
         </div>
         <h1 className="text-2xl md:text-3xl font-semibold text-stone-100 tracking-tight">
           One mentor, many learners

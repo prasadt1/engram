@@ -31,7 +31,7 @@ const JUDGE_TOUR_STEPS: TourStep[] = [
     icon: Sparkles,
     title: 'What to look for',
     description:
-      'Follow Jordan (demo-user): Home memory threads with real score growth → Practice assignment grounded in skill state → upload + Memory Receipt in My Work → Proof Room (live MongoDB + forgetting demo) → Coach Assist roster (three isolated journeys).',
+      'Follow Jordan (demo-user): Home memory threads with real score growth → Practice assignment grounded in skill state → upload + Memory Receipt in My Work → Proof Room (live MongoDB + forgetting demo) → 3 isolated journeys (Jordan interactive; Alex and Sam as scale proof).',
     tabHint: '90-second overview',
   },
   {
@@ -63,8 +63,8 @@ const JUDGE_TOUR_STEPS: TourStep[] = [
     icon: FlaskConical,
     title: 'Proof Room — and it scales',
     description:
-      'Sidebar → Memory Proof Room: play Canon→Sony to watch stale facts retire, toggle MCP for the same stats through engram-mcp, scan the FAMA benchmark. Then Coach Assist — three learner cards, isolated MongoDB journeys (Jordan interactive; Alex and Sam as scale proof).',
-    tabHint: 'Sidebar · Proof · Coach Assist',
+      'Sidebar → Memory Proof Room: play Canon→Sony to watch stale facts retire, toggle MCP for the same stats through engram-mcp, scan the FAMA benchmark. Then 3 isolated journeys — three learner cards, separate MongoDB arcs (Jordan interactive; Alex and Sam as scale proof).',
+    tabHint: 'Sidebar · Proof · Isolated journeys',
   },
 ];
 

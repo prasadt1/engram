@@ -78,8 +78,29 @@ async function main() {
   await page.waitForTimeout(800);
 
   const hero = page.locator('[data-testid="home-mentor-hero"]').first();
+  const uploadBtn = hero.getByRole('button', { name: 'Upload photo' });
   await hero.scrollIntoViewIfNeeded();
-  await hero.screenshot({ path: TMP_PNG, type: 'png' });
+  await uploadBtn.waitFor({ state: 'visible', timeout: 30000 });
+
+  // Crop above the hero's orange Upload button — JudgeWelcome must show exactly
+  // one orange CTA (Enter demo); the baked crop is illustrative, not interactive.
+  const heroBox = await hero.boundingBox();
+  const btnBox = await uploadBtn.boundingBox();
+  if (!heroBox || !btnBox) {
+    throw new Error('Could not measure hero crop bounds');
+  }
+  const pad = 6;
+  const clipHeight = Math.max(120, btnBox.y - heroBox.y - pad);
+  await page.screenshot({
+    path: TMP_PNG,
+    type: 'png',
+    clip: {
+      x: heroBox.x,
+      y: heroBox.y,
+      width: heroBox.width,
+      height: clipHeight,
+    },
+  });
 
   await browser.close();
 

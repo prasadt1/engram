@@ -78,7 +78,7 @@ export const BottomNav: React.FC<Props> = ({
             type="button"
             role="tab"
             aria-selected={coachAssistActive}
-            aria-label="Coach Assist"
+            aria-label="3 isolated journeys"
             onClick={onNavigateCoachAssist}
             className={`flex flex-1 flex-col items-center justify-center gap-0.5 min-h-[44px] min-w-[44px] text-[10px] font-semibold transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400 focus-visible:outline-offset-2 ${
               coachAssistActive ? 'text-brand-400' : 'text-muted hover:text-stone-300'
@@ -86,7 +86,7 @@ export const BottomNav: React.FC<Props> = ({
             style={{ transitionTimingFunction: 'var(--ease-out-expo)' }}
           >
             <Users className="w-5 h-5" aria-hidden />
-            <span>Coach</span>
+            <span>Isolation</span>
           </button>
         )}
       </div>
