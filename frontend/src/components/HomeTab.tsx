@@ -163,6 +163,7 @@ function ReturningPhotoHero({
 }: ReturningPhotoHeroProps) {
   return (
     <div
+      data-testid="home-mentor-hero"
       className={`grid grid-cols-1 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,1fr)] overflow-hidden bg-photo-black -mx-3 md:-mx-6 rounded-none md:rounded-2xl md:mx-0 border border-warm/40 md:border-warm/60 ${
         compact ? 'max-w-4xl mx-auto opacity-95' : ''
       }`}
