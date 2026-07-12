@@ -41,35 +41,35 @@
     {
       "id": "00",
       "slug": "judge-entry",
-      "hash": null,
+      "hash": "#home",
       "navTab": null,
-      "preserveWelcome": true,
+      "preserveJudgeBanner": true,
       "tag": "JUDGE",
       "title": "Judge entry",
       "urlBar": "engram.prasadtilloo.com/?judge=1",
-      "readySelector": "button:has-text(\"Enter demo\")",
+      "readySelector": "button:has-text(\"Take the guided tour\")",
       "viewport": {
         "width": 1520,
         "height": 1000
       },
       "capture": "viewport",
       "fitMode": "cover",
-      "galleryTitle": "Judge entry — orient in 10 seconds",
-      "galleryCaption": "Live stat chips, one product screenshot, single Enter CTA — detail lives in the 90-second walkthrough.",
-      "takeawayTitle": "Judge entry — orient in 10 seconds.",
-      "takeawayBody": "Live stat chips, one product screenshot, single Enter CTA — detail lives in the 90-second walkthrough.",
+      "galleryTitle": "Judge mode — straight to Home",
+      "galleryCaption": "Track 1 · MemoryAgent banner on Home with the guided spotlight tour — no interstitial gate.",
+      "takeawayTitle": "Judge mode — straight to Home.",
+      "takeawayBody": "Track 1 · MemoryAgent banner on Home with the guided spotlight tour — no interstitial gate.",
       "chips": ["Track 1", "MemoryAgent", "Judge mode"],
       "cards": [
         {
           "label": "ONBOARDING",
           "title": "One door in",
-          "detail": "Enter demo → Home banner walkthrough → Proof sidebar",
+          "detail": "?judge=1 → Home banner → spotlight walkthrough → Proof sidebar",
           "accent": "amber"
         },
         {
           "label": "LIVE DATA",
-          "title": "API-driven chips",
-          "detail": "portfolio/stats + journey — counts never hardcoded",
+          "title": "Seeded demo-user",
+          "detail": "portfolio + journey APIs — counts never hardcoded",
           "accent": "mongo"
         },
         {
@@ -79,9 +79,9 @@
           "accent": "alibaba"
         },
         {
-          "label": "DEMO",
-          "title": "Seeded demo-user",
-          "detail": "real critiques · composition cleared · lighting focus",
+          "label": "TOUR",
+          "title": "Spotlight walkthrough",
+          "detail": "Outturn-style focus ring on live Home regions",
           "accent": "default"
         }
       ]

@@ -22,4 +22,4 @@ Deployed **July 4, 2026** on a pay-as-you-go ECS instance.
   - Health: `https://engram.prasadtilloo.com/health`
   - Live MCP path: `https://engram.prasadtilloo.com/api/v1/memory-stats?via=mcp` → `"served_via": "engram-mcp"`
   - Fallback (no DNS/TLS dependency): `http://8.222.253.211:8080/?judge=1`
-- Console screenshot: ![ECS console — instance running](alibaba-console-running.png) *(slot — added with the captured screenshot)*
+- Console screenshot: ![ECS console — instance running](alibaba-console-running.png) — live ECS host evidence panel (instance id, DNS→IP, `docker compose ps`, health, MCP path, commit `15ce1d8`). Supplement with Alibaba console UI screenshot if judges ask for the portal itself.

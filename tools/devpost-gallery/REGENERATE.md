@@ -2,13 +2,9 @@
 
 ## Deploy gate (read before final batch)
 
-Production may lag `main`. The Jul 8 deploy batch includes the new logo
-(`8106335`) and JudgeWelcome copy fix (`454510a`). **Do not run the final
-capture batch until that deploy is live** — otherwise gallery PNGs immortalize
-old UI.
-
-Building and testing the tool against current prod is fine; the **final**
-`capture.mjs` + `render.py --all` run should wait for deploy confirmation.
+Production must be on current `main` (Home unify + spotlight tour). Confirm
+`git log -1` on ECS matches origin before a final capture batch — otherwise
+gallery PNGs immortalize old UI.
 
 ## Prerequisites
 

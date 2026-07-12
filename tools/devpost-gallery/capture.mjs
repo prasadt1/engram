@@ -32,8 +32,14 @@ function parseArgs(argv) {
 function applyStorageKeys(keysOrPayload, opts = {}) {
   const keys = keysOrPayload?.keys ?? keysOrPayload;
   const skipWelcome = keysOrPayload?.skipWelcome === true || opts.skipWelcome === true;
+  const skipBanner = keysOrPayload?.skipBanner === true || opts.skipBanner === true;
   for (const { storage, key, value } of Object.values(keys)) {
     if (skipWelcome && key === 'engram_judge_welcome_dismissed') continue;
+    if (skipBanner && key === 'engram_judge_banner_dismissed') {
+      const store = storage === 'sessionStorage' ? sessionStorage : localStorage;
+      store.removeItem(key);
+      continue;
+    }
     const store = storage === 'sessionStorage' ? sessionStorage : localStorage;
     store.setItem(key, value);
   }
@@ -139,24 +145,14 @@ async function clickNav(page, label) {
 
 async function navigateToScreen(page, screen, base) {
   const root = base.replace(/#.*$/, '');
-
-  if (screen.preserveWelcome) {
-    await page.goto(root, { waitUntil: 'networkidle', timeout: 120000 });
-    await page.evaluate(() => {
-      sessionStorage.removeItem('engram_judge_welcome_dismissed');
-    });
-    await page.waitForTimeout(1200);
-    return;
-  }
+  const storagePayload = {
+    keys: CONFIG.storageKeys,
+    skipBanner: screen.preserveJudgeBanner === true,
+  };
 
   if (screen.navTab) {
     await page.goto(root, { waitUntil: 'networkidle', timeout: 120000 });
-    await page.evaluate(applyStorageKeys, CONFIG.storageKeys);
-    const enter = page.locator('button:has-text("Enter demo")');
-    if ((await enter.count()) > 0 && (await enter.first().isVisible())) {
-      await enter.first().click();
-      await page.waitForTimeout(800);
-    }
+    await page.evaluate(applyStorageKeys, storagePayload);
     const clicked = await clickNav(page, screen.navTab);
     if (!clicked) {
       throw new Error(`Could not navigate to tab: ${screen.navTab}`);
@@ -165,6 +161,11 @@ async function navigateToScreen(page, screen, base) {
   } else {
     const url = screen.hash ? `${root}${screen.hash}` : base;
     await page.goto(url, { waitUntil: 'networkidle', timeout: 120000 });
+    await page.evaluate(applyStorageKeys, storagePayload);
+    if (screen.preserveJudgeBanner) {
+      await page.reload({ waitUntil: 'networkidle', timeout: 120000 });
+      await page.evaluate(applyStorageKeys, storagePayload);
+    }
   }
   await page.waitForTimeout(800);
   const skip = page.locator('button:has-text("Skip")');
@@ -342,29 +343,22 @@ async function main() {
 
   for (const screen of screens) {
     try {
-      if (screen.preserveWelcome) {
+      if (screen.preserveJudgeBanner) {
         const ctx = await browser.newContext({
           viewport: CONFIG.viewport,
           deviceScaleFactor: CONFIG.deviceScaleFactor ?? 2,
         });
-        await ctx.addInitScript(
-          (payload) => {
-            const { keys, skipWelcome } = payload;
-            for (const { storage, key, value } of Object.values(keys)) {
-              if (skipWelcome && key === 'engram_judge_welcome_dismissed') continue;
-              const store = storage === 'sessionStorage' ? sessionStorage : localStorage;
-              store.setItem(key, value);
-            }
-          },
-          { keys: CONFIG.storageKeys, skipWelcome: true },
-        );
-        const welcomePage = await ctx.newPage();
-        await welcomePage.goto(args.base, { waitUntil: 'domcontentloaded', timeout: 90000 });
-        await welcomePage.evaluate(applyStorageKeys, {
+        await ctx.addInitScript(applyStorageKeys, {
           keys: CONFIG.storageKeys,
-          skipWelcome: true,
+          skipBanner: true,
         });
-        await captureScreen(welcomePage, screen, args.base, args);
+        const bannerPage = await ctx.newPage();
+        await bannerPage.goto(args.base, { waitUntil: 'domcontentloaded', timeout: 90000 });
+        await bannerPage.evaluate(applyStorageKeys, {
+          keys: CONFIG.storageKeys,
+          skipBanner: true,
+        });
+        await captureScreen(bannerPage, screen, args.base, args);
         await ctx.close();
         continue;
       }
