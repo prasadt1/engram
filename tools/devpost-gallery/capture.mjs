@@ -3,7 +3,7 @@
  * Playwright capture pipeline — read-only against production judge mode.
  * Saves full-page + cropped standalone PNGs to docs/devpost-screenshots/.
  */
-import { readFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, mkdirSync, existsSync, copyFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
@@ -247,9 +247,18 @@ async function saveCroppedPng(page, destPath, screen) {
   await page.screenshot({ path: rawPath, fullPage: false, type: 'png' });
 }
 
-function renderArchitectureSvg(screen) {
-  const svgPath = join(ROOT, screen.architectureSvg);
+function renderArchitectureAsset(screen) {
   const dest = join(OUT_DIR, `standalone-${screen.id}-${screen.slug}.png`);
+  if (screen.source === 'architecture-png') {
+    const pngPath = join(ROOT, screen.architecturePng);
+    if (!existsSync(pngPath)) {
+      throw new Error(`Missing architecture PNG: ${pngPath}\nRun: python3 scripts/build-architecture-diagram.py`);
+    }
+    copyFileSync(pngPath, dest);
+    console.log(`  wrote architecture asset → ${dest}`);
+    return dest;
+  }
+  const svgPath = join(ROOT, screen.architectureSvg);
   if (!existsSync(svgPath)) {
     throw new Error(`Missing architecture SVG: ${svgPath}`);
   }
@@ -266,8 +275,8 @@ function renderArchitectureSvg(screen) {
 async function captureScreen(page, screen, base, opts) {
   console.log(`→ ${screen.id} · ${screen.slug}`);
 
-  if (screen.source === 'architecture-svg') {
-    return renderArchitectureSvg(screen);
+  if (screen.source === 'architecture-svg' || screen.source === 'architecture-png') {
+    return renderArchitectureAsset(screen);
   }
 
   if (screen.id === '03' && opts.skipMentor) {
@@ -321,7 +330,9 @@ async function main() {
   mkdirSync(RAW_DIR, { recursive: true });
   mkdirSync(OUT_DIR, { recursive: true });
 
-  const needsBrowser = screens.some((s) => s.source !== 'architecture-svg');
+  const needsBrowser = screens.some(
+    (s) => s.source !== 'architecture-svg' && s.source !== 'architecture-png',
+  );
   if (!needsBrowser) {
     for (const screen of screens) {
       await captureScreen(null, screen, args.base, args);

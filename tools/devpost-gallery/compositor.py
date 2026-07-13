@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fill-by-construction Devpost gallery compositor (3840×2160).
 
-Variant A (split): mockup left ~65%, tech panel right ~35%.
+Variant A (split): mockup left ~80%, tech panel right ~20%.
 Variant B (band): full-width screenshot top, tech cards in bottom strip.
 """
 
@@ -45,7 +45,7 @@ CAPTION_H = 180
 BROWSER_CHROME_H = 54
 MIN_GAP = 120  # acceptance: no void taller than this
 # Screenshot dominates the frame; the tech panel is a narrow right rail.
-LEFT_RATIO = 0.70
+LEFT_RATIO = 0.80
 
 Variant = Literal["split", "band"]
 
@@ -191,26 +191,26 @@ def _card_detail_lines(draw: ImageDraw.ImageDraw, card: TechCard, w: int, fonts:
 
 
 def measure_card(draw: ImageDraw.ImageDraw, card: TechCard, w: int, fonts: dict) -> int:
-    pad = 24
+    pad = 18
     detail_lines = _card_detail_lines(draw, card, w, fonts)
-    lh_label, lh_title, lh_detail = 32, 52, 34
-    return pad * 2 + lh_label + 10 + lh_title + 10 + max(lh_detail, len(detail_lines) * lh_detail)
+    lh_label, lh_title, lh_detail = 26, 40, 28
+    return pad * 2 + lh_label + 8 + lh_title + 8 + max(lh_detail, len(detail_lines) * lh_detail)
 
 
 def draw_card(draw: ImageDraw.ImageDraw, x: int, y: int, w: int, card: TechCard, fonts: dict) -> int:
-    pad = 24
+    pad = 18
     detail_lines = _card_detail_lines(draw, card, w, fonts)
-    lh_label, lh_title, lh_detail = 32, 52, 34
-    h = pad * 2 + lh_label + 10 + lh_title + 10 + max(lh_detail, len(detail_lines) * lh_detail)
+    lh_label, lh_title, lh_detail = 26, 40, 28
+    h = pad * 2 + lh_label + 8 + lh_title + 8 + max(lh_detail, len(detail_lines) * lh_detail)
     border, glow = accent_colors(card.accent)
     fill = BG_CARD if card.accent == "default" else "#1f1d18"
     round_rect(draw, (x, y, x + w, y + h), 12, fill, border if glow else BORDER, 2 if glow else 1)
-    inset = pad + (10 if glow else 0)
+    inset = pad + (8 if glow else 0)
     ty = y + pad
     draw.text((x + inset, ty), card.label, font=fonts["card_label"], fill=CREAM_DIM if not glow else glow)
-    ty += lh_label + 10
+    ty += lh_label + 8
     draw.text((x + inset, ty), card.title, font=fonts["card_title"], fill=CREAM)
-    ty += lh_title + 10
+    ty += lh_title + 8
     for line in detail_lines:
         draw.text((x + inset, ty), line, font=fonts["card_detail"], fill=CREAM_MID)
         ty += lh_detail
@@ -267,7 +267,7 @@ def draw_browser_shot(
     if fit_mode == "cover":
         fitted = fill_cover(screenshot, inner_w, inner_h)
     else:
-        fitted = fit_contain(screenshot, inner_w, inner_h)
+        fitted = fit_contain(screenshot, inner_w, inner_h, align="top")
     base.paste(fitted, (inner_x, inner_y))
 
 
@@ -367,7 +367,7 @@ def build_split(screen: Screen, screenshot: Image.Image, fonts: dict) -> Image.I
     content_w = CANVAS_W - PAD * 2
     left_x0 = PAD
 
-    # 70/30 split — screenshot dominant, tech panel a narrow rail.
+    # 80/20 split — screenshot dominant, tech panel a narrow rail.
     usable = content_w - GUTTER
     left_w = int(usable * LEFT_RATIO)
     left_x1 = left_x0 + left_w
@@ -384,8 +384,8 @@ def build_split(screen: Screen, screenshot: Image.Image, fonts: dict) -> Image.I
     # Right rail — title, flex cards, chips pinned bottom
     draw.text((right_x0, content_top + 4), "UNDER THE HOOD", font=fonts["section"], fill=AMBER)
     draw.text((right_x0, content_top + 40), "FRONT → BACK", font=fonts["section_sub"], fill=CREAM_DIM)
-    chips_h = 96
-    cards_top = content_top + 84
+    chips_h = 80
+    cards_top = content_top + 72
     cards_bottom = content_bottom - chips_h - 20
     distribute_cards_vertical(draw, right_x0, cards_top, right_w, cards_bottom, screen.cards, fonts)
     draw_chip_row(draw, right_x0, content_bottom - chips_h, right_w, screen.chips, fonts)
@@ -467,13 +467,13 @@ def make_fonts() -> dict:
         "badge": load_font(20, mono=True),
         "screen_tag": load_font(22, mono=True),
         "title": load_font(68, serif=True, bold=True),
-        "section": load_font(30, mono=True, bold=True),
-        "section_sub": load_font(22, mono=True),
+        "section": load_font(24, mono=True, bold=True),
+        "section_sub": load_font(18, mono=True),
         "wordmark": load_font(34, bold=True),
-        "url": load_font(20, mono=True),
-        "card_label": load_font(28, mono=True, bold=True),
-        "card_title": load_font(46, serif=True, bold=True),
-        "card_detail": load_font(30, mono=True),
+        "url": load_font(18, mono=True),
+        "card_label": load_font(22, mono=True, bold=True),
+        "card_title": load_font(34, serif=True, bold=True),
+        "card_detail": load_font(22, mono=True),
         "caption_title": load_font(44, serif=True, bold=True),
         "caption_body": load_font(28),
         "caption_title_sm": load_font(32, serif=True, bold=True),
@@ -481,7 +481,7 @@ def make_fonts() -> dict:
         "card_label_sm": load_font(18, mono=True),
         "card_title_sm": load_font(24, serif=True, bold=True),
         "card_detail_sm": load_font(20, mono=True),
-        "tag": load_font(26, mono=True, bold=True),
+        "tag": load_font(22, mono=True, bold=True),
     }
 
 

@@ -1,7 +1,7 @@
 {
   "viewport": {
-    "width": 1280,
-    "height": 900
+    "width": 1680,
+    "height": 1050
   },
   "deviceScaleFactor": 2,
   "baseUrl": "https://engram.prasadtilloo.com/?judge=1",
@@ -49,11 +49,11 @@
       "urlBar": "engram.prasadtilloo.com/?judge=1",
       "readySelector": "button:has-text(\"Take the guided tour\")",
       "viewport": {
-        "width": 1520,
-        "height": 1000
+        "width": 1680,
+        "height": 1050
       },
       "capture": "viewport",
-      "fitMode": "cover",
+      "fitMode": "contain",
       "galleryTitle": "Judge mode — straight to Home",
       "galleryCaption": "Track 1 · MemoryAgent banner on Home with the guided spotlight tour — no interstitial gate.",
       "takeawayTitle": "Judge mode — straight to Home.",
@@ -96,11 +96,11 @@
       "urlBar": "engram.prasadtilloo.com/?judge=1#home",
       "readySelector": "[aria-label='Memory threads']",
       "viewport": {
-        "width": 1520,
-        "height": 1000
+        "width": 1680,
+        "height": 1050
       },
       "capture": "viewport",
-      "fitMode": "cover",
+      "fitMode": "contain",
       "galleryTitle": "Home \u2014 your library, remembered",
       "galleryCaption": "Mentor-read hero, genre memory threads, and journey progress \u2014 derived from portfolio memory across sessions, not a one-shot critique.",
       "takeawayTitle": "Home \u2014 your library, remembered.",
@@ -153,11 +153,11 @@
       "urlBar": "engram.prasadtilloo.com/?judge=1#work",
       "readySelector": "[data-testid='portfolio-grid'], .contact-sheet, main",
       "viewport": {
-        "width": 1520,
-        "height": 1000
+        "width": 1680,
+        "height": 1050
       },
       "capture": "viewport",
-      "fitMode": "cover",
+      "fitMode": "contain",
       "galleryTitle": "My Work \u2014 every frame, findable",
       "galleryCaption": "Search your critiqued library by what's in it; open any frame to talk to the mentor about exactly that photo.",
       "takeawayTitle": "My Work \u2014 every frame, findable.",
@@ -204,11 +204,11 @@
       "urlBar": "engram.prasadtilloo.com/?judge=1#mentor",
       "readySelector": "text=Memory Receipt",
       "viewport": {
-        "width": 1520,
-        "height": 1000
+        "width": 1680,
+        "height": 1050
       },
       "capture": "viewport",
-      "fitMode": "cover",
+      "fitMode": "contain",
       "interactions": [
         {
           "type": "wait",
@@ -276,11 +276,11 @@
       "urlBar": "engram.prasadtilloo.com/?judge=1#glassbox",
       "readySelector": "text=Canon → Sony — forgetting in one question",
       "viewport": {
-        "width": 1520,
-        "height": 1000
+        "width": 1680,
+        "height": 1050
       },
       "capture": "viewport",
-      "fitMode": "cover",
+      "fitMode": "contain",
       "interactions": [
         {
           "type": "scroll",
@@ -311,7 +311,7 @@
           "waitMs": 600
         }
       ],
-      "focusSelector": "#proof-start",
+      "focusSelector": null,
       "galleryTitle": "Proof, not theatre",
       "galleryCaption": "Play the Canon→Sony story to completion with the what-you-are-watching legend visible — stale Canon retires; never-forgets leaks it back.",
       "takeawayTitle": "Proof, not theatre.",
@@ -356,10 +356,9 @@
       "tag": "SYSTEM",
       "title": "Architecture",
       "urlBar": "github.com/prasadt1/engram",
-      "source": "architecture-svg",
-      "architectureSvg": "docs/architecture-dark.svg",
-      "layout": "architecture",
-      "crop": null,
+      "source": "architecture-png",
+      "architecturePng": "docs/architecture-visual.png",
+      "layout": "split",
       "capture": "asset",
       "fitMode": "contain",
       "galleryTitle": "One memory layer, many products",
@@ -407,13 +406,12 @@
       "title": "Photo detail",
       "urlBar": "engram.prasadtilloo.com/?judge=1#work",
       "readySelector": "text=Back to library",
-      "focusSelector": "[role='dialog'][aria-label='Photo detail and mentor chat']",
       "viewport": {
-        "width": 1600,
-        "height": 900
+        "width": 1680,
+        "height": 1050
       },
       "capture": "viewport",
-      "fitMode": "cover",
+      "fitMode": "contain",
       "interactions": [
         {
           "type": "wait",
