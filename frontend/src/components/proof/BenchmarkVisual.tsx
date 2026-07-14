@@ -8,6 +8,7 @@ import { Eyebrow, InfoTooltip, Tag } from '../primitives';
 import { useCountUp } from '../../hooks/useCountUp';
 import {
   BENCHMARK_PROVENANCE,
+  BENCHMARK_TIE_NOTE,
   CONTROL_TRACE_COUNT,
   defaultResults,
   DIVERGED_TRACE_COUNT,
@@ -104,6 +105,9 @@ export const BenchmarkVisual: React.FC = () => {
           <ScoreRing label="Mean · recency-only" value={meanRecency} tone="mid" showFamaTooltip />
           <ScoreRing label="Mean · never forgets" value={meanAblated} tone="bad" showFamaTooltip />
         </div>
+        <p className="mt-5 text-sm text-stone-200 font-medium text-center max-w-xl mx-auto">
+          {BENCHMARK_TIE_NOTE}
+        </p>
         <div className="mt-5 text-center space-y-1.5">
           <p className="text-xs text-stone-400">
             Stale facts leaked into{' '}

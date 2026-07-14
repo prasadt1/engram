@@ -108,5 +108,8 @@ export const LIVE_LIBRARY_EXPLAINER =
 export const MCP_TOGGLE_CAPTION =
   'Same numbers, different door: this re-runs the identical call through the engram-mcp server — proof that any Qwen agent could mount this memory, not just this app.';
 
+export const BENCHMARK_TIE_NOTE =
+  'Both baselines tie at 0.64 — recency keeps the newest facts but can’t tell that one went stale. Only supersession-aware forgetting tells the engine apart.';
+
 export const BENCHMARK_PROVENANCE =
   '26 scripted photographer histories, frozen before any results were computed — committed in the repo (eval/traces.py). Three configs: Engram (salience + forgetting), recency-only (top-k by timestamp, no supersession awareness), and never-forgets (full history). A control is a history where nothing changes: all three must tie at 1.00 there, and they do. On this freeze every trace has ≤5 facts, so recency-only and never-forgets coincide. Rerun yourself: python -m eval.run --compare.';
