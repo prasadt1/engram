@@ -1,13 +1,13 @@
 """One-command benchmark: python -m eval.run --seed 0
 
-Compares the memory-engine recall path against a full-history baseline
-(no forgetting, no salience ranking — dump every fact every time)
+Compares the memory-engine recall path against two baselines:
+  - recency-only: top-k by created_at, no supersession awareness, no relevance
+  - no-forgetting: full history dumped every time (include_archived=True)
 on recall hits, FAMA, and token cost. Deterministic (no wall clock in
 scoring; timestamps synthesized from session indices).
 
-Side-by-side mode: python -m eval.run --compare reads the two committed
-result JSONs (eval/results-default.json, eval/results-no-forgetting.json)
-and prints one merged Markdown table — it never re-runs the engine.
+Side-by-side mode: python -m eval.run --compare reads the three committed
+result JSONs and prints one merged Markdown table — it never re-runs the engine.
 """
 
 from __future__ import annotations
@@ -20,7 +20,9 @@ from eval.fama import compute_fama
 from eval.traces import TRACES
 
 DEFAULT_RESULTS_PATH = "eval/results-default.json"
+RECENCY_RESULTS_PATH = "eval/results-recency.json"
 NO_FORGETTING_RESULTS_PATH = "eval/results-no-forgetting.json"
+RECENCY_K = 5  # same k as recall(..., k=5) — fair token-budget comparison
 
 ANCHOR = datetime(2026, 7, 1, tzinfo=timezone.utc)  # fixed anchor => deterministic recency
 
@@ -41,12 +43,23 @@ def _estimate_tokens(item: MemoryItem) -> int:
     return max(1, len(item.content) // 4)  # chars/4 heuristic — documented estimate, calibrated later
 
 
+def _recall_recency_only(items: list[MemoryItem], *, k: int = RECENCY_K) -> list[MemoryItem]:
+    """Naive baseline: keep the k most recent facts. No supersession filter,
+    no salience / relevance ranking — a recent-but-superseded fact can surface.
+    """
+    ranked = sorted(items, key=lambda i: i.created_at, reverse=True)
+    return ranked[:k]
+
+
 def run(seed: int = 0, ablation: str = "none") -> dict:
     results = []
     for trace in TRACES:
         items = _memory_items_for_trace(trace)
-        include_archived = ablation == "no-forgetting"
-        recalled = recall(items, now=ANCHOR, k=5, query=trace.query, include_archived=include_archived)
+        if ablation == "recency-only":
+            recalled = _recall_recency_only(items, k=RECENCY_K)
+        else:
+            include_archived = ablation == "no-forgetting"
+            recalled = recall(items, now=ANCHOR, k=5, query=trace.query, include_archived=include_archived)
         recalled_text = " ".join(i.content for i in recalled)
         recalled_ids = {i.id for i in recalled}
 
@@ -97,9 +110,13 @@ def run(seed: int = 0, ablation: str = "none") -> dict:
     return {"summary": summary, "results": results}
 
 
-def render_compare(default_path: str = DEFAULT_RESULTS_PATH, no_forgetting_path: str = NO_FORGETTING_RESULTS_PATH) -> str:
-    """Read the two committed result JSONs and format one merged Markdown
-    table (FAMA default vs ablated, per trace, plus means + token savings).
+def render_compare(
+    default_path: str = DEFAULT_RESULTS_PATH,
+    recency_path: str = RECENCY_RESULTS_PATH,
+    no_forgetting_path: str = NO_FORGETTING_RESULTS_PATH,
+) -> str:
+    """Read the three committed result JSONs and format one merged Markdown
+    table (FAMA default · recency-only · no-forgetting, per trace, plus means).
 
     Pure read-and-format: never re-runs the engine, so it reflects exactly
     what's on disk (the committed, reproducible artifacts), and stays cheap
@@ -107,52 +124,69 @@ def render_compare(default_path: str = DEFAULT_RESULTS_PATH, no_forgetting_path:
     """
     with open(default_path) as f:
         default = json.load(f)
+    with open(recency_path) as f:
+        recency = json.load(f)
     with open(no_forgetting_path) as f:
         no_forgetting = json.load(f)
 
     default_by_id = {r["user_id"]: r for r in default["results"]}
+    recency_by_id = {r["user_id"]: r for r in recency["results"]}
     no_forgetting_by_id = {r["user_id"]: r for r in no_forgetting["results"]}
-    # Preserve trace order from the default run; both files share the same
-    # trace set by construction (both are produced from eval.traces.TRACES).
+    # Preserve trace order from the default run; all three files share the same
+    # trace set by construction (all produced from eval.traces.TRACES).
     trace_ids = [r["user_id"] for r in default["results"]]
 
     lines = []
-    lines.append(f"## Engram /eval side-by-side (default vs no-forgetting)\n")
-    lines.append("| trace | FAMA default | FAMA no-forgetting | Δ FAMA | tokens default | tokens no-forgetting | savings (default) |")
-    lines.append("|---|---|---|---|---|---|---|")
+    lines.append("## Engram /eval side-by-side (default · recency-only · no-forgetting)\n")
+    lines.append(
+        "| trace | FAMA default | FAMA recency-only | FAMA no-forgetting | "
+        "tokens default | tokens recency | tokens no-forgetting | savings (default) |"
+    )
+    lines.append("|---|---|---|---|---|---|---|---|")
     for uid in trace_ids:
         d = default_by_id[uid]
+        r = recency_by_id.get(uid)
         n = no_forgetting_by_id.get(uid)
-        if n is None:
+        if r is None or n is None:
             continue  # trace sets diverged — shouldn't happen for committed, same-freeze JSONs
-        d_fama = d["fama"]["fama"]
-        n_fama = n["fama"]["fama"]
-        delta = round(d_fama - n_fama, 4)
         lines.append(
-            f"| {uid} | {d_fama} | {n_fama} | {delta} | {d['engine_tokens']} | {n['engine_tokens']} | {d['token_savings_ratio']}x |"
+            f"| {uid} | {d['fama']['fama']} | {r['fama']['fama']} | {n['fama']['fama']} | "
+            f"{d['engine_tokens']} | {r['engine_tokens']} | {n['engine_tokens']} | "
+            f"{d['token_savings_ratio']}x |"
         )
 
-    d_summary, n_summary = default["summary"], no_forgetting["summary"]
+    d_summary = default["summary"]
+    r_summary = recency["summary"]
+    n_summary = no_forgetting["summary"]
     lines.append("")
     lines.append("| | mean FAMA | mean token-savings ratio |")
     lines.append("|---|---|---|")
     lines.append(f"| default (engine) | {d_summary['mean_fama']} | {d_summary['mean_token_savings_ratio']}x |")
+    lines.append(f"| recency-only (naive baseline) | {r_summary['mean_fama']} | {r_summary['mean_token_savings_ratio']}x |")
     lines.append(f"| no-forgetting (ablation) | {n_summary['mean_fama']} | {n_summary['mean_token_savings_ratio']}x |")
     lines.append("")
     lines.append(
+        f"**FAMA gap (default − recency-only): {round(d_summary['mean_fama'] - r_summary['mean_fama'], 4)}** · "
         f"**FAMA gap (default − no-forgetting): {round(d_summary['mean_fama'] - n_summary['mean_fama'], 4)}** "
-        f"— the no-forgetting ablation lets superseded facts leak back into recall, which is exactly what FAMA's "
-        f"FAA term penalizes."
+        f"— recency-only keeps a k=5 budget but ignores supersession; no-forgetting dumps full history."
     )
     return "\n".join(lines)
+
+
+def _default_out_path(ablation: str) -> str:
+    if ablation == "no-forgetting":
+        return NO_FORGETTING_RESULTS_PATH
+    if ablation == "recency-only":
+        return RECENCY_RESULTS_PATH
+    return DEFAULT_RESULTS_PATH
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--ablation", choices=["none", "no-forgetting"], default="none")
-    parser.add_argument("--out", default=None, help="write raw JSON here (default: eval/results-default.json, or eval/results-no-forgetting.json for that ablation)")
-    parser.add_argument("--compare", action="store_true", help="read the two committed result JSONs and print a merged side-by-side table (no re-run)")
+    parser.add_argument("--ablation", choices=["none", "recency-only", "no-forgetting"], default="none")
+    parser.add_argument("--out", default=None, help="write raw JSON here (default: eval/results-default.json, eval/results-recency.json, or eval/results-no-forgetting.json)")
+    parser.add_argument("--compare", action="store_true", help="read the three committed result JSONs and print a merged side-by-side table (no re-run)")
     args = parser.parse_args()
 
     if args.compare:
@@ -168,7 +202,7 @@ def main():
     s = output["summary"]
     print(f"\n**Mean FAMA:** {s['mean_fama']}  **Mean token savings:** {s['mean_token_savings_ratio']}x\n")
 
-    out_path = args.out or (DEFAULT_RESULTS_PATH if args.ablation == "none" else NO_FORGETTING_RESULTS_PATH)
+    out_path = args.out or _default_out_path(args.ablation)
     with open(out_path, "w") as f:
         json.dump(output, f, indent=2)
     print(f"Raw results written to {out_path}")

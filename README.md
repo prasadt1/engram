@@ -11,15 +11,16 @@ Built on Qwen Cloud for the Global AI Hackathon (Track 1: MemoryAgent).
 | config | mean FAMA | mean token-savings ratio |
 |---|---|---|
 | default (engine) | **1.0** | **1.72x** |
+| recency-only (naive baseline) | 0.6385 | 1.0x |
 | no-forgetting (ablation) | 0.6385 | 1.0x |
 
-**FAMA gap (default − no-forgetting): 0.3615.** Recall accuracy (MPA) is identical in both configs — every trace hits 100% of `expects_current` regardless of ablation — so the engine isn't trading recall for forgetting; it gets both, at ~1.72x lower token cost than full-history stuffing. 26 frozen traces, seed=0, no wall clock in scoring.
+**FAMA gap (default − either baseline): 0.3615.** Three configs: the engine, a naive top-k-by-recency baseline (same `k=5` budget, no forgetting awareness), and a full-history no-forgetting ablation. On this freeze every trace has ≤5 facts, so the two baselines tie. Recall accuracy (MPA) is identical across configs — every trace hits 100% of `expects_current` — so the engine isn't trading recall for forgetting; it gets both, at ~1.72x lower token cost than either baseline. 26 frozen traces, seed=0, no wall clock in scoring.
 
 > **Q: "What camera gear do I use?"**
-> — **Full-history baseline:** mentions *both* "shoots primarily with a Canon body" *and* "switched to a Sony mirrorless body"
+> — **Recency-only / full-history:** mentions *both* "shoots primarily with a Canon body" *and* "switched to a Sony mirrorless body"
 > — **Engram (default):** "switched to a Sony mirrorless body" — **Sony only**
 >
-> The Canon fact was superseded in session 3. The default engine excludes anything with a live `superseded_by` link; the no-forgetting ablation calls `recall(..., include_archived=True)`, so the retired fact leaks back into context three sessions stale.
+> The Canon fact was superseded in session 3. The default engine excludes anything with a live `superseded_by` link; both baselines surface the retired Canon fact.
 
 Reproduce: `python -m eval.run --compare`. Full methodology, per-trace tables, and the λ/token-estimate disclosures: [`eval/README.md`](eval/README.md).
 

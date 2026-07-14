@@ -1,4 +1,5 @@
 import resultsDefault from '../../data/results-default.json';
+import resultsRecency from '../../data/results-recency.json';
 import resultsNoForgetting from '../../data/results-no-forgetting.json';
 
 export interface EvalFama {
@@ -31,16 +32,22 @@ export interface EvalResults {
 }
 
 export const defaultResults = resultsDefault as EvalResults;
+export const recencyResults = resultsRecency as EvalResults;
 export const noForgettingResults = resultsNoForgetting as EvalResults;
 
 export const noForgettingByTrace = new Map(
   noForgettingResults.results.map((r) => [r.user_id, r]),
 );
 
+export const recencyByTrace = new Map(
+  recencyResults.results.map((r) => [r.user_id, r]),
+);
+
 export const WORKED_TRACE_ID = 'trace_1';
 export const workedDefault =
   defaultResults.results.find((r) => r.user_id === WORKED_TRACE_ID) ?? null;
 export const workedNoForgetting = noForgettingByTrace.get(WORKED_TRACE_ID) ?? null;
+export const workedRecency = recencyByTrace.get(WORKED_TRACE_ID) ?? null;
 
 export function traceForgotMatter(defaultFama: number, ablated: EvalTraceResult | undefined): boolean {
   if (!ablated) return false;
@@ -102,4 +109,4 @@ export const MCP_TOGGLE_CAPTION =
   'Same numbers, different door: this re-runs the identical call through the engram-mcp server — proof that any Qwen agent could mount this memory, not just this app.';
 
 export const BENCHMARK_PROVENANCE =
-  '26 scripted photographer histories, frozen before any results were computed — committed in the repo (eval/traces.py). A control is a history where nothing changes: both configs must tie at 1.00 there, and they do. Rerun everything yourself: python -m eval.run --compare.';
+  '26 scripted photographer histories, frozen before any results were computed — committed in the repo (eval/traces.py). Three configs: Engram (salience + forgetting), recency-only (top-k by timestamp, no supersession awareness), and never-forgets (full history). A control is a history where nothing changes: all three must tie at 1.00 there, and they do. On this freeze every trace has ≤5 facts, so recency-only and never-forgets coincide. Rerun yourself: python -m eval.run --compare.';

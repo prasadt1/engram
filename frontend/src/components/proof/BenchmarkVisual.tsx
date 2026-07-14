@@ -17,6 +17,8 @@ import {
   LEAKED_ANSWER_COUNT,
   noForgettingByTrace,
   noForgettingResults,
+  recencyByTrace,
+  recencyResults,
   TRACE_LABELS,
   traceForgotMatter,
 } from './proofData';
@@ -33,12 +35,12 @@ function ScoreRing({
 }: {
   label: string;
   value: number;
-  tone: 'good' | 'bad';
+  tone: 'good' | 'mid' | 'bad';
   showFamaTooltip?: boolean;
 }) {
   const animated = useCountUp(value, 1000, true);
   const pct = Math.min(100, value * 100);
-  const stroke = tone === 'good' ? '#f59e0b' : '#f87171';
+  const stroke = tone === 'good' ? '#f59e0b' : tone === 'mid' ? '#fb923c' : '#f87171';
   const r = 44;
   const c = 2 * Math.PI * r;
   const offset = c - (pct / 100) * c;
@@ -82,6 +84,7 @@ export const BenchmarkVisual: React.FC = () => {
   const [hoverId, setHoverId] = useState<string | null>(null);
 
   const meanShipped = defaultResults.summary.mean_fama;
+  const meanRecency = recencyResults.summary.mean_fama;
   const meanAblated = noForgettingResults.summary.mean_fama;
   const tokenRatio = defaultResults.summary.mean_token_savings_ratio;
   const tokenAnimated = useCountUp(tokenRatio, 1000, true);
@@ -93,24 +96,23 @@ export const BenchmarkVisual: React.FC = () => {
         <Tag variant="outline">{defaultResults.summary.trace_count} scripted scenarios</Tag>
       </div>
 
-      {/* Headline comparison */}
+      {/* Headline comparison — three configs */}
       <div className="rounded-2xl border border-warm bg-surface-1/40 p-5 md:p-6">
         <p className="text-sm text-center text-stone-200 font-medium mb-5">{FAMA_HEADING}</p>
-        <div className="grid sm:grid-cols-3 gap-6 items-center">
+        <div className="grid sm:grid-cols-3 gap-6 items-start justify-items-center">
           <ScoreRing label="Mean · Engram shipped" value={meanShipped} tone="good" showFamaTooltip />
-          <div className="text-center space-y-2 px-2">
-            <p className="text-xs uppercase tracking-wider text-stone-500">vs never forgets</p>
-            <p className="font-serif text-3xl text-white tabular-nums">{meanAblated.toFixed(2)}</p>
-            <p className="text-xs text-stone-400">
-              Stale facts leaked into{' '}
-              <span className="text-rose-300 font-semibold">{LEAKED_ANSWER_COUNT}</span> /{' '}
-              {defaultResults.summary.trace_count} answers
-            </p>
-            <p className="text-sm text-brand-400 font-semibold tabular-nums">
-              {tokenAnimated.toFixed(2)}× smaller context
-            </p>
-          </div>
+          <ScoreRing label="Mean · recency-only" value={meanRecency} tone="mid" showFamaTooltip />
           <ScoreRing label="Mean · never forgets" value={meanAblated} tone="bad" showFamaTooltip />
+        </div>
+        <div className="mt-5 text-center space-y-1.5">
+          <p className="text-xs text-stone-400">
+            Stale facts leaked into{' '}
+            <span className="text-rose-300 font-semibold">{LEAKED_ANSWER_COUNT}</span> /{' '}
+            {defaultResults.summary.trace_count} answers under either baseline
+          </p>
+          <p className="text-sm text-brand-400 font-semibold tabular-nums">
+            {tokenAnimated.toFixed(2)}× smaller context (shipped vs full history)
+          </p>
         </div>
       </div>
 
@@ -166,7 +168,7 @@ export const BenchmarkVisual: React.FC = () => {
             <span className="w-3 h-3 rounded-sm bg-brand-400" aria-hidden /> Forgetting changed the score
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-3 h-3 rounded-sm bg-stone-600" aria-hidden /> Control (both 1.00)
+            <span className="w-3 h-3 rounded-sm bg-stone-600" aria-hidden /> Control (all 1.00)
           </span>
         </div>
       </div>
@@ -196,6 +198,10 @@ export const BenchmarkVisual: React.FC = () => {
                     <InfoTooltip text={FAMA_TOOLTIP} label="What FAMA means" className="ml-0.5" />
                   </th>
                   <th className="text-right px-3 py-2">
+                    Recency-only
+                    <InfoTooltip text={FAMA_TOOLTIP} label="What FAMA means" className="ml-0.5" />
+                  </th>
+                  <th className="text-right px-3 py-2">
                     Never forgets
                     <InfoTooltip text={FAMA_TOOLTIP} label="What FAMA means" className="ml-0.5" />
                   </th>
@@ -205,6 +211,7 @@ export const BenchmarkVisual: React.FC = () => {
               <tbody>
                 {defaultResults.results.map((row) => {
                   const ablated = noForgettingByTrace.get(row.user_id);
+                  const recency = recencyByTrace.get(row.user_id);
                   const diverged = traceForgotMatter(row.fama.fama, ablated);
                   return (
                     <tr
@@ -216,6 +223,9 @@ export const BenchmarkVisual: React.FC = () => {
                       </td>
                       <td className="px-3 py-1.5 text-right text-white tabular-nums">
                         {row.fama.fama.toFixed(2)}
+                      </td>
+                      <td className="px-3 py-1.5 text-right text-stone-500 tabular-nums">
+                        {recency ? recency.fama.fama.toFixed(2) : '—'}
                       </td>
                       <td className="px-3 py-1.5 text-right text-stone-500 tabular-nums">
                         {ablated ? ablated.fama.fama.toFixed(2) : '—'}
