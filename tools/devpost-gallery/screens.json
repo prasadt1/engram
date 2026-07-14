@@ -277,14 +277,14 @@
       "readySelector": "text=Canon → Sony — forgetting in one question",
       "viewport": {
         "width": 1680,
-        "height": 1050
+        "height": 1800
       },
       "capture": "viewport",
       "fitMode": "contain",
       "interactions": [
         {
           "type": "scroll",
-          "selector": "#proof-start"
+          "selector": "h1"
         },
         {
           "type": "wait",
@@ -306,9 +306,10 @@
           "timeoutMs": 10000
         },
         {
-          "type": "scroll",
-          "selector": "#proof-start",
-          "waitMs": 600
+          "type": "fit_elements",
+          "selectors": ["h1-proof", "#proof-benchmark"],
+          "pad": 20,
+          "waitMs": 800
         }
       ],
       "focusSelector": null,
@@ -331,7 +332,7 @@
         {
           "label": "BENCHMARK",
           "title": "/eval \u2014 frozen",
-          "detail": "26 traces \u00b7 FAMA 1.00 vs 0.64 \u00b7 recall unchanged",
+          "detail": "26 traces \u00b7 3-way FAMA \u00b7 1.00 vs 0.64",
           "accent": "amber"
         },
         {
@@ -429,9 +430,29 @@
           "timeoutMs": 30000
         },
         {
+          "type": "wait",
+          "selector": "text=What I learned",
+          "timeoutMs": 20000,
+          "optional": true
+        },
+        {
+          "type": "send_chat",
+          "text": "What should I practice next on this frame?"
+        },
+        {
+          "type": "wait_reply",
+          "timeoutMs": 120000,
+          "waitMs": 1200
+        },
+        {
           "type": "click",
           "selector": "summary:has-text('Memory Receipt'), button:has-text('Memory Receipt')",
           "optional": true
+        },
+        {
+          "type": "wait",
+          "selector": "[aria-label='Engram mentor reply']",
+          "timeoutMs": 10000
         }
       ],
       "optional": true,

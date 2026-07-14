@@ -59,8 +59,30 @@ Recorded after A–C deploy; see § Deploy / Gallery below.
 
 ## Deploy
 
-_(filled after push + ECS rebuild)_
+- Commit: `7609eee` on `main` (pushed)
+- ECS rebuild ok; `/health` → `{"status":"ok"}`
+- Prod JS contains `90-second walkthrough`, `Multi-learner preview`, `Coach Assist` (no advertised consolidate)
+
+### Local-only (gitignored) honesty copy also updated
+`docs/DEVPOST-DRAFT.md`, `docs/mcp-transcript.md`, `WHATS_NEW.md` — not force-added; judge-facing tracked surfaces are what shipped.
 
 ## Gallery D
 
-_(filled after recaptures)_
+Captures against post-`7609eee` prod. Composed into `docs/devpost-public/` (gitignored article assets).
+
+| Frame | Result |
+|-------|--------|
+| **D1 · 04 proof-room** | H1 whole; three FAMA rings **1.00 / 0.64 / 0.64** in-frame; Canon→Sony story completed. Viewport **1680×1800** + `fit_elements` to keep heading + `#proof-benchmark` together. |
+| **D2 · 06 photo-detail** | Scoped chat reply + **Memory Receipt** (`1 recalled · packed under 1200 tokens`) — no empty "Start a conversation". |
+
+### D2 deviation (stated)
+
+Demo-user portfolio entries all have `memoryUpdate: null` (verified via `/api/v1/portfolio`). `MemoryDelta` ("What I learned from this photo") therefore cannot render on any seeded frame. Captured the memory-showpiece that *is* live: scoped reply + Memory Receipt. Re-seed with `memoryUpdate` would be needed for the left-pane narration.
+
+### Capture tooling shipped
+
+- `tools/devpost-gallery/screens.json` — 04/06 interaction updates; 04 benchmark card says 3-way FAMA
+- `tools/devpost-gallery/capture.mjs` — `fit_elements` helper
+- `frontend/src/components/GlassBoxTab.tsx` — `id="proof-heading"` for future captures
+
+Do **not** touch `annotated-05-architecture.png` (Claude-owned).

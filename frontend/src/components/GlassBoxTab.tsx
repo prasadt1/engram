@@ -23,7 +23,7 @@ function scrollToProofSection(targetId: string): void {
 
 export const GlassBoxTab: React.FC = () => (
   <div className="max-w-4xl mx-auto px-1 space-y-8 pb-10">
-    <header className="space-y-4">
+    <header className="space-y-4" id="proof-heading">
       <div>
         <h1 className="font-serif text-2xl md:text-3xl text-white">Memory Proof Room</h1>
         <p className="mt-2 font-serif text-base md:text-lg text-stone-200 leading-snug max-w-2xl">

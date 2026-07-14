@@ -104,6 +104,39 @@ async function runInteractions(page, interactions = []) {
         { timeout: step.timeoutMs ?? 120000 },
       );
       await page.waitForTimeout(step.waitMs ?? 800);
+    } else if (step.type === 'fit_elements') {
+      await page.evaluate(
+        ({ selectors, pad }) => {
+          const resolve = (sel) => {
+            const direct = document.querySelector(sel);
+            if (direct) return direct;
+            if (sel === 'h1-proof') {
+              return [...document.querySelectorAll('h1')].find((h) =>
+                (h.textContent || '').includes('Memory Proof Room'),
+              );
+            }
+            return null;
+          };
+          const els = selectors.map(resolve).filter(Boolean);
+          if (els.length === 0) return;
+          const top = Math.min(
+            ...els.map((el) => el.getBoundingClientRect().top + window.scrollY),
+          );
+          const bottom = Math.max(
+            ...els.map((el) => el.getBoundingClientRect().bottom + window.scrollY),
+          );
+          const need = bottom - top + pad * 2;
+          const view = window.innerHeight;
+          if (need <= view) {
+            window.scrollTo(0, Math.max(0, top - pad));
+          } else {
+            // Prefer keeping the first element (H1) whole; crop the bottom.
+            window.scrollTo(0, Math.max(0, top - pad));
+          }
+        },
+        { selectors: step.selectors, pad: step.pad ?? 12 },
+      );
+      await page.waitForTimeout(step.waitMs ?? 700);
     } else if (step.type === 'search_library') {
       await page.locator('input[aria-label="Search portfolio by meaning or keywords"]').fill(step.text);
       await page.getByRole('button', { name: 'Search' }).click({ timeout: 10000 });
