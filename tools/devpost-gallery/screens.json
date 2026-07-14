@@ -65,18 +65,33 @@
       ],
       "cards": [
         {
-          "role": "move",
-          "text": "Opens already knowing your whole history"
+          "role": "frontend",
+          "text": "React 19 · Home + judge banner",
+          "accent": true
         },
         {
-          "role": "why",
-          "text": "16 photos · 7.5/10 mentor read"
+          "role": "api",
+          "text": "GET /api/v1/journey",
+          "accent": true
         },
         {
-          "role": "how",
-          "text": "GET /api/v1/journey"
+          "role": "memory",
+          "text": "Seeded recall on entry",
+          "accent": false
+        },
+        {
+          "role": "data",
+          "text": "portfolio_entries · skills",
+          "accent": false
+        },
+        {
+          "role": "infra",
+          "text": "Alibaba ECS · Caddy TLS",
+          "accent": false
         }
-      ]
+      ],
+      "receipt": "16 photos · 7.5/10 mentor read",
+      "how": "GET /api/v1/journey"
     },
     {
       "id": "01",
@@ -104,18 +119,33 @@
       ],
       "cards": [
         {
-          "role": "move",
-          "text": "Recalls every past shoot, not just your last upload"
+          "role": "frontend",
+          "text": "React 19 · threads + mentor-read",
+          "accent": false
         },
         {
-          "role": "why",
-          "text": "7 photos: 5.9 → 7.5 (Landscape thread)"
+          "role": "api",
+          "text": "GET /api/v1/journey",
+          "accent": true
         },
         {
-          "role": "how",
-          "text": "GET /api/v1/journey"
+          "role": "memory",
+          "text": "Salience across past shoots",
+          "accent": true
+        },
+        {
+          "role": "data",
+          "text": "portfolio_entries",
+          "accent": false
+        },
+        {
+          "role": "infra",
+          "text": "Alibaba ECS · Caddy TLS",
+          "accent": false
         }
-      ]
+      ],
+      "receipt": "7 photos: 5.9 → 7.5 (Landscape thread)",
+      "how": "GET /api/v1/journey"
     },
     {
       "id": "02",
@@ -143,18 +173,33 @@
       ],
       "cards": [
         {
-          "role": "move",
-          "text": "Recalls and finds any frame you've shot, scored"
+          "role": "frontend",
+          "text": "React 19 · contact-sheet grid",
+          "accent": false
         },
         {
-          "role": "why",
-          "text": "16 photos · Avg 6.7 · 100% consistent"
+          "role": "api",
+          "text": "GET /api/v1/portfolio/search",
+          "accent": true
         },
         {
-          "role": "how",
-          "text": "GET /api/v1/portfolio/search"
+          "role": "memory",
+          "text": "Photo-scoped indexes",
+          "accent": false
+        },
+        {
+          "role": "data",
+          "text": "portfolio_entries",
+          "accent": true
+        },
+        {
+          "role": "infra",
+          "text": "Alibaba ECS · /media",
+          "accent": false
         }
-      ]
+      ],
+      "receipt": "16 photos · Avg 6.7 · 100% consistent",
+      "how": "GET /api/v1/portfolio/search"
     },
     {
       "id": "03",
@@ -203,18 +248,33 @@
       ],
       "cards": [
         {
-          "role": "move",
-          "text": "Recalls only what matters, answers within a token budget"
+          "role": "frontend",
+          "text": "React 19 · SSE mentor chat",
+          "accent": false
         },
         {
-          "role": "why",
-          "text": "8 recalled · packed under 1200 tokens"
+          "role": "api",
+          "text": "POST /api/v1/chat (SSE)",
+          "accent": true
         },
         {
-          "role": "how",
-          "text": "build_memory_context(k=8, token_budget=1200)"
+          "role": "memory",
+          "text": "Token-budget packing + receipt",
+          "accent": true
+        },
+        {
+          "role": "data",
+          "text": "memory_items",
+          "accent": false
+        },
+        {
+          "role": "infra",
+          "text": "Alibaba ECS · qwen3.6-flash",
+          "accent": false
         }
-      ]
+      ],
+      "receipt": "8 recalled · packed under 1200 tokens",
+      "how": "build_memory_context(k=8, token_budget=1200)"
     },
     {
       "id": "04",
@@ -277,18 +337,33 @@
       ],
       "cards": [
         {
-          "role": "move",
-          "text": "Forgets the camera you sold; recalls only current gear"
+          "role": "frontend",
+          "text": "React 19 · Memory Proof Room",
+          "accent": false
         },
         {
-          "role": "why",
-          "text": "1.00 vs 0.64 (never-forgets)"
+          "role": "api",
+          "text": "Live stats · MCP toggle",
+          "accent": false
         },
         {
-          "role": "how",
-          "text": "eval/run.py · compute_fama()"
+          "role": "memory",
+          "text": "Supersession · FAMA",
+          "accent": true
+        },
+        {
+          "role": "data",
+          "text": "memory_items · eval JSON",
+          "accent": true
+        },
+        {
+          "role": "infra",
+          "text": "Alibaba ECS · frozen /eval",
+          "accent": false
         }
-      ]
+      ],
+      "receipt": "1.00 vs 0.64 (never-forgets)",
+      "how": "eval/run.py · compute_fama()"
     },
     {
       "id": "05",
@@ -383,18 +458,33 @@
       ],
       "cards": [
         {
-          "role": "move",
-          "text": "Recalls only this photo's own history"
+          "role": "frontend",
+          "text": "React 19 · photo + scoped chat",
+          "accent": false
         },
         {
-          "role": "why",
-          "text": "1 recalled · packed under 1200 tokens"
+          "role": "api",
+          "text": "Chat scoped to this photo",
+          "accent": false
         },
         {
-          "role": "how",
-          "text": "recall(scope=storageKey)"
+          "role": "memory",
+          "text": "recall(scope=storageKey)",
+          "accent": true
+        },
+        {
+          "role": "data",
+          "text": "portfolio · memory_items",
+          "accent": false
+        },
+        {
+          "role": "infra",
+          "text": "Alibaba ECS · /media",
+          "accent": false
         }
-      ]
+      ],
+      "receipt": "1 recalled · packed under 1200 tokens",
+      "how": "recall(scope=storageKey)"
     }
   ]
 }

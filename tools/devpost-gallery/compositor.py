@@ -44,7 +44,7 @@ GUTTER = 48
 # Larger header/caption so chrome stays readable when Devpost shows
 # gallery thumbs (~¼–⅓ screen width).
 HEADER_H = 180
-CAPTION_H = 220
+CAPTION_H = 300
 BROWSER_CHROME_H = 58
 MIN_GAP = 120  # acceptance: no void taller than this
 # Screenshot dominates the frame; the tech panel is a narrow right rail.
@@ -52,11 +52,13 @@ LEFT_RATIO = 0.75
 
 Variant = Literal["split", "band"]
 
-
-BEAT_LABELS = {
-    "move": "THE MOVE",
-    "why": "WHY IT'S REAL",
-    "how": "HOW",
+# Fixed 5-layer stack on the right rail (order matters).
+LAYER_LABELS = {
+    "frontend": "FRONTEND",
+    "api": "API",
+    "memory": "MEMORY",
+    "data": "DATA",
+    "infra": "INFRA",
 }
 
 _FIRST_NUM = re.compile(r"(\d+(?:\.\d+)?)")
@@ -64,10 +66,11 @@ _FIRST_NUM = re.compile(r"(\d+(?:\.\d+)?)")
 
 @dataclass
 class TechCard:
-    """One beat on the annotation rail: move | why | how."""
+    """One stack row on the annotation rail: frontend|api|memory|data|infra."""
 
     role: str
     text: str
+    accent: bool = False
 
 
 @dataclass
@@ -85,6 +88,8 @@ class Screen:
     gallery_caption: str
     fit_mode: str = "contain"
     layout: str = "split"
+    receipt: str = ""
+    how: str = ""
 
 
 def load_config() -> dict[str, Any]:
@@ -104,11 +109,20 @@ def load_screens(cfg: dict[str, Any]) -> list[Screen]:
                 takeaway_title=s["takeawayTitle"],
                 takeaway_body=s["takeawayBody"],
                 chips=s["chips"],
-                cards=[TechCard(**c) for c in s["cards"]],
+                cards=[
+                    TechCard(
+                        role=c["role"],
+                        text=c["text"],
+                        accent=bool(c.get("accent", False)),
+                    )
+                    for c in s["cards"]
+                ],
                 gallery_title=s["galleryTitle"],
                 gallery_caption=s["galleryCaption"],
                 fit_mode=s.get("fitMode", "contain"),
                 layout=s.get("layout", "split"),
+                receipt=s.get("receipt", ""),
+                how=s.get("how", ""),
             )
         )
     return out
@@ -186,33 +200,22 @@ def fill_cover(img: Image.Image, w: int, h: int) -> Image.Image:
     return resized.crop((left, top, left + w, top + h))
 
 
-def _beat_label(role: str) -> str:
-    return BEAT_LABELS.get(role, role.upper())
-
-
-def _move_lines(draw: ImageDraw.ImageDraw, text: str, w: int, fonts: dict) -> list[str]:
-    lines = wrap_px(draw, text, fonts["beat_move"], w - 48)
-    return lines[:2] if lines else [""]
+def _layer_label(role: str) -> str:
+    return LAYER_LABELS.get(role, role.upper())
 
 
 def measure_card(draw: ImageDraw.ImageDraw, card: TechCard, w: int, fonts: dict) -> int:
-    pad = 22
-    lh_label = 32
-    if card.role == "move":
-        lines = _move_lines(draw, card.text, w, fonts)
-        lh_body = 58
-        return pad * 2 + lh_label + 14 + max(lh_body, len(lines) * lh_body) + 8
-    if card.role == "how":
-        how_lines = wrap_px(draw, card.text, fonts["beat_how"], w - pad * 2 - 28)[:2]
-        chip_inner = 18 + max(36, len(how_lines) * 34)
-        return pad * 2 + lh_label + 12 + chip_inner
-    # why — single bold line (may wrap once if needed)
-    why_lines = wrap_px(draw, card.text, fonts["beat_why"], w - 48)
-    lh_why = 46
-    return pad * 2 + lh_label + 12 + max(lh_why, min(2, len(why_lines)) * lh_why)
+    pad_y = 18
+    lh_label = 28
+    body_font = fonts["stack_mono"] if (
+        card.role == "api" or card.text.startswith(("GET ", "POST ", "recall(", "build_", "eval/"))
+    ) else fonts["stack_body"]
+    body_lines = wrap_px(draw, card.text, body_font, w - 44)[:2]
+    lh_body = 40
+    return pad_y * 2 + lh_label + 8 + max(lh_body, len(body_lines) * lh_body)
 
 
-def _draw_why_with_amber_number(
+def _draw_amber_first_number(
     draw: ImageDraw.ImageDraw, x: int, y: int, text: str, font: ImageFont.FreeTypeFont
 ) -> None:
     """Paint the first numeric token in amber; remainder in cream."""
@@ -233,53 +236,28 @@ def _draw_why_with_amber_number(
 
 
 def draw_card(draw: ImageDraw.ImageDraw, x: int, y: int, w: int, card: TechCard, fonts: dict) -> int:
-    pad = 22
-    lh_label = 32
+    pad_x, pad_y = 18, 18
+    lh_label = 28
     h = measure_card(draw, card, w, fonts)
-    label = _beat_label(card.role)
-    label_fill = AMBER if card.role == "move" else CREAM_DIM
-
-    if card.role == "how":
-        round_rect(draw, (x, y, x + w, y + h), 12, BG_CARD, BORDER, 1)
-        ty = y + pad
-        draw.text((x + pad, ty), label, font=fonts["beat_label"], fill=label_fill)
-        ty += lh_label + 12
-        chip_bot = y + h - pad
-        round_rect(draw, (x + pad, ty, x + w - pad, chip_bot), 8, BG_CODE, BORDER, 1)
-        how_lines = wrap_px(draw, card.text, fonts["beat_how"], w - pad * 2 - 28)[:2]
-        line_h = 34
-        text_block = len(how_lines) * line_h
-        chip_h = chip_bot - ty
-        text_y = ty + max(8, (chip_h - text_block) // 2)
-        for line in how_lines:
-            draw.text((x + pad + 14, text_y), line, font=fonts["beat_how"], fill=CREAM)
-            text_y += line_h
-        return h
-
-    fill = "#1f1d18" if card.role == "move" else BG_CARD
-    border = AMBER if card.role == "move" else BORDER
-    round_rect(draw, (x, y, x + w, y + h), 12, fill, border, 2 if card.role == "move" else 1)
-    ty = y + pad
-    draw.text((x + pad, ty), label, font=fonts["beat_label"], fill=label_fill)
-    ty += lh_label + 14
-
-    if card.role == "move":
-        lh_body = 58
-        for line in _move_lines(draw, card.text, w, fonts):
-            draw.text((x + pad, ty), line, font=fonts["beat_move"], fill=CREAM)
-            ty += lh_body
-        return h
-
-    # why
-    why_lines = wrap_px(draw, card.text, fonts["beat_why"], w - 48)[:2]
-    lh_why = 46
-    for i, line in enumerate(why_lines):
-        # Amber only on the first numeric token of the whole string (first line)
-        if i == 0:
-            _draw_why_with_amber_number(draw, x + pad, ty, line, fonts["beat_why"])
-        else:
-            draw.text((x + pad, ty), line, font=fonts["beat_why"], fill=CREAM)
-        ty += lh_why
+    accent = card.accent
+    fill = "#1f1d18" if accent else BG_CARD
+    border = AMBER if accent else BORDER
+    round_rect(draw, (x, y, x + w, y + h), 10, fill, border, 2 if accent else 1)
+    ty = y + pad_y
+    draw.text(
+        (x + pad_x, ty),
+        _layer_label(card.role),
+        font=fonts["stack_label"],
+        fill=AMBER if accent else CREAM_DIM,
+    )
+    ty += lh_label + 8
+    body_font = fonts["stack_body"]
+    # API / memory HOW-ish lines prefer mono when they look like code
+    if card.role in ("api",) or card.text.startswith(("GET ", "POST ", "recall(", "build_", "eval/")):
+        body_font = fonts["stack_mono"]
+    for line in wrap_px(draw, card.text, body_font, w - pad_x * 2)[:2]:
+        draw.text((x + pad_x, ty), line, font=body_font, fill=CREAM)
+        ty += 40
     return h
 
 
@@ -343,12 +321,29 @@ def draw_caption_bar(draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int], 
     draw.rectangle((x0, y0, x0 + 7, y1), fill=AMBER)
     tx = x0 + 40
     text_w = x1 - tx - 40
-    ty = y0 + 36
+    ty = y0 + 28
     draw.text((tx, ty), screen.takeaway_title, font=fonts["caption_title"], fill=CREAM)
-    ty += 76
-    for line in wrap_px(draw, screen.takeaway_body, fonts["caption_body"], text_w):
-        draw.text((tx, ty), line, font=fonts["caption_body"], fill=CREAM)
-        ty += 48
+    ty += 68
+    body_lines = wrap_px(draw, screen.takeaway_body, fonts["caption_body"], text_w)
+    # Keep room for receipt + HOW chip when present
+    body_lines = body_lines[:1] if (screen.receipt or screen.how) else body_lines[:2]
+    for line in body_lines:
+        draw.text((tx, ty), line, font=fonts["caption_body"], fill=CREAM_MID)
+        ty += 42
+    # Receipt strip — memory thesis number + HOW endpoint (moved off the rail)
+    if screen.receipt or screen.how:
+        ty += 8
+        if screen.receipt:
+            _draw_amber_first_number(draw, tx, ty, screen.receipt, fonts["receipt"])
+            ty += 44
+        if screen.how:
+            how_lines = wrap_px(draw, screen.how, fonts["how_chip"], text_w - 28)[:1]
+            how = how_lines[0] if how_lines else screen.how
+            chip_w = int(draw.textlength(how, font=fonts["how_chip"])) + 36
+            chip_w = min(chip_w, text_w)
+            chip_h = 48
+            round_rect(draw, (tx, ty, tx + chip_w, ty + chip_h), 8, BG_CODE, BORDER, 1)
+            draw.text((tx + 16, ty + 10), how, font=fonts["how_chip"], fill=CREAM)
 
 
 def draw_chip_row(draw: ImageDraw.ImageDraw, x: int, y: int, max_w: int, chips: list[str], fonts: dict) -> int:
@@ -375,14 +370,14 @@ def distribute_cards_vertical(
     cards: list[TechCard],
     fonts: dict,
 ) -> None:
-    """Modest capped gaps; MOVE's larger height carries emphasis — don't
-    stretch all three to equal thirds."""
-    max_gap = 48
+    """Even stack of 5 layers; accented rows stay naturally taller emphasis
+    via border, not stretch."""
+    max_gap = 28
     heights = [measure_card(draw, c, w, fonts) for c in cards]
     total_cards = sum(heights)
     n_gaps = max(1, len(cards) - 1)
     available = y1 - y0 - total_cards
-    gap = min(max_gap, max(16, available // n_gaps))
+    gap = min(max_gap, max(12, available // n_gaps))
     stack_h = total_cards + gap * (len(cards) - 1)
     cy = y0 + max(0, (y1 - y0 - stack_h) // 2)
     for card, h in zip(cards, heights):
@@ -399,16 +394,13 @@ def distribute_cards_horizontal(
     cards: list[TechCard],
     fonts: dict,
 ) -> None:
-    # TODO: band layout unused (all gallery screens are split/architecture).
-    # Kept so a future call maps MOVE→WHY→HOW left-to-right without crashing
-    # on the removed label/title/detail fields.
+    # TODO: band layout unused — maps FRONTEND→…→INFRA left-to-right if revived.
     n = max(1, len(cards))
     gutter = 20
     total_w = x1 - x0
     card_w = (total_w - gutter * (n - 1)) // n
     cx = x0
     for card in cards:
-        # Draw into full strip height; card self-sizes
         draw_card(draw, cx, y, card_w, card, fonts)
         cx += card_w + gutter
 
@@ -423,7 +415,7 @@ def build_split(screen: Screen, screenshot: Image.Image, fonts: dict) -> Image.I
     content_w = CANVAS_W - PAD * 2
     left_x0 = PAD
 
-    # 80/20 split — screenshot dominant, tech panel a narrow rail.
+    # 75/25 split — screenshot dominant, tech stack rail on the right.
     usable = content_w - GUTTER
     left_w = int(usable * LEFT_RATIO)
     left_x1 = left_x0 + left_w
@@ -437,11 +429,11 @@ def build_split(screen: Screen, screenshot: Image.Image, fonts: dict) -> Image.I
     draw_browser_shot(canvas, browser_box, screenshot, screen.url_bar, fonts, fit_mode=screen.fit_mode)
     draw_caption_bar(draw, (left_x0, caption_top, left_x1, content_bottom), screen, fonts)
 
-    # Right rail — 3 memory beats own the full rail height (chips dropped)
-    draw.text((right_x0, content_top + 4), "WHAT MEMORY DOES HERE", font=fonts["section"], fill=AMBER)
-    cards_top = content_top + 60
+    # Right rail — fixed FRONTEND→INFRA stack for this screen
+    draw.text((right_x0, content_top + 4), "UNDER THIS SCREEN", font=fonts["section"], fill=AMBER)
+    cards_top = content_top + 56
     cards_bottom = content_bottom - 12
-    rail_cards = screen.cards[:3]
+    rail_cards = screen.cards[:5]
     distribute_cards_vertical(draw, right_x0, cards_top, right_w, cards_bottom, rail_cards, fonts)
 
     return canvas
@@ -522,20 +514,20 @@ def make_fonts() -> dict:
         "badge": load_font(28, mono=True, bold=True),
         "screen_tag": load_font(30, mono=True, bold=True),
         "title": load_font(84, serif=True, bold=True),
-        "section": load_font(28, mono=True, bold=True),
+        "section": load_font(26, mono=True, bold=True),
         "section_sub": load_font(24, mono=True, bold=True),
         "wordmark": load_font(44, bold=True),
         "url": load_font(24, mono=True, bold=True),
-        "beat_label": load_font(26, mono=True, bold=True),
-        "beat_move": load_font(50, serif=True, bold=True),
-        "beat_why": load_font(38, bold=True),
-        "beat_how": load_font(30, mono=True, bold=True),
-        # Legacy keys still used by header / caption / architecture chrome
+        "stack_label": load_font(24, mono=True, bold=True),
+        "stack_body": load_font(34, bold=True),
+        "stack_mono": load_font(30, mono=True, bold=True),
+        "receipt": load_font(36, bold=True),
+        "how_chip": load_font(28, mono=True, bold=True),
         "card_label": load_font(28, mono=True, bold=True),
         "card_title": load_font(42, serif=True, bold=True),
         "card_detail": load_font(28, bold=True),
-        "caption_title": load_font(56, serif=True, bold=True),
-        "caption_body": load_font(36, bold=True),
+        "caption_title": load_font(52, serif=True, bold=True),
+        "caption_body": load_font(32, bold=True),
         "caption_title_sm": load_font(40, serif=True, bold=True),
         "caption_body_sm": load_font(30, bold=True),
         "card_label_sm": load_font(24, mono=True, bold=True),
