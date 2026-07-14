@@ -29,7 +29,7 @@ DevPost gallery accepts up to **15** images.
 | 4 | `annotated-03-mentor.png` | Mentor — memory-aware chat | Hand-rolled tool loop + engram-mcp; recalls what matters, retires stale facts. |
 | 5 | `standalone-06-photo-detail.png` | Photo detail — narration | Per-frame mentor read + Memory Receipt on a real critique. |
 | 6 | `annotated-05-architecture.png` | Architecture | Qwen Cloud · ECS · MongoDB · engram-mcp · frozen /eval. |
-| 7 | `standalone-00-judge-entry.png` | Judge mode entry | `?judge=1` lands on Home with Track 1 banner + guided tour CTA. |
+| 7 | `standalone-00-judge-entry.png` | Judge mode entry | `?judge=1` lands on Home with Track 1 banner + 90-second walkthrough CTA. |
 
 **Lead image:** `annotated-01-home.png` or `standalone-01-home.png`.
 

@@ -1,5 +1,5 @@
 """Stdio launcher for engram-mcp: run this as the `command` of any MCP-aware
-Qwen agent's server config to mount recall/consolidate/forget/get_memory_stats.
+Qwen agent's server config to mount recall/forget/get_memory_stats.
 
 Run directly: python scripts/run_mcp_server.py
 """

@@ -51,7 +51,6 @@ Authored in [`eval/traces.py`](../eval/traces.py):
 | Tool | Purpose |
 |------|---------|
 | `recall` | Salience-scored, forgetting-aware memory retrieval |
-| `consolidate` | Episodes eligible for semantic consolidation |
 | `forget` | Check whether a coached skill has graduated |
 | `get_memory_stats` | Live/superseded/skill counts |
 

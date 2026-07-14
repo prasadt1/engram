@@ -32,7 +32,7 @@ Reproduce: `python -m eval.run --compare`. Full methodology, per-trace tables, a
 - **Memory-aware coaching** — the Mentor chat and every critique recall the photographer's own history (salience-scored, forgetting-aware) instead of treating each session as a cold start.
 - **Graduation, not just tracking** — a watched weakness (e.g. composition) "clears" after 3 consecutive above-bar sessions and stops being surfaced; Engram knows what you've already fixed.
 - **A Memory Receipt on every reply** — what was recalled, what was excluded because it's retired, and what got dropped for token budget. Retrieval is explainable in the product, not just in a judge appendix.
-- **`engram-mcp`** — the memory engine exposed as a standard MCP server (`recall` / `consolidate` / `forget` / `get_memory_stats`) any Qwen agent can mount, not a proprietary API only this app can call.
+- **`engram-mcp`** — the memory engine exposed as a standard MCP server (`recall` / `forget` / `get_memory_stats`) any Qwen agent can mount, not a proprietary API only this app can call.
 - **Judge mode** — `/?judge=1` drops a judge straight into a fully-seeded demo journey with zero setup.
 
 ---
@@ -139,7 +139,7 @@ Open **`/?judge=1`**. It scopes the app straight to the seeded `demo-user` journ
 python -m pytest
 ```
 
-70 tests, no live network calls.
+219 tests, no live network calls.
 
 ---
 

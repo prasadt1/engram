@@ -97,19 +97,30 @@ export const CoachAssistTab: React.FC<Props> = ({ onGoToJordanDemo }) => {
     };
   }, []);
 
+  const photoTriple =
+    learners && learners.length > 0
+      ? learners.map((l) => l.photoCount).join(' / ')
+      : null;
+
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-tabEnter">
       <header className="space-y-3">
-        <div className="flex items-center gap-2 text-brand-400">
+        <div className="flex items-center gap-2 text-stone-400">
           <Users className="w-5 h-5" aria-hidden />
-          <p className="text-xs font-semibold uppercase tracking-wider">Proof · isolation</p>
+          <p className="text-xs font-semibold uppercase tracking-wider">Multi-learner preview</p>
         </div>
         <h1 className="text-2xl md:text-3xl font-semibold text-stone-100 tracking-tight">
           One mentor, many learners
         </h1>
         <p className="text-sm text-stone-400 leading-relaxed max-w-2xl">
-          Read-only proof that the memory layer scales — three isolated MongoDB journeys
-          (18 / 10 / 6 photos), each with its own skills, assignments, and receipts.
+          Read-only look at how the memory layer holds parallel journeys
+          {photoTriple ? (
+            <>
+              {' '}
+              (<span className="tabular-nums">{photoTriple}</span> photos)
+            </>
+          ) : null}
+          , each with its own skills, assignments, and receipts.
           The interactive judge demo follows <strong className="text-stone-200">Jordan</strong>{' '}
           end-to-end; Alex and Sam show how the same engine holds parallel arcs without mixing data.
         </p>

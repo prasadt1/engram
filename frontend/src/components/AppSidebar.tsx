@@ -141,7 +141,9 @@ export const AppSidebar: React.FC<Props> = ({
             <FlaskConical className="w-4.5 h-4.5 shrink-0" aria-hidden />
             <span className="truncate">Memory Proof Room</span>
           </button>
-          {showCoachAssistLink && onNavigateCoachAssist && (
+        </div>
+        {showCoachAssistLink && onNavigateCoachAssist && (
+          <div className="pt-2">
             <button
               type="button"
               role="tab"
@@ -157,8 +159,8 @@ export const AppSidebar: React.FC<Props> = ({
               <Users className="w-4.5 h-4.5 shrink-0" aria-hidden />
               <span className="truncate">Coach Assist</span>
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </nav>
 
       <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">

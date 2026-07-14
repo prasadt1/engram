@@ -15,7 +15,7 @@ agents*, which is the stronger MemoryAgent story.
 ## Decision
 
 Build `engram-mcp`: a real MCP server (stdio transport, MCP SDK v1.28+)
-exposing typed `recall` / `consolidate` / `forget` / `get_memory_stats`
+exposing typed `recall` / `forget` / `get_memory_stats`
 tools — not a REST wrapper relabeled as MCP. Ship a `?via=mcp` production
 route that round-trips a real request through the actual MCP subprocess
 (not a mocked stand-in), and commit a live protocol transcript

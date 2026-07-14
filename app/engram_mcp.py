@@ -28,8 +28,9 @@ def recall_tool(store: MemoryStore, *, user_id: str, query: str, k: int = 5, sco
 
 
 def consolidate_tool(store: MemoryStore, *, user_id: str) -> dict[str, Any]:
-    # MVP: report what WOULD be consolidated (episodic count -> semantic summary candidate).
-    # The full LLM-written consolidation pass is deferred until after the eval harness exists.
+    # Not mounted on engram-mcp: stub only. Advertising a consolidation pass that
+    # does not write memory would be dishonest — use recall / forget /
+    # get_memory_stats until a real episodic→semantic pass lands with tests.
     stats = store.get_memory_stats(user_id=user_id)
     return {"eligible_for_consolidation": stats["live_memories"], "note": "consolidation pass not yet applied"}
 
@@ -110,9 +111,6 @@ def build_server(store: MemoryStore):
                 "type": "object", "properties": {"user_id": {"type": "string"}, "query": {"type": "string"}, "k": {"type": "integer"}, "scope": {"type": "string"}},
                 "required": ["user_id", "query"],
             }),
-            types.Tool(name="consolidate", description="Report episodic memories eligible for semantic consolidation", inputSchema={
-                "type": "object", "properties": {"user_id": {"type": "string"}}, "required": ["user_id"],
-            }),
             types.Tool(name="forget", description="Check whether a tracked skill has graduated (its coaching memories retired)", inputSchema={
                 "type": "object", "properties": {"user_id": {"type": "string"}, "skill": {"type": "string"}}, "required": ["user_id", "skill"],
             }),
@@ -126,8 +124,6 @@ def build_server(store: MemoryStore):
         import json
         if name == "recall":
             result = recall_tool(store, user_id=arguments["user_id"], query=arguments.get("query", ""), k=arguments.get("k", 5), scope=arguments.get("scope"))
-        elif name == "consolidate":
-            result = consolidate_tool(store, user_id=arguments["user_id"])
         elif name == "forget":
             result = forget_tool(store, user_id=arguments["user_id"], skill=arguments["skill"])
         elif name == "get_memory_stats":

@@ -82,4 +82,6 @@ Every frozen trace has ≤5 facts (`max=5` on `trace_multihop_1`). With `k=5`, r
 
 ## Deploy
 
-Recorded after push + ECS rebuild (see commit SHA below once landed).
+- Commit: `ea1d33c` on `main` (pushed)
+- ECS: `git pull` → `docker compose up -d --build` (ok)
+- Prod: `/health` → `{"status":"ok"}`; homepage JS bundle contains all three ring labels (`Mean · Engram shipped`, `Mean · recency-only`, `never forgets`)

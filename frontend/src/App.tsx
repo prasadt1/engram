@@ -547,7 +547,7 @@ function App() {
                   }}
                   className="text-sm px-3 py-1.5 rounded-lg bg-brand-500/20 text-brand-300 border border-brand-500/30 hover:bg-brand-500/30 transition-colors"
                 >
-                  Take the guided tour
+                  Take the 90-second walkthrough
                 </button>
               </div>
             </div>

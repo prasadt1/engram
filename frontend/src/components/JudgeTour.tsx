@@ -146,7 +146,7 @@ export const JudgeTour: React.FC<Props> = ({
       onClose={handleClose}
       onComplete={handleComplete}
       onStepChange={handleStepChange}
-      tourLabel="Judge walkthrough"
+      tourLabel="90-second walkthrough"
     />
   );
 };
