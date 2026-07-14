@@ -8,7 +8,7 @@ Variant B (band): full-width screenshot top, tech cards in bottom strip.
 from __future__ import annotations
 
 import json
-import textwrap
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -27,6 +27,7 @@ LOGO_MARK = ROOT / "frontend" / "public" / "engram-mark.png"
 BG = "#141210"
 BG_PANEL = "#1a1816"
 BG_CARD = "#211f1c"
+BG_CODE = "#161412"
 AMBER = "#f59e0b"
 CREAM = "#e7e5e4"
 CREAM_MID = "#a8a29e"
@@ -40,22 +41,33 @@ CANVAS_W = 3840
 CANVAS_H = 2160
 PAD = 56
 GUTTER = 48
-HEADER_H = 156
-CAPTION_H = 180
-BROWSER_CHROME_H = 54
+# Larger header/caption so chrome stays readable when Devpost shows
+# gallery thumbs (~¼–⅓ screen width).
+HEADER_H = 180
+CAPTION_H = 220
+BROWSER_CHROME_H = 58
 MIN_GAP = 120  # acceptance: no void taller than this
 # Screenshot dominates the frame; the tech panel is a narrow right rail.
-LEFT_RATIO = 0.80
+LEFT_RATIO = 0.75
 
 Variant = Literal["split", "band"]
 
 
+BEAT_LABELS = {
+    "move": "THE MOVE",
+    "why": "WHY IT'S REAL",
+    "how": "HOW",
+}
+
+_FIRST_NUM = re.compile(r"(\d+(?:\.\d+)?)")
+
+
 @dataclass
 class TechCard:
-    label: str
-    title: str
-    detail: str
-    accent: str = "default"
+    """One beat on the annotation rail: move | why | how."""
+
+    role: str
+    text: str
 
 
 @dataclass
@@ -130,18 +142,6 @@ def load_logo(height: int) -> Image.Image:
     return logo.resize((nw, height), Image.Resampling.LANCZOS)
 
 
-def accent_colors(accent: str) -> tuple[str, str | None]:
-    if accent == "amber":
-        return AMBER, AMBER
-    if accent == "mongo":
-        return MONGO, MONGO
-    if accent == "qwen":
-        return QWEN, QWEN
-    if accent == "alibaba":
-        return ALIBABA, ALIBABA
-    return BORDER, None
-
-
 def round_rect(draw: ImageDraw.ImageDraw, xy: tuple, radius: int, fill: str, outline: str | None = None, width: int = 1) -> None:
     draw.rounded_rectangle(xy, radius=radius, fill=fill, outline=outline, width=width)
 
@@ -186,52 +186,118 @@ def fill_cover(img: Image.Image, w: int, h: int) -> Image.Image:
     return resized.crop((left, top, left + w, top + h))
 
 
-def _card_detail_lines(draw: ImageDraw.ImageDraw, card: TechCard, w: int, fonts: dict) -> list[str]:
-    return wrap_px(draw, card.detail, fonts["card_detail"], w - 48 - 20)
+def _beat_label(role: str) -> str:
+    return BEAT_LABELS.get(role, role.upper())
+
+
+def _move_lines(draw: ImageDraw.ImageDraw, text: str, w: int, fonts: dict) -> list[str]:
+    lines = wrap_px(draw, text, fonts["beat_move"], w - 48)
+    return lines[:2] if lines else [""]
 
 
 def measure_card(draw: ImageDraw.ImageDraw, card: TechCard, w: int, fonts: dict) -> int:
-    pad = 18
-    detail_lines = _card_detail_lines(draw, card, w, fonts)
-    lh_label, lh_title, lh_detail = 26, 40, 28
-    return pad * 2 + lh_label + 8 + lh_title + 8 + max(lh_detail, len(detail_lines) * lh_detail)
+    pad = 22
+    lh_label = 32
+    if card.role == "move":
+        lines = _move_lines(draw, card.text, w, fonts)
+        lh_body = 58
+        return pad * 2 + lh_label + 14 + max(lh_body, len(lines) * lh_body) + 8
+    if card.role == "how":
+        how_lines = wrap_px(draw, card.text, fonts["beat_how"], w - pad * 2 - 28)[:2]
+        chip_inner = 18 + max(36, len(how_lines) * 34)
+        return pad * 2 + lh_label + 12 + chip_inner
+    # why — single bold line (may wrap once if needed)
+    why_lines = wrap_px(draw, card.text, fonts["beat_why"], w - 48)
+    lh_why = 46
+    return pad * 2 + lh_label + 12 + max(lh_why, min(2, len(why_lines)) * lh_why)
+
+
+def _draw_why_with_amber_number(
+    draw: ImageDraw.ImageDraw, x: int, y: int, text: str, font: ImageFont.FreeTypeFont
+) -> None:
+    """Paint the first numeric token in amber; remainder in cream."""
+    m = _FIRST_NUM.search(text)
+    if not m:
+        draw.text((x, y), text, font=font, fill=CREAM)
+        return
+    start, end = m.span()
+    prefix, num, suffix = text[:start], text[start:end], text[end:]
+    cx = x
+    if prefix:
+        draw.text((cx, y), prefix, font=font, fill=CREAM)
+        cx += int(draw.textlength(prefix, font=font))
+    draw.text((cx, y), num, font=font, fill=AMBER)
+    cx += int(draw.textlength(num, font=font))
+    if suffix:
+        draw.text((cx, y), suffix, font=font, fill=CREAM)
 
 
 def draw_card(draw: ImageDraw.ImageDraw, x: int, y: int, w: int, card: TechCard, fonts: dict) -> int:
-    pad = 18
-    detail_lines = _card_detail_lines(draw, card, w, fonts)
-    lh_label, lh_title, lh_detail = 26, 40, 28
-    h = pad * 2 + lh_label + 8 + lh_title + 8 + max(lh_detail, len(detail_lines) * lh_detail)
-    border, glow = accent_colors(card.accent)
-    fill = BG_CARD if card.accent == "default" else "#1f1d18"
-    round_rect(draw, (x, y, x + w, y + h), 12, fill, border if glow else BORDER, 2 if glow else 1)
-    inset = pad + (8 if glow else 0)
+    pad = 22
+    lh_label = 32
+    h = measure_card(draw, card, w, fonts)
+    label = _beat_label(card.role)
+    label_fill = AMBER if card.role == "move" else CREAM_DIM
+
+    if card.role == "how":
+        round_rect(draw, (x, y, x + w, y + h), 12, BG_CARD, BORDER, 1)
+        ty = y + pad
+        draw.text((x + pad, ty), label, font=fonts["beat_label"], fill=label_fill)
+        ty += lh_label + 12
+        chip_bot = y + h - pad
+        round_rect(draw, (x + pad, ty, x + w - pad, chip_bot), 8, BG_CODE, BORDER, 1)
+        how_lines = wrap_px(draw, card.text, fonts["beat_how"], w - pad * 2 - 28)[:2]
+        line_h = 34
+        text_block = len(how_lines) * line_h
+        chip_h = chip_bot - ty
+        text_y = ty + max(8, (chip_h - text_block) // 2)
+        for line in how_lines:
+            draw.text((x + pad + 14, text_y), line, font=fonts["beat_how"], fill=CREAM)
+            text_y += line_h
+        return h
+
+    fill = "#1f1d18" if card.role == "move" else BG_CARD
+    border = AMBER if card.role == "move" else BORDER
+    round_rect(draw, (x, y, x + w, y + h), 12, fill, border, 2 if card.role == "move" else 1)
     ty = y + pad
-    draw.text((x + inset, ty), card.label, font=fonts["card_label"], fill=CREAM_DIM if not glow else glow)
-    ty += lh_label + 8
-    draw.text((x + inset, ty), card.title, font=fonts["card_title"], fill=CREAM)
-    ty += lh_title + 8
-    for line in detail_lines:
-        draw.text((x + inset, ty), line, font=fonts["card_detail"], fill=CREAM_MID)
-        ty += lh_detail
+    draw.text((x + pad, ty), label, font=fonts["beat_label"], fill=label_fill)
+    ty += lh_label + 14
+
+    if card.role == "move":
+        lh_body = 58
+        for line in _move_lines(draw, card.text, w, fonts):
+            draw.text((x + pad, ty), line, font=fonts["beat_move"], fill=CREAM)
+            ty += lh_body
+        return h
+
+    # why
+    why_lines = wrap_px(draw, card.text, fonts["beat_why"], w - 48)[:2]
+    lh_why = 46
+    for i, line in enumerate(why_lines):
+        # Amber only on the first numeric token of the whole string (first line)
+        if i == 0:
+            _draw_why_with_amber_number(draw, x + pad, ty, line, fonts["beat_why"])
+        else:
+            draw.text((x + pad, ty), line, font=fonts["beat_why"], fill=CREAM)
+        ty += lh_why
     return h
 
 
 def draw_header(canvas: Image.Image, screen: Screen, fonts: dict) -> None:
     draw = ImageDraw.Draw(canvas)
-    logo_h = 52
+    logo_h = 60
     logo = load_logo(logo_h)
     logo_y = PAD - 2
     canvas.paste(logo, (PAD, logo_y), logo)
     text_x = PAD + logo.width + 20
     draw.text((text_x, logo_y - 2), "engram", font=fonts["wordmark"], fill=CREAM)
     # Extra vertical gap so the eyebrow line doesn't jam under the wordmark.
-    draw.text((text_x, logo_y + 54), "MEMORY-FIRST PHOTO MENTOR · QWEN", font=fonts["badge"], fill=AMBER)
+    draw.text((text_x, logo_y + 62), "MEMORY-FIRST PHOTO MENTOR · QWEN", font=fonts["badge"], fill=AMBER)
     title_w = draw.textlength(screen.title, font=fonts["title"])
     draw.text((CANVAS_W - PAD - title_w, PAD - 8), screen.title, font=fonts["title"], fill=CREAM)
     tag = f"SCREEN {screen.id} · {screen.tag}"
     tag_w = draw.textlength(tag, font=fonts["screen_tag"])
-    draw.text((CANVAS_W - PAD - tag_w, PAD + 66), tag, font=fonts["screen_tag"], fill=CREAM_DIM)
+    draw.text((CANVAS_W - PAD - tag_w, PAD + 78), tag, font=fonts["screen_tag"], fill=CREAM_DIM)
 
 
 def draw_browser_shot(
@@ -277,26 +343,26 @@ def draw_caption_bar(draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int], 
     draw.rectangle((x0, y0, x0 + 7, y1), fill=AMBER)
     tx = x0 + 40
     text_w = x1 - tx - 40
-    ty = y0 + 30
+    ty = y0 + 36
     draw.text((tx, ty), screen.takeaway_title, font=fonts["caption_title"], fill=CREAM)
-    ty += 66
+    ty += 76
     for line in wrap_px(draw, screen.takeaway_body, fonts["caption_body"], text_w):
-        draw.text((tx, ty), line, font=fonts["caption_body"], fill=CREAM_MID)
-        ty += 42
+        draw.text((tx, ty), line, font=fonts["caption_body"], fill=CREAM)
+        ty += 48
 
 
 def draw_chip_row(draw: ImageDraw.ImageDraw, x: int, y: int, max_w: int, chips: list[str], fonts: dict) -> int:
     tx = x
-    row_h = 44
+    row_h = 52
     for chip in chips:
-        tw = draw.textlength(chip, font=fonts["tag"]) + 28
+        tw = draw.textlength(chip, font=fonts["tag"]) + 36
         if tx + tw > x + max_w and tx > x:
             tx = x
-            y += row_h + 10
+            y += row_h + 12
         accent = AMBER if any(k.lower() in chip.lower() for k in ("memory", "mcp", "judge", "fama", "receipt")) else BORDER
         round_rect(draw, (tx, y, tx + tw, y + row_h), 10, BG_CARD, accent, 1)
-        draw.text((tx + 14, y + 10), chip, font=fonts["tag"], fill=CREAM if accent == AMBER else CREAM_MID)
-        tx += tw + 12
+        draw.text((tx + 16, y + 12), chip, font=fonts["tag"], fill=CREAM if accent == AMBER else CREAM)
+        tx += tw + 14
     return y + row_h
 
 
@@ -309,9 +375,9 @@ def distribute_cards_vertical(
     cards: list[TechCard],
     fonts: dict,
 ) -> None:
-    """Modest capped gaps; stack centered vertically so cards keep their
-    natural height instead of stretching into tall boxes."""
-    max_gap = 34
+    """Modest capped gaps; MOVE's larger height carries emphasis — don't
+    stretch all three to equal thirds."""
+    max_gap = 48
     heights = [measure_card(draw, c, w, fonts) for c in cards]
     total_cards = sum(heights)
     n_gaps = max(1, len(cards) - 1)
@@ -333,27 +399,17 @@ def distribute_cards_horizontal(
     cards: list[TechCard],
     fonts: dict,
 ) -> None:
-    n = len(cards)
+    # TODO: band layout unused (all gallery screens are split/architecture).
+    # Kept so a future call maps MOVE→WHY→HOW left-to-right without crashing
+    # on the removed label/title/detail fields.
+    n = max(1, len(cards))
     gutter = 20
     total_w = x1 - x0
     card_w = (total_w - gutter * (n - 1)) // n
     cx = x0
     for card in cards:
-        # compact cards for band strip
-        pad = 16
-        border, glow = accent_colors(card.accent)
-        round_rect(draw, (cx, y, cx + card_w, y + h), 10, BG_CARD, border if glow else BORDER, 1)
-        inset = pad + (6 if glow else 0)
-        ty = y + pad
-        draw.text((cx + inset, ty), card.label, font=fonts["card_label_sm"], fill=CREAM_DIM if not glow else glow)
-        ty += 24
-        for line in textwrap.wrap(card.title, width=22):
-            draw.text((cx + inset, ty), line, font=fonts["card_title_sm"], fill=CREAM)
-            ty += 28
-        ty += 4
-        for line in textwrap.wrap(card.detail, width=28):
-            draw.text((cx + inset, ty), line, font=fonts["card_detail_sm"], fill=CREAM_MID)
-            ty += 22
+        # Draw into full strip height; card self-sizes
+        draw_card(draw, cx, y, card_w, card, fonts)
         cx += card_w + gutter
 
 
@@ -381,14 +437,12 @@ def build_split(screen: Screen, screenshot: Image.Image, fonts: dict) -> Image.I
     draw_browser_shot(canvas, browser_box, screenshot, screen.url_bar, fonts, fit_mode=screen.fit_mode)
     draw_caption_bar(draw, (left_x0, caption_top, left_x1, content_bottom), screen, fonts)
 
-    # Right rail — title, flex cards, chips pinned bottom
-    draw.text((right_x0, content_top + 4), "UNDER THE HOOD", font=fonts["section"], fill=AMBER)
-    draw.text((right_x0, content_top + 40), "FRONT → BACK", font=fonts["section_sub"], fill=CREAM_DIM)
-    chips_h = 80
-    cards_top = content_top + 72
-    cards_bottom = content_bottom - chips_h - 20
-    distribute_cards_vertical(draw, right_x0, cards_top, right_w, cards_bottom, screen.cards, fonts)
-    draw_chip_row(draw, right_x0, content_bottom - chips_h, right_w, screen.chips, fonts)
+    # Right rail — 3 memory beats own the full rail height (chips dropped)
+    draw.text((right_x0, content_top + 4), "WHAT MEMORY DOES HERE", font=fonts["section"], fill=AMBER)
+    cards_top = content_top + 60
+    cards_bottom = content_bottom - 12
+    rail_cards = screen.cards[:3]
+    distribute_cards_vertical(draw, right_x0, cards_top, right_w, cards_bottom, rail_cards, fonts)
 
     return canvas
 
@@ -416,11 +470,11 @@ def build_architecture(screen: Screen, diagram: Image.Image, fonts: dict) -> Ima
     round_rect(draw, (PAD, caption_top, CANVAS_W - PAD, content_bottom), 14, "#1f1d18", BORDER, 1)
     draw.rectangle((PAD, caption_top, PAD + 7, content_bottom), fill=AMBER)
     tx = PAD + 40
-    ty = caption_top + 30
+    ty = caption_top + 36
     draw.text((tx, ty), screen.takeaway_title, font=fonts["caption_title"], fill=CREAM)
-    ty += 66
-    draw.text((tx, ty), screen.takeaway_body, font=fonts["caption_body"], fill=CREAM_MID)
-    draw_chip_row(draw, CANVAS_W - PAD - 900, content_bottom - 66, 860, screen.chips, fonts)
+    ty += 76
+    draw.text((tx, ty), screen.takeaway_body, font=fonts["caption_body"], fill=CREAM)
+    draw_chip_row(draw, CANVAS_W - PAD - 980, content_bottom - 74, 940, screen.chips, fonts)
 
     return canvas
 
@@ -463,25 +517,31 @@ def build_band(screen: Screen, screenshot: Image.Image, fonts: dict) -> Image.Im
 
 
 def make_fonts() -> dict:
+    """Chrome sized for Devpost gallery thumbs — ~1.4× earlier sizes + bold body."""
     return {
-        "badge": load_font(20, mono=True),
-        "screen_tag": load_font(22, mono=True),
-        "title": load_font(68, serif=True, bold=True),
-        "section": load_font(24, mono=True, bold=True),
-        "section_sub": load_font(18, mono=True),
-        "wordmark": load_font(34, bold=True),
-        "url": load_font(18, mono=True),
-        "card_label": load_font(22, mono=True, bold=True),
-        "card_title": load_font(34, serif=True, bold=True),
-        "card_detail": load_font(22, mono=True),
-        "caption_title": load_font(44, serif=True, bold=True),
-        "caption_body": load_font(28),
-        "caption_title_sm": load_font(32, serif=True, bold=True),
-        "caption_body_sm": load_font(24),
-        "card_label_sm": load_font(18, mono=True),
-        "card_title_sm": load_font(24, serif=True, bold=True),
-        "card_detail_sm": load_font(20, mono=True),
-        "tag": load_font(22, mono=True, bold=True),
+        "badge": load_font(28, mono=True, bold=True),
+        "screen_tag": load_font(30, mono=True, bold=True),
+        "title": load_font(84, serif=True, bold=True),
+        "section": load_font(28, mono=True, bold=True),
+        "section_sub": load_font(24, mono=True, bold=True),
+        "wordmark": load_font(44, bold=True),
+        "url": load_font(24, mono=True, bold=True),
+        "beat_label": load_font(26, mono=True, bold=True),
+        "beat_move": load_font(50, serif=True, bold=True),
+        "beat_why": load_font(38, bold=True),
+        "beat_how": load_font(30, mono=True, bold=True),
+        # Legacy keys still used by header / caption / architecture chrome
+        "card_label": load_font(28, mono=True, bold=True),
+        "card_title": load_font(42, serif=True, bold=True),
+        "card_detail": load_font(28, bold=True),
+        "caption_title": load_font(56, serif=True, bold=True),
+        "caption_body": load_font(36, bold=True),
+        "caption_title_sm": load_font(40, serif=True, bold=True),
+        "caption_body_sm": load_font(30, bold=True),
+        "card_label_sm": load_font(24, mono=True, bold=True),
+        "card_title_sm": load_font(30, serif=True, bold=True),
+        "card_detail_sm": load_font(24, bold=True),
+        "tag": load_font(28, mono=True, bold=True),
     }
 
 

@@ -58,31 +58,23 @@
       "galleryCaption": "Track 1 · MemoryAgent banner on Home with the guided spotlight tour — no interstitial gate.",
       "takeawayTitle": "Judge mode — straight to Home.",
       "takeawayBody": "Track 1 · MemoryAgent banner on Home with the guided spotlight tour — no interstitial gate.",
-      "chips": ["Track 1", "MemoryAgent", "Judge mode"],
+      "chips": [
+        "Track 1",
+        "MemoryAgent",
+        "Judge mode"
+      ],
       "cards": [
         {
-          "label": "ONBOARDING",
-          "title": "One door in",
-          "detail": "?judge=1 → Home banner → spotlight walkthrough → Proof sidebar",
-          "accent": "amber"
+          "role": "move",
+          "text": "Opens already knowing your whole history"
         },
         {
-          "label": "LIVE DATA",
-          "title": "Seeded demo-user",
-          "detail": "portfolio + journey APIs — counts never hardcoded",
-          "accent": "mongo"
+          "role": "why",
+          "text": "16 photos · 7.5/10 mentor read"
         },
         {
-          "label": "DEPLOY",
-          "title": "Alibaba ECS",
-          "detail": "engram.prasadtilloo.com · Docker · Caddy TLS",
-          "accent": "alibaba"
-        },
-        {
-          "label": "TOUR",
-          "title": "Spotlight walkthrough",
-          "detail": "Outturn-style focus ring on live Home regions",
-          "accent": "default"
+          "role": "how",
+          "text": "GET /api/v1/journey"
         }
       ]
     },
@@ -101,10 +93,10 @@
       },
       "capture": "viewport",
       "fitMode": "contain",
-      "galleryTitle": "Home \u2014 your library, remembered",
-      "galleryCaption": "Mentor-read hero, genre memory threads, and journey progress \u2014 derived from portfolio memory across sessions, not a one-shot critique.",
-      "takeawayTitle": "Home \u2014 your library, remembered.",
-      "takeawayBody": "Mentor-read hero, genre memory threads, and journey progress \u2014 derived from portfolio memory across sessions, not a one-shot critique.",
+      "galleryTitle": "Home — your library, remembered",
+      "galleryCaption": "Mentor-read hero, genre memory threads, and journey progress — derived from portfolio memory across sessions, not a one-shot critique.",
+      "takeawayTitle": "Home — your library, remembered.",
+      "takeawayBody": "Mentor-read hero, genre memory threads, and journey progress — derived from portfolio memory across sessions, not a one-shot critique.",
       "chips": [
         "Forgetting-aware memory",
         "engram-mcp",
@@ -112,34 +104,16 @@
       ],
       "cards": [
         {
-          "label": "FRONTEND",
-          "title": "React 19 + Vite",
-          "detail": "memory threads \u00b7 mentor-read hero \u00b7 contact sheet",
-          "accent": "default"
+          "role": "move",
+          "text": "Recalls every past shoot, not just your last upload"
         },
         {
-          "label": "API",
-          "title": "FastAPI on Alibaba ECS",
-          "detail": "GET /api/v1/journey \u00b7 /portfolio \u00b7 /trends",
-          "accent": "alibaba"
+          "role": "why",
+          "text": "7 photos: 5.9 → 7.5 (Landscape thread)"
         },
         {
-          "label": "MEMORY ENGINE",
-          "title": "Salience + graduation",
-          "detail": "recall() \u00b7 supersession \u00b7 token-budget packing",
-          "accent": "amber"
-        },
-        {
-          "label": "DATABASE",
-          "title": "MongoDB Atlas",
-          "detail": "portfolio_entries \u00b7 skills \u00b7 journey state",
-          "accent": "mongo"
-        },
-        {
-          "label": "PHOTO STORAGE",
-          "title": "Alibaba Cloud ECS",
-          "detail": "served at /media \u00b7 OSS one env flip away",
-          "accent": "alibaba"
+          "role": "how",
+          "text": "GET /api/v1/journey"
         }
       ]
     },
@@ -158,9 +132,9 @@
       },
       "capture": "viewport",
       "fitMode": "contain",
-      "galleryTitle": "My Work \u2014 every frame, findable",
+      "galleryTitle": "My Work — every frame, findable",
       "galleryCaption": "Search your critiqued library by what's in it; open any frame to talk to the mentor about exactly that photo.",
-      "takeawayTitle": "My Work \u2014 every frame, findable.",
+      "takeawayTitle": "My Work — every frame, findable.",
       "takeawayBody": "Search your critiqued library by what's in it; open any frame to talk to the mentor about exactly that photo.",
       "chips": [
         "NL-ish search",
@@ -169,28 +143,16 @@
       ],
       "cards": [
         {
-          "label": "FRONTEND",
-          "title": "Contact-sheet grid",
-          "detail": "score pills \u00b7 date stamps \u00b7 genre tags",
-          "accent": "default"
+          "role": "move",
+          "text": "Recalls and finds any frame you've shot, scored"
         },
         {
-          "label": "API",
-          "title": "Search + similar",
-          "detail": "GET /portfolio/search \u00b7 /{id}/similar",
-          "accent": "alibaba"
+          "role": "why",
+          "text": "16 photos · Avg 6.7 · 100% consistent"
         },
         {
-          "label": "MATCHING \u00b7 BY DESIGN",
-          "title": "Structured, not semantic",
-          "detail": "genre synonyms \u00b7 tag overlap \u00b7 no embeddings",
-          "accent": "amber"
-        },
-        {
-          "label": "MEMORY ENGINE",
-          "title": "Photo-scoped memory",
-          "detail": "storageKey = recall scope for each frame",
-          "accent": "amber"
+          "role": "how",
+          "text": "GET /api/v1/portfolio/search"
         }
       ]
     },
@@ -230,10 +192,10 @@
           "optional": true
         }
       ],
-      "galleryTitle": "Mentor \u2014 answers from YOUR history",
-      "galleryCaption": "Every reply ships a Memory Receipt: what was recalled, what was retired, what got dropped by budget \u2014 checkable, not vibes.",
-      "takeawayTitle": "Mentor \u2014 answers from YOUR history.",
-      "takeawayBody": "Every reply ships a Memory Receipt: what was recalled, what was retired, what got dropped by budget \u2014 checkable, not vibes.",
+      "galleryTitle": "Mentor — answers from YOUR history",
+      "galleryCaption": "Every reply ships a Memory Receipt: what was recalled, what was retired, what got dropped by budget — checkable, not vibes.",
+      "takeawayTitle": "Mentor — answers from YOUR history.",
+      "takeawayBody": "Every reply ships a Memory Receipt: what was recalled, what was retired, what got dropped by budget — checkable, not vibes.",
       "chips": [
         "Memory Receipt",
         "SSE streaming",
@@ -241,28 +203,16 @@
       ],
       "cards": [
         {
-          "label": "STREAMING",
-          "title": "Token-by-token SSE",
-          "detail": "chat_fast_stream \u00b7 qwen3.6-flash",
-          "accent": "qwen"
+          "role": "move",
+          "text": "Recalls only what matters, answers within a token budget"
         },
         {
-          "label": "REPLY CONTRACT",
-          "title": "Headline \u00b7 beats \u00b7 full note",
-          "detail": "parsed client-side \u00b7 voiceover-ready",
-          "accent": "default"
+          "role": "why",
+          "text": "8 recalled · packed under 1200 tokens"
         },
         {
-          "label": "MEMORY ENGINE",
-          "title": "Recall with receipts",
-          "detail": "salience-ranked \u00b7 recalled/retired listed per reply",
-          "accent": "amber"
-        },
-        {
-          "label": "PERSONA",
-          "title": "Tone-aware coaching",
-          "detail": "hobbyist vs pro framing, server-side prompt",
-          "accent": "default"
+          "role": "how",
+          "text": "build_memory_context(k=8, token_budget=1200)"
         }
       ]
     },
@@ -307,7 +257,10 @@
         },
         {
           "type": "fit_elements",
-          "selectors": ["h1-proof", "#proof-benchmark"],
+          "selectors": [
+            "h1-proof",
+            "#proof-benchmark"
+          ],
           "pad": 20,
           "waitMs": 800
         }
@@ -324,28 +277,16 @@
       ],
       "cards": [
         {
-          "label": "PROTOCOL",
-          "title": "engram-mcp",
-          "detail": "typed tools \u00b7 stdio \u00b7 ?via=mcp live round-trip",
-          "accent": "qwen"
+          "role": "move",
+          "text": "Forgets the camera you sold; recalls only current gear"
         },
         {
-          "label": "BENCHMARK",
-          "title": "/eval \u2014 frozen",
-          "detail": "26 traces \u00b7 3-way FAMA \u00b7 1.00 vs 0.64",
-          "accent": "amber"
+          "role": "why",
+          "text": "1.00 vs 0.64 (never-forgets)"
         },
         {
-          "label": "TOKEN COST",
-          "title": "1.72\u00d7 fewer context tokens",
-          "detail": "vs full-history stuffing, same recall",
-          "accent": "amber"
-        },
-        {
-          "label": "FORGETTING",
-          "title": "Supersession, not deletion",
-          "detail": "Canon\u2192Sony story \u00b7 retired facts audit-kept",
-          "accent": "amber"
+          "role": "how",
+          "text": "eval/run.py · compute_fama()"
         }
       ]
     },
@@ -363,40 +304,15 @@
       "capture": "asset",
       "fitMode": "contain",
       "galleryTitle": "One memory layer, many products",
-      "galleryCaption": "The coach is the first product on the engine \u2014 LENS and print-sales workflows mount the same memory over MCP.",
+      "galleryCaption": "The coach is the first product on the engine — LENS and print-sales workflows mount the same memory over MCP.",
       "takeawayTitle": "One memory layer, many products.",
-      "takeawayBody": "The coach is the first product on the engine \u2014 LENS and print-sales workflows mount the same memory over MCP.",
+      "takeawayBody": "The coach is the first product on the engine — LENS and print-sales workflows mount the same memory over MCP.",
       "chips": [
         "Alibaba ECS",
         "MongoDB Atlas",
         "Apache-2.0"
       ],
-      "cards": [
-        {
-          "label": "MODELS \u00b7 QWEN CLOUD",
-          "title": "Three tiers, one client",
-          "detail": "qwen-vl-max \u00b7 qwen3.7-max \u00b7 qwen3.6-flash",
-          "accent": "qwen"
-        },
-        {
-          "label": "RELIABILITY",
-          "title": "Salvage before repair",
-          "detail": "local JSON/enum fixes \u00b7 0.1ms vs 93s spiral",
-          "accent": "amber"
-        },
-        {
-          "label": "PROTOCOL",
-          "title": "engram-mcp",
-          "detail": "typed tools \u00b7 stdio \u00b7 any Qwen agent can mount it",
-          "accent": "qwen"
-        },
-        {
-          "label": "EVAL",
-          "title": "Deterministic benchmark",
-          "detail": "one command \u00b7 frozen traces \u00b7 \u03bb disclosed",
-          "accent": "amber"
-        }
-      ]
+      "cards": []
     },
     {
       "id": "06",
@@ -467,28 +383,16 @@
       ],
       "cards": [
         {
-          "label": "NARRATION",
-          "title": "What I learned, stated",
-          "detail": "deterministic \u2014 derived from real state transitions",
-          "accent": "amber"
+          "role": "move",
+          "text": "Recalls only this photo's own history"
         },
         {
-          "label": "SCORES",
-          "title": "Five dimensions + tooltips",
-          "detail": "DimensionBar \u00b7 \u24d8 meanings",
-          "accent": "default"
+          "role": "why",
+          "text": "1 recalled · packed under 1200 tokens"
         },
         {
-          "label": "SCOPED CHAT",
-          "title": "This frame only",
-          "detail": "recall(scope = storageKey)",
-          "accent": "amber"
-        },
-        {
-          "label": "GROUNDING",
-          "title": "Principles cited",
-          "detail": "curated photography docs, per-genre",
-          "accent": "default"
+          "role": "how",
+          "text": "recall(scope=storageKey)"
         }
       ]
     }
