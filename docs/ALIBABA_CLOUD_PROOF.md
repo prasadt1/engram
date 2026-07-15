@@ -4,22 +4,58 @@ This document collects the evidence that Engram's backend runs on Alibaba Cloud,
 
 ## 1. Code files using Alibaba Cloud services and APIs
 
-- **Alibaba OSS (object storage)** — [`app/storage.py`](../app/storage.py): the `OSSStorage` class uses the official `oss2` SDK against a private bucket in `ap-southeast-1`, with presigned read URLs (`sign_url`). Selected via `STORAGE_BACKEND=oss`.
+- **Alibaba OSS (object storage)** — [`app/storage.py`](../app/storage.py): the `OSSStorage` class uses the official `oss2` SDK against a private bucket in `ap-southeast-1`, with presigned read URLs (`sign_url`). Selected via `STORAGE_BACKEND=oss`. *(Production currently serves photos from ECS local volume / media; OSS remains one env flip away.)*
 - **Qwen Cloud / DashScope (managed model API)** — [`app/qwen_client.py`](../app/qwen_client.py): every model call in the product goes through Alibaba's OpenAI-compatible endpoint at `dashscope-intl.aliyuncs.com` (`qwen-vl-max`, `qwen3.7-max`, `qwen3.6-flash`; IDs in [`app/config.py`](../app/config.py)). No self-hosted weights anywhere.
 
 ## 2. Containerized deployment
 
 The backend ships as a Docker image ([`Dockerfile`](../Dockerfile), [`docker-compose.yml`](../docker-compose.yml)) verified end-to-end in-container, including the `engram-mcp` subprocess path (`GET /api/v1/memory-stats?via=mcp` returns `"served_via": "engram-mcp"` from inside the image).
 
-## 3. Live instance (ECS/SAS, Singapore)
+## 3. Live instance (ECS, Singapore)
 
-Deployed **July 4, 2026** on a pay-as-you-go ECS instance.
+Deployed **July 4, 2026** on a pay-as-you-go ECS instance (still running as of the Jul 15 capture below).
 
-- Instance: `i-t4nefbdogtkjqbvvyxsn` (Economy e, 2 vCPU / 2 GiB, Ubuntu 24.04)
-- Region: **ap-southeast-1 (Singapore)** — co-located with the DashScope intl endpoint
-- Public endpoint: **https://engram.prasadtilloo.com** — the full app (built SPA served same-origin) and API, behind a Caddy reverse proxy with an auto-provisioned Let's Encrypt certificate (HTTP auto-redirects to HTTPS)
-  - Live app / judge mode: `https://engram.prasadtilloo.com/?judge=1`
-  - Health: `https://engram.prasadtilloo.com/health`
-  - Live MCP path: `https://engram.prasadtilloo.com/api/v1/memory-stats?via=mcp` → `"served_via": "engram-mcp"`
-  - Fallback (no DNS/TLS dependency): `http://8.222.253.211:8080/?judge=1`
-- Console screenshot: ![ECS console — instance running](alibaba-console-running.png) — live ECS host evidence panel (instance id, DNS→IP, `docker compose ps`, health, MCP path, commit `15ce1d8`). Supplement with Alibaba console UI screenshot if judges ask for the portal itself.
+| Field | Value |
+|-------|--------|
+| Instance ID | `i-t4nefbdogtkjqbvvyxsn` |
+| Name | `launch-advisor-20260704` |
+| Region / zone | **ap-southeast-1 · Singapore A** |
+| Type | `ecs.e-c1m1.large` · 2 vCPU / 2 GiB · Ubuntu 24.04 |
+| Billing | Pay-as-you-go |
+| Public IP | **`8.222.253.211`** |
+| DNS | `engram.prasadtilloo.com` → `8.222.253.211` |
+| Public endpoint | **https://engram.prasadtilloo.com** (Caddy TLS; SPA + API same-origin) |
+| Judge mode | https://engram.prasadtilloo.com/?judge=1 |
+| Health | https://engram.prasadtilloo.com/health → `{"status":"ok"}` |
+| MCP path | https://engram.prasadtilloo.com/api/v1/memory-stats?via=mcp → `"served_via": "engram-mcp"` |
+| Fallback (no DNS) | http://8.222.253.211:8080/?judge=1 |
+
+**Host containers (SSH, Jul 15):** `engram-caddy-1` (ports 80/443) and `engram-engram-1` (uvicorn on 8080) both **Up**.
+
+### Console + host evidence panel
+
+![ECS console — instance running + docker compose on host](alibaba-console-running.png)
+
+Themed composite (Engram dark chrome): left = instance facts; right = Alibaba ECS console (public IP visible) + SSH `docker compose ps` on the live box. Raw screenshots also under [`proof-raw/`](proof-raw/).
+
+## 4. Qwen Cloud / DashScope usage (Model Studio)
+
+Every product model call is billed through DashScope. Captured from **Model Studio → Usage and Billing → Model Usage → Overview** (filter: last 1 week · Online Inference · API-KEY = All):
+
+| Metric (≈1 week) | Value |
+|------------------|--------|
+| Models called | **3** |
+| Successful calls | **203** |
+| Total tokens | **407K** |
+| Top models | `qwen3.6-flash` (136) · `qwen-vl-max` (55) · `qwen3.7-max` (12) |
+
+![Qwen Cloud DashScope Model Usage overview](qwen-dashscope-usage.png)
+
+**Where to re-check in the console:**
+
+1. Open [Model Studio](https://modelstudio.console.alibabacloud.com/) (intl).
+2. Left nav: **Usage and Billing → Model Usage** (this is call statistics — not Free Quota).
+3. Tabs: Overview / LLM / Vision… · time range · **API-KEY** dropdown to filter one key.
+4. API **keys themselves** (create/view/revoke): Model Studio → **API Key** / key management in the account menu or API References area — never paste a full `sk-…` into the repo or Devpost.
+
+Raw Model Studio captures: [`proof-raw/qwen-model-usage.png`](proof-raw/qwen-model-usage.png), [`proof-raw/qwen-free-quota.png`](proof-raw/qwen-free-quota.png).
