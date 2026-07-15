@@ -66,27 +66,50 @@
       "cards": [
         {
           "role": "frontend",
-          "text": "React 19 · Home + judge banner",
+          "brand": "React 19 + Vite",
+          "detail": "Home · judge banner",
+          "icons": [
+            "react",
+            "vite"
+          ],
           "accent": true
         },
         {
           "role": "api",
-          "text": "GET /api/v1/journey",
+          "brand": "FastAPI",
+          "detail": "GET /api/v1/journey",
+          "icons": [
+            "fastapi",
+            "python"
+          ],
           "accent": true
         },
         {
           "role": "memory",
-          "text": "Seeded recall on entry",
+          "brand": "Memory engine",
+          "detail": "Seeded recall on entry",
+          "icons": [
+            "engram"
+          ],
           "accent": false
         },
         {
           "role": "data",
-          "text": "portfolio_entries · skills",
+          "brand": "MongoDB Atlas",
+          "detail": "portfolio_entries · skills",
+          "icons": [
+            "mongodb"
+          ],
           "accent": false
         },
         {
           "role": "infra",
-          "text": "Alibaba ECS · Caddy TLS",
+          "brand": "Alibaba Cloud ECS",
+          "detail": "Docker · Caddy TLS",
+          "icons": [
+            "alibabacloud",
+            "docker"
+          ],
           "accent": false
         }
       ],
@@ -120,27 +143,50 @@
       "cards": [
         {
           "role": "frontend",
-          "text": "React 19 · threads + mentor-read",
+          "brand": "React 19 + Vite",
+          "detail": "Threads · mentor-read hero",
+          "icons": [
+            "react",
+            "vite"
+          ],
           "accent": false
         },
         {
           "role": "api",
-          "text": "GET /api/v1/journey",
+          "brand": "FastAPI",
+          "detail": "GET /api/v1/journey",
+          "icons": [
+            "fastapi",
+            "python"
+          ],
           "accent": true
         },
         {
           "role": "memory",
-          "text": "Salience across past shoots",
+          "brand": "Memory engine",
+          "detail": "Salience across past shoots",
+          "icons": [
+            "engram"
+          ],
           "accent": true
         },
         {
           "role": "data",
-          "text": "portfolio_entries",
+          "brand": "MongoDB Atlas",
+          "detail": "portfolio_entries",
+          "icons": [
+            "mongodb"
+          ],
           "accent": false
         },
         {
           "role": "infra",
-          "text": "Alibaba ECS · Caddy TLS",
+          "brand": "Alibaba Cloud ECS",
+          "detail": "Docker · Caddy TLS",
+          "icons": [
+            "alibabacloud",
+            "docker"
+          ],
           "accent": false
         }
       ],
@@ -174,27 +220,50 @@
       "cards": [
         {
           "role": "frontend",
-          "text": "React 19 · contact-sheet grid",
+          "brand": "React 19 + Vite",
+          "detail": "Contact-sheet grid",
+          "icons": [
+            "react",
+            "vite"
+          ],
           "accent": false
         },
         {
           "role": "api",
-          "text": "GET /api/v1/portfolio/search",
+          "brand": "FastAPI",
+          "detail": "GET /api/v1/portfolio/search",
+          "icons": [
+            "fastapi",
+            "python"
+          ],
           "accent": true
         },
         {
           "role": "memory",
-          "text": "Photo-scoped indexes",
+          "brand": "Memory engine",
+          "detail": "Photo-scoped indexes",
+          "icons": [
+            "engram"
+          ],
           "accent": false
         },
         {
           "role": "data",
-          "text": "portfolio_entries",
+          "brand": "MongoDB Atlas",
+          "detail": "portfolio_entries",
+          "icons": [
+            "mongodb"
+          ],
           "accent": true
         },
         {
           "role": "infra",
-          "text": "Alibaba ECS · /media",
+          "brand": "Alibaba Cloud ECS",
+          "detail": "ECS volume · /media",
+          "icons": [
+            "alibabacloud",
+            "docker"
+          ],
           "accent": false
         }
       ],
@@ -249,27 +318,50 @@
       "cards": [
         {
           "role": "frontend",
-          "text": "React 19 · SSE mentor chat",
+          "brand": "React 19 + Vite",
+          "detail": "SSE mentor chat",
+          "icons": [
+            "react",
+            "vite"
+          ],
           "accent": false
         },
         {
           "role": "api",
-          "text": "POST /api/v1/chat (SSE)",
+          "brand": "FastAPI",
+          "detail": "POST /api/v1/chat (SSE)",
+          "icons": [
+            "fastapi",
+            "python"
+          ],
           "accent": true
         },
         {
           "role": "memory",
-          "text": "Token-budget packing + receipt",
+          "brand": "Memory engine",
+          "detail": "Token-budget packing · receipt",
+          "icons": [
+            "engram"
+          ],
           "accent": true
         },
         {
           "role": "data",
-          "text": "memory_items",
+          "brand": "MongoDB Atlas",
+          "detail": "memory_items",
+          "icons": [
+            "mongodb"
+          ],
           "accent": false
         },
         {
           "role": "infra",
-          "text": "Alibaba ECS · qwen3.6-flash",
+          "brand": "Qwen Cloud",
+          "detail": "qwen3.6-flash · chat",
+          "icons": [
+            "qwen",
+            "alibabacloud"
+          ],
           "accent": false
         }
       ],
@@ -290,7 +382,7 @@
         "height": 1800
       },
       "capture": "viewport",
-      "fitMode": "contain",
+      "fitMode": "cover-top",
       "interactions": [
         {
           "type": "scroll",
@@ -338,32 +430,56 @@
       "cards": [
         {
           "role": "frontend",
-          "text": "React 19 · Memory Proof Room",
+          "brand": "React 19 + Vite",
+          "detail": "Memory Proof Room",
+          "icons": [
+            "react",
+            "vite"
+          ],
           "accent": false
         },
         {
           "role": "api",
-          "text": "Live stats · MCP toggle",
+          "brand": "FastAPI · engram-mcp",
+          "detail": "Live stats · MCP toggle",
+          "icons": [
+            "fastapi",
+            "python"
+          ],
           "accent": false
         },
         {
           "role": "memory",
-          "text": "Supersession · FAMA",
+          "brand": "Memory engine",
+          "detail": "Supersession · FAMA",
+          "icons": [
+            "engram"
+          ],
           "accent": true
         },
         {
           "role": "data",
-          "text": "memory_items · eval JSON",
+          "brand": "MongoDB Atlas",
+          "detail": "memory_items · eval JSON",
+          "icons": [
+            "mongodb"
+          ],
           "accent": true
         },
         {
           "role": "infra",
-          "text": "Alibaba ECS · frozen /eval",
+          "brand": "Alibaba Cloud ECS",
+          "detail": "Frozen /eval on ECS",
+          "icons": [
+            "alibabacloud",
+            "docker"
+          ],
           "accent": false
         }
       ],
       "receipt": "1.00 vs 0.64 (never-forgets)",
-      "how": "eval/run.py · compute_fama()"
+      "how": "eval/run.py · compute_fama()",
+      "captionHeight": 220
     },
     {
       "id": "05",
@@ -459,27 +575,50 @@
       "cards": [
         {
           "role": "frontend",
-          "text": "React 19 · photo + scoped chat",
+          "brand": "React 19 + Vite",
+          "detail": "Photo detail · scoped chat",
+          "icons": [
+            "react",
+            "vite"
+          ],
           "accent": false
         },
         {
           "role": "api",
-          "text": "Chat scoped to this photo",
+          "brand": "FastAPI",
+          "detail": "Chat scoped to this photo",
+          "icons": [
+            "fastapi",
+            "python"
+          ],
           "accent": false
         },
         {
           "role": "memory",
-          "text": "recall(scope=storageKey)",
+          "brand": "Memory engine",
+          "detail": "recall(scope=storageKey)",
+          "icons": [
+            "engram"
+          ],
           "accent": true
         },
         {
           "role": "data",
-          "text": "portfolio · memory_items",
+          "brand": "MongoDB Atlas",
+          "detail": "portfolio · memory_items",
+          "icons": [
+            "mongodb"
+          ],
           "accent": false
         },
         {
           "role": "infra",
-          "text": "Alibaba ECS · /media",
+          "brand": "Qwen Cloud",
+          "detail": "qwen3.6-flash · scoped reply",
+          "icons": [
+            "qwen",
+            "alibabacloud"
+          ],
           "accent": false
         }
       ],

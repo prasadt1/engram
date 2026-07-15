@@ -48,7 +48,7 @@ CAPTION_H = 300
 BROWSER_CHROME_H = 58
 MIN_GAP = 120  # acceptance: no void taller than this
 # Screenshot dominates the frame; the tech panel is a narrow right rail.
-LEFT_RATIO = 0.75
+LEFT_RATIO = 0.80
 
 Variant = Literal["split", "band"]
 
@@ -66,10 +66,12 @@ _FIRST_NUM = re.compile(r"(\d+(?:\.\d+)?)")
 
 @dataclass
 class TechCard:
-    """One stack row on the annotation rail: frontend|api|memory|data|infra."""
+    """One stack row: branded tech + detail + optional icons."""
 
     role: str
-    text: str
+    brand: str
+    detail: str
+    icons: list[str]
     accent: bool = False
 
 
@@ -90,6 +92,7 @@ class Screen:
     layout: str = "split"
     receipt: str = ""
     how: str = ""
+    caption_h: int | None = None
 
 
 def load_config() -> dict[str, Any]:
@@ -99,6 +102,20 @@ def load_config() -> dict[str, Any]:
 def load_screens(cfg: dict[str, Any]) -> list[Screen]:
     out: list[Screen] = []
     for s in cfg["screens"]:
+        cards: list[TechCard] = []
+        for c in s["cards"]:
+            # Support legacy {role,text} during migration, prefer brand/detail
+            brand = c.get("brand") or c.get("text", "")
+            detail = c.get("detail", "")
+            cards.append(
+                TechCard(
+                    role=c["role"],
+                    brand=brand,
+                    detail=detail,
+                    icons=list(c.get("icons") or []),
+                    accent=bool(c.get("accent", False)),
+                )
+            )
         out.append(
             Screen(
                 id=s["id"],
@@ -109,20 +126,14 @@ def load_screens(cfg: dict[str, Any]) -> list[Screen]:
                 takeaway_title=s["takeawayTitle"],
                 takeaway_body=s["takeawayBody"],
                 chips=s["chips"],
-                cards=[
-                    TechCard(
-                        role=c["role"],
-                        text=c["text"],
-                        accent=bool(c.get("accent", False)),
-                    )
-                    for c in s["cards"]
-                ],
+                cards=cards,
                 gallery_title=s["galleryTitle"],
                 gallery_caption=s["galleryCaption"],
                 fit_mode=s.get("fitMode", "contain"),
                 layout=s.get("layout", "split"),
                 receipt=s.get("receipt", ""),
                 how=s.get("how", ""),
+                caption_h=s.get("captionHeight"),
             )
         )
     return out
@@ -200,19 +211,55 @@ def fill_cover(img: Image.Image, w: int, h: int) -> Image.Image:
     return resized.crop((left, top, left + w, top + h))
 
 
+def fill_cover_top(img: Image.Image, w: int, h: int, *, bias: float = 0.18) -> Image.Image:
+    """Scale-to-fill; bias slightly down from the top so Proof Room keeps
+    Canon→Sony plus enough of the FAMA rings without letterboxing."""
+    img = img.convert("RGB")
+    scale = max(w / img.width, h / img.height)
+    nw, nh = max(1, int(img.width * scale)), max(1, int(img.height * scale))
+    resized = img.resize((nw, nh), Image.Resampling.LANCZOS)
+    left = (nw - w) // 2
+    overflow = max(0, nh - h)
+    top = int(overflow * bias)
+    return resized.crop((left, top, left + w, top + h))
+
+
+ICON_DIR = TOOL / "icons"
+_ICON_CACHE: dict[tuple[str, int], Image.Image] = {}
+
+
+def load_icon(name: str, size: int = 40) -> Image.Image | None:
+    key = (name, size)
+    if key in _ICON_CACHE:
+        return _ICON_CACHE[key]
+    path = ICON_DIR / f"{name}.png"
+    if not path.is_file():
+        return None
+    im = Image.open(path).convert("RGBA")
+    im = im.resize((size, size), Image.Resampling.LANCZOS)
+    _ICON_CACHE[key] = im
+    return im
+
+
 def _layer_label(role: str) -> str:
     return LAYER_LABELS.get(role, role.upper())
 
 
 def measure_card(draw: ImageDraw.ImageDraw, card: TechCard, w: int, fonts: dict) -> int:
-    pad_y = 18
-    lh_label = 28
-    body_font = fonts["stack_mono"] if (
-        card.role == "api" or card.text.startswith(("GET ", "POST ", "recall(", "build_", "eval/"))
-    ) else fonts["stack_body"]
-    body_lines = wrap_px(draw, card.text, body_font, w - 44)[:2]
-    lh_body = 40
-    return pad_y * 2 + lh_label + 8 + max(lh_body, len(body_lines) * lh_body)
+    pad_y = 16
+    lh_label = 26
+    icon_row = 44 if card.icons else 0
+    brand_lines = wrap_px(draw, card.brand, fonts["stack_brand"], w - 44)[:2]
+    detail_lines = wrap_px(draw, card.detail, fonts["stack_detail"], w - 44)[:2] if card.detail else []
+    return (
+        pad_y * 2
+        + lh_label
+        + 6
+        + icon_row
+        + len(brand_lines) * 38
+        + (6 if detail_lines else 0)
+        + len(detail_lines) * 32
+    )
 
 
 def _draw_amber_first_number(
@@ -235,9 +282,17 @@ def _draw_amber_first_number(
         draw.text((cx, y), suffix, font=font, fill=CREAM)
 
 
-def draw_card(draw: ImageDraw.ImageDraw, x: int, y: int, w: int, card: TechCard, fonts: dict) -> int:
-    pad_x, pad_y = 18, 18
-    lh_label = 28
+def draw_card(
+    draw: ImageDraw.ImageDraw,
+    x: int,
+    y: int,
+    w: int,
+    card: TechCard,
+    fonts: dict,
+    canvas: Image.Image | None = None,
+) -> int:
+    pad_x, pad_y = 16, 16
+    lh_label = 26
     h = measure_card(draw, card, w, fonts)
     accent = card.accent
     fill = "#1f1d18" if accent else BG_CARD
@@ -250,14 +305,28 @@ def draw_card(draw: ImageDraw.ImageDraw, x: int, y: int, w: int, card: TechCard,
         font=fonts["stack_label"],
         fill=AMBER if accent else CREAM_DIM,
     )
-    ty += lh_label + 8
-    body_font = fonts["stack_body"]
-    # API / memory HOW-ish lines prefer mono when they look like code
-    if card.role in ("api",) or card.text.startswith(("GET ", "POST ", "recall(", "build_", "eval/")):
-        body_font = fonts["stack_mono"]
-    for line in wrap_px(draw, card.text, body_font, w - pad_x * 2)[:2]:
-        draw.text((x + pad_x, ty), line, font=body_font, fill=CREAM)
-        ty += 40
+    ty += lh_label + 6
+    # Brand icons (architecture-diagram style)
+    if card.icons and canvas is not None:
+        ix = x + pad_x
+        for name in card.icons[:3]:
+            icon = load_icon(name, 36)
+            if icon is None:
+                continue
+            canvas.paste(icon, (ix, ty), icon)
+            ix += 42
+        ty += 44
+    for line in wrap_px(draw, card.brand, fonts["stack_brand"], w - pad_x * 2)[:2]:
+        draw.text((x + pad_x, ty), line, font=fonts["stack_brand"], fill=CREAM)
+        ty += 38
+    if card.detail:
+        ty += 2
+        detail_font = fonts["stack_mono"] if card.role == "api" or card.detail.startswith(
+            ("GET ", "POST ", "recall(", "build_", "eval/")
+        ) else fonts["stack_detail"]
+        for line in wrap_px(draw, card.detail, detail_font, w - pad_x * 2)[:2]:
+            draw.text((x + pad_x, ty), line, font=detail_font, fill=CREAM_MID)
+            ty += 32
     return h
 
 
@@ -310,6 +379,8 @@ def draw_browser_shot(
     inner_w, inner_h = x1 - x0 - 6, y1 - y0 - bar_h - 4
     if fit_mode == "cover":
         fitted = fill_cover(screenshot, inner_w, inner_h)
+    elif fit_mode == "cover-top":
+        fitted = fill_cover_top(screenshot, inner_w, inner_h)
     else:
         fitted = fit_contain(screenshot, inner_w, inner_h, align="top")
     base.paste(fitted, (inner_x, inner_y))
@@ -369,19 +440,23 @@ def distribute_cards_vertical(
     y1: int,
     cards: list[TechCard],
     fonts: dict,
+    canvas: Image.Image | None = None,
 ) -> None:
-    """Even stack of 5 layers; accented rows stay naturally taller emphasis
-    via border, not stretch."""
-    max_gap = 28
+    """Even stack of 5 layers; accented rows use border, not stretch."""
+    max_gap = 18
     heights = [measure_card(draw, c, w, fonts) for c in cards]
     total_cards = sum(heights)
     n_gaps = max(1, len(cards) - 1)
     available = y1 - y0 - total_cards
-    gap = min(max_gap, max(12, available // n_gaps))
+    gap = min(max_gap, max(8, available // n_gaps))
     stack_h = total_cards + gap * (len(cards) - 1)
+    # If stack overflows, compress gap to zero rather than clip brands
+    if stack_h > (y1 - y0):
+        gap = max(4, (y1 - y0 - total_cards) // n_gaps) if n_gaps else 0
+        stack_h = total_cards + gap * (len(cards) - 1)
     cy = y0 + max(0, (y1 - y0 - stack_h) // 2)
     for card, h in zip(cards, heights):
-        draw_card(draw, x, cy, w, card, fonts)
+        draw_card(draw, x, cy, w, card, fonts, canvas=canvas)
         cy += h + gap
 
 
@@ -393,15 +468,16 @@ def distribute_cards_horizontal(
     h: int,
     cards: list[TechCard],
     fonts: dict,
+    canvas: Image.Image | None = None,
 ) -> None:
-    # TODO: band layout unused — maps FRONTEND→…→INFRA left-to-right if revived.
+    # TODO: band layout unused — FRONTEND→INFRA left-to-right if revived.
     n = max(1, len(cards))
     gutter = 20
     total_w = x1 - x0
     card_w = (total_w - gutter * (n - 1)) // n
     cx = x0
     for card in cards:
-        draw_card(draw, cx, y, card_w, card, fonts)
+        draw_card(draw, cx, y, card_w, card, fonts, canvas=canvas)
         cx += card_w + gutter
 
 
@@ -423,7 +499,8 @@ def build_split(screen: Screen, screenshot: Image.Image, fonts: dict) -> Image.I
     right_x1 = CANVAS_W - PAD
     right_w = right_x1 - right_x0
 
-    caption_top = content_bottom - CAPTION_H
+    caption_h = screen.caption_h if screen.caption_h is not None else CAPTION_H
+    caption_top = content_bottom - caption_h
     browser_bottom = caption_top - 12
     browser_box = (left_x0, content_top, left_x1, browser_bottom)
     draw_browser_shot(canvas, browser_box, screenshot, screen.url_bar, fonts, fit_mode=screen.fit_mode)
@@ -434,7 +511,7 @@ def build_split(screen: Screen, screenshot: Image.Image, fonts: dict) -> Image.I
     cards_top = content_top + 56
     cards_bottom = content_bottom - 12
     rail_cards = screen.cards[:5]
-    distribute_cards_vertical(draw, right_x0, cards_top, right_w, cards_bottom, rail_cards, fonts)
+    distribute_cards_vertical(draw, right_x0, cards_top, right_w, cards_bottom, rail_cards, fonts, canvas=canvas)
 
     return canvas
 
@@ -500,7 +577,9 @@ def build_band(screen: Screen, screenshot: Image.Image, fonts: dict) -> Image.Im
     draw.text((PAD + 20, ty), line, font=fonts["caption_body_sm"], fill=CREAM_MID)
 
     cards_y = strip_y0 + caption_in_strip
-    distribute_cards_horizontal(draw, PAD + 16, cards_y, CANVAS_W - PAD - 16, cards_y + cards_h, screen.cards, fonts)
+    distribute_cards_horizontal(
+        draw, PAD + 16, cards_y, CANVAS_W - PAD - 16, cards_y + cards_h, screen.cards, fonts, canvas=canvas
+    )
 
     chip_y = strip_y1 - 52
     draw_chip_row(draw, PAD + 16, chip_y, content_w - 32, screen.chips, fonts)
@@ -518,9 +597,11 @@ def make_fonts() -> dict:
         "section_sub": load_font(24, mono=True, bold=True),
         "wordmark": load_font(44, bold=True),
         "url": load_font(24, mono=True, bold=True),
-        "stack_label": load_font(24, mono=True, bold=True),
+        "stack_label": load_font(22, mono=True, bold=True),
+        "stack_brand": load_font(32, bold=True),
+        "stack_detail": load_font(26, bold=True),
+        "stack_mono": load_font(24, mono=True, bold=True),
         "stack_body": load_font(34, bold=True),
-        "stack_mono": load_font(30, mono=True, bold=True),
         "receipt": load_font(36, bold=True),
         "how_chip": load_font(28, mono=True, bold=True),
         "card_label": load_font(28, mono=True, bold=True),
