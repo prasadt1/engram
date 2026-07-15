@@ -36,7 +36,7 @@ Deployed **July 4, 2026** on a pay-as-you-go ECS instance (still running as of t
 
 ![ECS console — instance running + docker compose on host](alibaba-console-running.png)
 
-Themed composite (Engram dark chrome): left = instance facts; right = Alibaba ECS console (public IP visible) + SSH `docker compose ps` on the live box. Raw screenshots also under [`proof-raw/`](proof-raw/).
+Themed composite (Engram dark chrome): **full-bleed** ECS console + SSH `docker compose ps` for legibility, with a compact instance fact strip under the shots. Raw screenshots also under [`proof-raw/`](proof-raw/).
 
 ## 4. Qwen Cloud / DashScope usage (Model Studio)
 
