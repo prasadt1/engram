@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Engram — System Flow</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #141210; color: #e8e4de; font-family: system-ui, sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
+    header { padding: 1rem 1.5rem; display: flex; align-items: center; gap: 1.5rem; border-bottom: 1px solid #2a2622; }
+    header h1 { font-size: 1.1rem; font-weight: 600; letter-spacing: 0.01em; }
+    header nav { margin-left: auto; display: flex; gap: 1.25rem; font-size: 0.85rem; }
+    header nav a { color: #b0a998; text-decoration: none; }
+    header nav a:hover { color: #e8e4de; }
+    main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
+    main img { max-width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Engram &middot; System Flow</h1>
+    <nav>
+      <a href="system-flow.svg">Raw SVG</a>
+      <a href="README.md">Architecture README</a>
+    </nav>
+  </header>
+  <main>
+    <img src="system-flow.svg" alt="Engram system data-flow diagram">
+  </main>
+</body>
+</html>
