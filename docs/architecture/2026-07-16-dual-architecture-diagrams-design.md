@@ -24,10 +24,10 @@ Judges reading the Devpost article need a **readable context diagram** at articl
 
 | Mode | Artifacts | Consumers |
 |------|-----------|-----------|
-| `context` | Cream PNG → `docs/media/devpost-inline-architecture.png`; dark PNG → gallery `annotated-05-architecture.png` | Devpost / blog inline; media gallery |
-| `flow` | `docs/architecture/system-flow.svg`, `system-flow.html`, optional dark PNG export | GitHub “Full-scale data-flow” link; optional gallery depth |
+| `context` | Cream PNG → `docs/media/devpost-inline-architecture.png`; dark PNG → `docs/devpost-public/annotated-05-architecture.png` (+ standalone crop) | Devpost / blog inline; media gallery |
+| `flow` | `docs/architecture/system-flow.svg` (source of truth) + `system-flow.html` (embeds SVG, CSS zoom/pan) | GitHub “Full-scale data-flow” link |
 
-Also export / keep a context SVG if useful for README: `docs/architecture/system-context.svg` (optional; PNG is the Devpost surface).
+No optional third context SVG. No separate flow PNG unless gallery later needs it (not in this plan).
 
 ## Article context diagram (mode `context`)
 
@@ -64,23 +64,35 @@ Reflection → Home journey line · MCP stdio (recall / forget / stats) · Proof
 
 Zoomed view must show: model names, collection names, graduation / supersession callouts (the detail Devpost cannot render).
 
-## Generator changes
+## Generator + capture (canonical pipeline)
 
-Extend `tools/devpost-gallery/architecture.html` (and any existing capture/export script used for architecture PNGs):
+**Two render surfaces, one brand system** (dark charcoal, gold Memory Engine accent, cream alternate — no new design language):
 
-1. Mode switch: `context` | `flow` (query param or build flag).
-2. Theme switch: `cream` | `dark` (already present for poster — reuse).
-3. Logo strip using existing Simple Icons / brand-fill pattern from gallery tooling.
-4. Export pipeline writes the paths in the asset map above.
+| Surface | Format | Why |
+|---------|--------|-----|
+| Context (article / gallery) | HTML/CSS in `tools/devpost-gallery/architecture.html` | Matches existing Playwright capture; easy logos + cream/dark |
+| Flow (GitHub depth) | **SVG file** `docs/architecture/system-flow.svg` + thin HTML wrapper | Real SVG zoom on GitHub; not a fake “export” from CSS cards |
 
-Do **not** invent a second design system; restyle within the current poster vocabulary (dark charcoal, gold Memory Engine accent, cream alternate).
+**Mode / theme contract (single mechanism):**  
+`architecture.html?mode=context&theme=cream|dark`  
+Capture scripts must use this query string only (no parallel build-flag dialect).
+
+**Capture scripts (canonical — replace dual pipelines):**
+
+1. **Cream inline:** extend `tools/devpost-gallery/capture-architecture-light.mjs` → also copy/write `docs/media/devpost-inline-architecture.png` (today it only writes `annotated-05-architecture-light.png`).
+2. **Dark gallery:** `tools/devpost-gallery/capture-architecture.mjs` loads `architecture.html?mode=context&theme=dark` → `annotated-05-architecture.png` + `standalone-05-architecture.png`.
+3. **Retire for gallery:** `scripts/build-architecture-diagram.py` → `docs/architecture-visual.png` and `screens.json` `architecturePng: "docs/architecture-visual.png"`. Point gallery architecture slot at the Playwright dark capture (`annotated-05` / `standalone-05`) instead. Leave the Python script in tree only if still useful for experiments; README marks it superseded for Devpost gallery.
+
+**Flow SVG authoring:** hand-maintain (or generate once from a dedicated SVG template sibling — not a screenshot-to-SVG hack) `system-flow.svg` with the Coach / Mentor / side paths above. `system-flow.html` is a viewer that embeds that SVG (zoom/pan CSS or native browser zoom). Updating flow content means editing the SVG; HTML is not a second diagram.
+
+**Legacy disposition:** mark `docs/architecture.svg` and `docs/architecture-dark.svg` **superseded** in `docs/architecture/README.md` (link to `system-flow.svg` / context PNG). Do not regenerate them in this work unless trivial; avoid two “full” diagrams on GitHub.
 
 ## Docs updates
 
 1. **`docs/architecture/README.md`** — top section before ADR index: Context diagram · Full data-flow (SVG + HTML) · then ADRs. Point `See also` at the new SVG/HTML instead of (or in addition to) legacy `../architecture.svg`.
 2. **`docs/BLOG-POST.md`** — ensure cover/inline uses new cream PNG; add full-scale link line.
 3. **`docs/DEVPOST-DRAFT.md`** — same image URL + link line under “How I built it” architecture embed. (File is gitignored; still edit so the paste into Devpost matches.)
-4. Legacy `docs/architecture.svg` / `architecture-dark.svg` — either regenerate from flow mode or mark superseded in README once new files land.
+4. Legacy `docs/architecture.svg` / `architecture-dark.svg` — mark superseded in README; point to `system-flow.svg` + context PNG.
 
 ## Out of scope
 
