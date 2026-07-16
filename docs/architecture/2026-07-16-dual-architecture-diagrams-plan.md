@@ -11,7 +11,9 @@
 **Spec:** `docs/architecture/2026-07-16-dual-architecture-diagrams-design.md`
 
 **Model names (live stack — use these in the flow SVG, not stale 2.5 labels):**  
-`qwen-vl-max` · `qwen3.7-max` · `qwen3.6-flash`
+`qwen-vl-max` · `qwen3.7-max` · `qwen3.6-flash`  
+
+*(Spec still mentions `qwen2.5-flash` in one place; plan intentionally uses live DashScope tiers from DEVPOST / `WHATS_NEW`.)*
 
 ---
 
@@ -140,7 +142,7 @@ git add tools/devpost-gallery/capture-architecture.mjs \
 git commit -m "Capture cream/dark context architecture PNGs via query themes."
 ```
 
-Note: `docs/devpost-public/` may be gitignored — if so, commit only what git allows (`docs/media/…`) and document regenerating public PNGs in `docs/devpost-gallery-upload.md`.
+Also update Task 2 dark capture (Step 1) to write `docs/media/devpost-gallery-architecture.png` as above so Task 3 only changes `screens.json`.
 
 ---
 
@@ -151,20 +153,29 @@ Note: `docs/devpost-public/` may be gitignored — if so, commit only what git a
 - Modify: `docs/devpost-gallery-upload.md`
 - Optionally annotate: `scripts/build-architecture-diagram.py` header comment “superseded for Devpost gallery”
 
-- [ ] **Step 1: Retarget screens.json**
+- [ ] **Step 1: Retarget screens.json to a committed media path**
 
-Change architecture screen from `architecture-visual.png` to the Playwright standalone (or annotated) path that `capture.mjs` / compositor expects. Prefer:
+`docs/devpost-public/` is gitignored — do **not** point `architecturePng` there.
 
-```json
-"architecturePng": "docs/devpost-public/standalone-05-architecture.png"
+1. In `capture-architecture.mjs`, after writing public PNGs, also write:
+
+```js
+import { copyFileSync, mkdirSync } from 'node:fs';
+const MEDIA = join(ROOT, 'docs/media');
+mkdirSync(MEDIA, { recursive: true });
+copyFileSync(
+  join(OUT, 'standalone-05-architecture.png'),
+  join(MEDIA, 'devpost-gallery-architecture.png'),
+);
 ```
 
-If `capture.mjs` requires a path under `docs/` that is always committed, either:
+2. In `screens.json` architecture screen:
 
-- copy dark standalone into `docs/media/devpost-gallery-architecture.png` during dark capture, and point `architecturePng` there, **or**
-- keep writing a committed copy under `docs/media/`.
+```json
+"architecturePng": "docs/media/devpost-gallery-architecture.png"
+```
 
-Pick the committed path and make dark capture write it. Spec success = gallery dark + on-brand.
+That file is committed so `capture.mjs` works on a fresh clone.
 
 - [ ] **Step 2: Update upload doc**
 
