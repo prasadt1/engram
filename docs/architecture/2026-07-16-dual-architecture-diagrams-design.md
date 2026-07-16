@@ -6,7 +6,7 @@
 
 ## Goal
 
-Judges reading the Devpost article need a **readable context diagram** at article width. Engineers / depth-scorers need a **zoomable data-flow diagram** on GitHub. One generator, two modes — no third competing poster.
+Judges reading the Devpost article need a **readable context diagram** at article width. Engineers / depth-scorers need a **zoomable data-flow diagram** on GitHub. Two surfaces, one brand — no third competing poster.
 
 ## Decisions (locked)
 
@@ -17,7 +17,7 @@ Judges reading the Devpost article need a **readable context diagram** at articl
 | Logos | Full set: React, Python/FastAPI, Alibaba Cloud, Qwen, MongoDB, MCP, Caddy, Docker |
 | Themes | Cream for article inline; dark for gallery |
 | GitHub deliverable | SVG source of truth + HTML zoom viewer under `docs/architecture/` |
-| Implementation approach | Extend existing `tools/devpost-gallery/architecture.html` (two export modes) |
+| Implementation approach | **Context:** extend `architecture.html` for cream/dark PNG capture only. **Flow:** hand-maintain `system-flow.svg` + thin HTML viewer (not an HTML→SVG export). |
 | Doc updates | Update assets, `docs/architecture/README.md`, `docs/BLOG-POST.md`, **and** `docs/DEVPOST-DRAFT.md` (image + “full-scale →” link) |
 
 ## Asset map
@@ -49,7 +49,7 @@ Caption under image (article + DEVPOST-DRAFT + BLOG-POST):
 
 > Full-scale data-flow diagram → [`docs/architecture/`](https://github.com/prasadt1/engram/tree/main/docs/architecture)
 
-## Deep data-flow diagram (mode `flow`)
+## Deep data-flow diagram (GitHub SVG)
 
 Same system boxes as today’s dense poster, but **arrows are request paths**, not decoration.
 
@@ -79,11 +79,11 @@ Capture scripts must use this query string only (no parallel build-flag dialect)
 
 **Capture scripts (canonical — replace dual pipelines):**
 
-1. **Cream inline:** extend `tools/devpost-gallery/capture-architecture-light.mjs` → also copy/write `docs/media/devpost-inline-architecture.png` (today it only writes `annotated-05-architecture-light.png`).
-2. **Dark gallery:** `tools/devpost-gallery/capture-architecture.mjs` loads `architecture.html?mode=context&theme=dark` → `annotated-05-architecture.png` + `standalone-05-architecture.png`.
+1. **Cream inline:** `capture-architecture-light.mjs` loads `architecture.html?mode=context&theme=cream` → writes `docs/devpost-public/annotated-05-architecture-light.png` **and** `docs/media/devpost-inline-architecture.png`.
+2. **Dark gallery:** `capture-architecture.mjs` loads `architecture.html?mode=context&theme=dark` → `annotated-05-architecture.png` + `standalone-05-architecture.png`.
 3. **Retire for gallery:** `scripts/build-architecture-diagram.py` → `docs/architecture-visual.png` and `screens.json` `architecturePng: "docs/architecture-visual.png"`. Point gallery architecture slot at the Playwright dark capture (`annotated-05` / `standalone-05`) instead. Leave the Python script in tree only if still useful for experiments; README marks it superseded for Devpost gallery.
 
-**Flow SVG authoring:** hand-maintain (or generate once from a dedicated SVG template sibling — not a screenshot-to-SVG hack) `system-flow.svg` with the Coach / Mentor / side paths above. `system-flow.html` is a viewer that embeds that SVG (zoom/pan CSS or native browser zoom). Updating flow content means editing the SVG; HTML is not a second diagram.
+**Flow SVG authoring:** hand-maintain `system-flow.svg` with the Coach / Mentor / side paths above (no screenshot-to-SVG, no second HTML diagram). `system-flow.html` embeds that SVG (CSS zoom/pan or native browser zoom). Content edits happen only in the SVG.
 
 **Legacy disposition:** mark `docs/architecture.svg` and `docs/architecture-dark.svg` **superseded** in `docs/architecture/README.md` (link to `system-flow.svg` / context PNG). Do not regenerate them in this work unless trivial; avoid two “full” diagrams on GitHub.
 
