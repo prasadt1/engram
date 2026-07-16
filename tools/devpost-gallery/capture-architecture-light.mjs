@@ -24,6 +24,7 @@ await page.goto('file://' + join(__dirname, 'architecture.html') + '?mode=contex
 await page.waitForFunction(() => document.fonts.status === 'loaded');
 await page.waitForTimeout(300);
 
+mkdirSync(OUT, { recursive: true });
 await page.screenshot({ path: join(OUT, 'annotated-05-architecture-light.png') });
 
 mkdirSync(MEDIA, { recursive: true });

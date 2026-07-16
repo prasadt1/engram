@@ -26,6 +26,7 @@ await page.goto('file://' + join(__dirname, 'architecture.html') + '?mode=contex
 await page.waitForFunction(() => document.fonts.status === 'loaded');
 await page.waitForTimeout(300);
 
+mkdirSync(OUT, { recursive: true });
 await page.screenshot({ path: join(OUT, 'annotated-05-architecture.png') });
 
 // Standalone: the diagram only (no branded header/footer), for gallery use.
