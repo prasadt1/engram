@@ -285,7 +285,7 @@ function renderArchitectureAsset(screen) {
   if (screen.source === 'architecture-png') {
     const pngPath = join(ROOT, screen.architecturePng);
     if (!existsSync(pngPath)) {
-      throw new Error(`Missing architecture PNG: ${pngPath}\nRun: python3 scripts/build-architecture-diagram.py`);
+      throw new Error(`Missing architecture PNG: ${pngPath}\nRun: node tools/devpost-gallery/capture-architecture.mjs`);
     }
     copyFileSync(pngPath, dest);
     console.log(`  wrote architecture asset → ${dest}`);

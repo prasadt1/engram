@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Superseded for Devpost gallery — use Playwright captures instead:
+#   node tools/devpost-gallery/capture-architecture.mjs
+#   node tools/devpost-gallery/capture-architecture-light.mjs
 """Build a visual, icon-forward architecture diagram for DevPost gallery.
 
 Replaces the text-heavy docs/architecture.svg with a dark-theme composited

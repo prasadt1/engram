@@ -6,12 +6,13 @@ Generated **2026-07-13** from prod (`engram.prasadtilloo.com/?judge=1`).
 
 ```bash
 cd engram
-.venv/bin/python scripts/build-architecture-diagram.py
+node tools/devpost-gallery/capture-architecture.mjs
+node tools/devpost-gallery/capture-architecture-light.mjs
 cd tools/devpost-gallery && node capture.mjs
 cd ../.. && .venv/bin/python tools/devpost-gallery/render.py batch --variant split
 ```
 
-**Layout:** 80/20 split — full viewport screenshot left (`contain`, no crop), compact tech rail right. Captures at **1680×1050** @2× DPR. Architecture uses icon-forward `docs/architecture-visual.png`.
+**Layout:** 80/20 split — full viewport screenshot left (`contain`, no crop), compact tech rail right. Captures at **1680×1050** @2× DPR. Architecture uses Playwright context captures (`docs/media/devpost-gallery-architecture.png`); the Python builder is superseded for Devpost gallery.
 
 Raw screenshots: `docs/devpost-screenshots/` (gitignored).  
 Composited gallery assets: `docs/devpost-public/` (gitignored).  
