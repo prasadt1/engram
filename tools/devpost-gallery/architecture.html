@@ -13,101 +13,109 @@
   :root {
     --canvas: #141210; --panel: #1a1816; --card: #242120; --cell: #161311;
     --border: rgba(196, 184, 168, 0.16); --border-strong: rgba(196, 184, 168, 0.28);
-    --amber: #f59e0b; --amber-dim: rgba(245, 158, 11, 0.6);
+    --amber: #f59e0b; --amber-dim: rgba(245, 158, 11, 0.55);
     --text: #e8e0d6; --muted: #a89f92; --faint: #7a7268;
     --green: #34d399; --violet: #a78bfa;
     --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { width: 1920px; height: 1080px; background: var(--canvas); color: var(--text);
+
+  /* 4:3 canvas → 2880×2160 at deviceScaleFactor 2 */
+  body { width: 1440px; height: 1080px; background: var(--canvas); color: var(--text);
          font-family: 'DM Sans', sans-serif; overflow: hidden; }
-  #frame { width: 1920px; height: 1080px; display: flex; flex-direction: column; padding: 30px 44px 0; }
+  #frame { width: 1440px; height: 1080px; display: flex; flex-direction: column;
+           padding: 22px 40px 28px; }
 
-  header { display: flex; justify-content: space-between; align-items: flex-start; height: 72px; flex: none; }
-  .wordmark { font-family: 'Newsreader', serif; font-weight: 600; font-size: 27px; letter-spacing: -0.01em; }
-  .eyebrow { font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.14em; color: var(--amber); margin-top: 4px; }
-  .screen-title { text-align: right; }
-  .screen-title h1 { font-family: 'Newsreader', serif; font-weight: 600; font-size: 40px; line-height: 1; }
-  .screen-tag { font-family: var(--mono); font-size: 12px; letter-spacing: 0.12em; color: var(--faint); margin-top: 6px; }
+  /* Thin single-line header — absorbs the old footer line */
+  header { flex: none; height: 36px; display: flex; align-items: center; gap: 12px; }
+  header .mark { width: 28px; height: 28px; object-fit: contain; flex: none; }
+  header .title { font-family: 'Newsreader', serif; font-weight: 600; font-size: 22px; letter-spacing: -0.01em; }
+  header .tag { font-family: var(--mono); font-size: 13px; letter-spacing: 0.08em; color: var(--amber);
+                margin-left: 4px; }
 
-  /* ===== Context diagram — vertical stack ===== */
-  #diagram { flex: 1; display: flex; flex-direction: column; align-items: center;
-             justify-content: center; margin-top: 8px; padding: 0 160px; gap: 0; }
+  #diagram { flex: 1; min-height: 0; display: flex; flex-direction: column;
+             align-items: stretch; justify-content: center; padding-top: 8px; gap: 0; }
 
-  .ctx-row { width: 100%; max-width: 1400px; display: flex; justify-content: center; gap: 28px; }
+  /* ECS boundary wraps SPA + FastAPI + Memory Engine — hug content, no dead air */
+  #ecs {
+    position: relative; flex: none;
+    border: 2px dashed var(--amber-dim); border-radius: 18px;
+    background: rgba(245, 158, 11, 0.03);
+    padding: 28px 22px 18px; display: flex; flex-direction: column; gap: 0;
+  }
+  #ecs-label {
+    position: absolute; top: -12px; left: 22px; background: var(--canvas); padding: 0 12px;
+    font-family: var(--mono); font-size: 14px; font-weight: 700; letter-spacing: 0.1em;
+    color: var(--amber); display: flex; align-items: center; gap: 8px; white-space: nowrap;
+  }
+  #ecs-label svg { width: 16px; height: 16px; }
 
-  .ctx-card { flex: 1; background: var(--card); border: 1px solid var(--border-strong);
-              border-radius: 16px; padding: 24px 32px; position: relative;
-              display: flex; align-items: center; gap: 24px; }
-  .ctx-card h3 { font-size: 24px; font-weight: 700; }
-  .ctx-sub { font-size: 17px; color: var(--muted); margin-top: 2px; }
+  .band { background: var(--card); border: 1px solid var(--border-strong); border-radius: 14px;
+          padding: 16px 20px; }
+  .band-title { display: flex; align-items: center; gap: 12px; }
+  .band-title h3 { font-size: 26px; font-weight: 700; line-height: 1.15; }
+  .band-title .sub { font-size: 18px; color: var(--muted); margin-top: 2px; }
+  .band-logo { margin-left: auto; flex: none; }
+  .band-logo svg { width: 28px; height: 28px; display: block; }
 
-  .ctx-logos { display: flex; gap: 12px; align-items: center; position: absolute; top: 50%; right: 28px;
-               transform: translateY(-50%); }
-  .ctx-logos svg { width: 30px; height: 30px; display: block; }
+  .arrow { height: 22px; display: flex; flex-direction: column; align-items: center; flex: none; }
+  .arrow::before { content: ''; width: 2px; flex: 1; background: var(--faint); opacity: 0.75; }
+  .arrow::after { content: ''; width: 0; height: 0;
+    border-left: 7px solid transparent; border-right: 7px solid transparent;
+    border-top: 10px solid var(--faint); }
 
-  /* Arrows between rows */
-  .ctx-arrow { display: flex; flex-direction: column; align-items: center; height: 38px; flex-shrink: 0; }
-  .ctx-arrow::before { content: ''; width: 1.5px; flex: 1; background: var(--faint); opacity: 0.7; }
-  .ctx-arrow::after { content: ''; width: 0; height: 0;
-    border-left: 6px solid transparent; border-right: 6px solid transparent;
-    border-top: 9px solid var(--faint); }
+  /* FastAPI service — four verb pills */
+  #band-api { padding: 14px 18px 16px; }
+  #band-api .band-title { margin-bottom: 12px; }
+  .pills { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .pill { background: var(--cell); border: 1px solid var(--border); border-radius: 10px;
+          padding: 12px 14px; display: flex; align-items: flex-start; gap: 10px; }
+  .pill b { display: block; font-size: 18px; font-weight: 700; line-height: 1.2; }
+  .pill span { display: block; font-size: 15px; color: var(--muted); margin-top: 3px; line-height: 1.3; }
+  .mcp-chip { display: inline-flex; align-items: center; justify-content: center;
+              height: 22px; padding: 0 8px; border-radius: 6px; flex: none; margin-top: 2px;
+              background: var(--amber); color: var(--canvas);
+              font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; }
 
-  /* Row 2: ECS boundary */
-  #row-api .ctx-card { border: 1.5px dashed rgba(245, 158, 11, 0.45);
-                       background: rgba(245, 158, 11, 0.03); }
-  .ecs-label { font-family: var(--mono); font-size: 11px; letter-spacing: 0.13em;
-               color: var(--amber); position: absolute; top: -10px; left: 28px;
-               background: var(--canvas); padding: 0 10px; }
-
-  /* Row 3: Memory Engine hero */
-  .ctx-engine { flex-direction: column; align-items: center; text-align: center;
-                background: linear-gradient(180deg, rgba(245,158,11,0.12), rgba(245,158,11,0.04));
-                border: 2px solid rgba(245, 158, 11, 0.55); padding: 32px 48px 28px; gap: 0; }
-  .ctx-engine h2 { font-family: 'Newsreader', serif; font-weight: 600; font-size: 46px;
-                   color: #fbbf24; letter-spacing: 0.02em; line-height: 1; }
-  .ctx-engine .engine-tagline { font-family: 'Newsreader', serif; font-weight: 500;
-                                font-size: 20px; color: var(--muted); margin-top: 6px;
-                                font-style: italic; }
-  .engine-pillars { display: flex; gap: 14px; margin-top: 22px; }
+  /* Memory Engine hero */
+  #band-engine {
+    background: linear-gradient(180deg, rgba(245,158,11,0.14), rgba(245,158,11,0.04));
+    border: 2px solid rgba(245, 158, 11, 0.55); text-align: center; padding: 18px 20px 16px;
+  }
+  #band-engine h2 { font-family: 'Newsreader', serif; font-weight: 600; font-size: 44px;
+                    color: #fbbf24; letter-spacing: 0.02em; line-height: 1; }
+  #band-engine .tagline { font-family: 'Newsreader', serif; font-weight: 500; font-size: 20px;
+                          color: var(--muted); margin-top: 4px; font-style: italic; }
+  .pillars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 14px; }
   .pillar { background: var(--cell); border: 1px solid var(--border); border-radius: 10px;
-            padding: 14px 28px; text-align: center; }
-  .pillar b { display: block; font-size: 16px; color: var(--text); margin-bottom: 3px; }
-  .pillar span { font-size: 12.5px; color: var(--muted); line-height: 1.4; display: block; }
+            padding: 12px 10px; text-align: center; }
+  .pillar b { display: block; font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+  .pillar span { display: block; font-size: 14px; color: var(--muted); line-height: 1.3; }
 
-  /* Row 4: services split */
-  .ctx-qwen { border-color: rgba(167, 139, 250, 0.4); }
-  .ctx-mongo { border-color: rgba(52, 211, 153, 0.4); }
-
-  .qbadge { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px;
-            border-radius: 8px; background: #6C5CE7; color: #fff; font-family: var(--mono); font-size: 17px;
-            font-weight: 700; flex-shrink: 0; }
-  .mcp-badge { display: inline-flex; align-items: center; justify-content: center;
-               height: 30px; padding: 0 10px; border-radius: 8px; flex-shrink: 0;
-               background: var(--amber); color: var(--canvas);
-               font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; }
-
-  .evidence-chip { font-family: var(--mono); font-size: 12px; color: var(--faint);
-                   border: 1px solid var(--border); border-radius: 8px; padding: 6px 14px;
-                   margin-top: 18px; flex-shrink: 0; }
-
-  /* Brand mark */
-  .brand { display: flex; align-items: center; gap: 13px; }
-  .brand .mark { width: 42px; height: 42px; object-fit: contain; flex: none; }
-
-  /* Footer */
-  footer { flex: none; height: 100px; margin: 8px -44px 0; padding: 18px 44px 0;
-           border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start;
-           background: var(--panel); border-left: 5px solid var(--amber); }
-  footer h2 { font-family: 'Newsreader', serif; font-weight: 600; font-size: 25px; }
-  footer p { font-size: 14px; color: var(--muted); margin-top: 5px; max-width: 1180px; }
-  .chips { display: flex; gap: 9px; margin-top: 8px; }
-  .chip { font-family: var(--mono); font-size: 12px; color: var(--muted);
-          border: 1px solid var(--border-strong); border-radius: 8px; padding: 6px 12px; white-space: nowrap; }
-  .chip.hot { color: #fbbf24; border-color: rgba(245, 158, 11, 0.45); }
+  /* External services + labeled arrows from ECS */
+  #externals { flex: none; display: grid; grid-template-columns: 1fr 1fr; gap: 28px;
+               margin-top: 6px; padding: 0 8px; }
+  .ext-col { display: flex; flex-direction: column; align-items: center; }
+  .ext-arrow { height: 36px; display: flex; flex-direction: column; align-items: center; width: 100%; }
+  .ext-arrow .label { font-family: var(--mono); font-size: 13px; font-weight: 700;
+                      letter-spacing: 0.06em; color: var(--faint); margin-bottom: 2px; }
+  .ext-arrow .shaft { width: 2px; flex: 1; background: var(--faint); opacity: 0.75; }
+  .ext-arrow .head { width: 0; height: 0;
+    border-left: 7px solid transparent; border-right: 7px solid transparent;
+    border-top: 10px solid var(--faint); }
+  .ext-card { width: 100%; background: var(--card); border: 1.5px solid var(--border-strong);
+              border-radius: 14px; padding: 16px 18px; display: flex; align-items: center; gap: 14px; }
+  .ext-card h3 { font-size: 24px; font-weight: 700; }
+  .ext-card .sub { font-size: 15px; color: var(--muted); margin-top: 4px; line-height: 1.35; }
+  .ext-card .logo { margin-left: auto; flex: none; }
+  #card-qwen { border-color: rgba(167, 139, 250, 0.45); }
+  #card-mongo { border-color: rgba(52, 211, 153, 0.45); }
+  .qbadge { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px;
+            border-radius: 8px; background: #6C5CE7; color: #fff; font-family: var(--mono);
+            font-size: 18px; font-weight: 700; }
+  .ext-card .logo svg { width: 32px; height: 32px; display: block; }
 </style>
 
-<!-- Cream theme — inactive until ?theme=cream activates it -->
 <style id="theme-cream" media="not all">
   :root {
     --canvas: #f4efe8; --panel: #ece5da; --card: #fdfbf7; --cell: #f0eae1;
@@ -115,137 +123,119 @@
     --amber: #b45309; --amber-dim: #c2650a;
     --text: #1c1917; --muted: #57534e; --faint: #8a8078;
   }
-  .ctx-engine h2 { color: #92400e !important; }
-  .ctx-engine { background: linear-gradient(180deg, rgba(180,83,9,0.10), rgba(180,83,9,0.04)) !important;
-                border-color: rgba(180,83,9,0.50) !important; }
-  #row-api .ctx-card { border-color: rgba(180,83,9,0.45) !important;
-                       background: rgba(180,83,9,0.04) !important; }
-  .ecs-label { background: var(--canvas) !important; }
-  .chip.hot { color: #b45309 !important; border-color: rgba(180,83,9,0.45) !important; }
-  .ctx-qwen { border-color: rgba(109,40,217,0.40) !important; }
-  .ctx-mongo { border-color: rgba(5,150,105,0.45) !important; }
-  .mcp-badge { background: #b45309 !important; color: #fdfbf7 !important; }
-  .ctx-arrow::after { border-top-color: #8a8078 !important; }
+  #band-engine h2 { color: #92400e !important; }
+  #band-engine { background: linear-gradient(180deg, rgba(180,83,9,0.10), rgba(180,83,9,0.04)) !important;
+                 border-color: rgba(180,83,9,0.50) !important; }
+  #ecs { border-color: rgba(180,83,9,0.45) !important; background: rgba(180,83,9,0.035) !important; }
+  #ecs-label { background: var(--canvas) !important; }
+  .mcp-chip { background: #b45309 !important; color: #fdfbf7 !important; }
+  #card-qwen { border-color: rgba(109,40,217,0.40) !important; }
+  #card-mongo { border-color: rgba(5,150,105,0.45) !important; }
+  .arrow::after, .ext-arrow .head { border-top-color: #8a8078 !important; }
 </style>
 </head>
 <body>
-<!-- SVG symbol defs -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
-  <symbol id="si-react" viewBox="0 0 24 24"><path fill="#61DAFB" d="M14.23 12.004a2.236 2.236 0 0 1-2.235 2.236 2.236 2.236 0 0 1-2.236-2.236 2.236 2.236 0 0 1 2.235-2.236 2.236 2.236 0 0 1 2.236 2.236zm2.648-10.69c-1.346 0-3.107.96-4.888 2.622-1.78-1.653-3.542-2.602-4.887-2.602-.41 0-.783.093-1.106.278-1.375.793-1.683 3.264-.973 6.365C1.98 8.917 0 10.42 0 12.004c0 1.59 1.99 3.097 5.043 4.03-.704 3.113-.39 5.588.988 6.38.32.187.69.275 1.102.275 1.345 0 3.107-.96 4.888-2.624 1.78 1.654 3.542 2.603 4.887 2.603.41 0 .783-.09 1.106-.275 1.374-.792 1.683-3.263.973-6.365C22.02 15.096 24 13.59 24 12.004c0-1.59-1.99-3.097-5.043-4.032.704-3.11.39-5.587-.988-6.38-.318-.184-.688-.277-1.092-.278zm-.005 1.09v.006c.225 0 .406.044.558.127.666.382.955 1.835.73 3.704-.054.46-.142.945-.25 1.44-.96-.236-2.006-.417-3.107-.534-.66-.905-1.345-1.727-2.035-2.447 1.592-1.48 3.087-2.292 4.105-2.295zm-9.77.02c1.012 0 2.514.808 4.11 2.28-.686.72-1.37 1.537-2.02 2.442-1.107.117-2.154.298-3.113.538-.112-.49-.195-.964-.254-1.42-.23-1.868.054-3.32.714-3.707.19-.09.4-.127.563-.132zm4.882 3.05c.455.468.91.992 1.36 1.564-.44-.02-.89-.034-1.345-.034-.46 0-.915.01-1.36.034.44-.572.895-1.096 1.345-1.565zM12 8.1c.74 0 1.477.034 2.202.093.406.582.802 1.203 1.183 1.86.372.64.71 1.29 1.018 1.946-.308.655-.646 1.31-1.013 1.95-.38.66-.773 1.288-1.18 1.87-.728.063-1.466.098-2.21.098-.74 0-1.477-.035-2.202-.093-.406-.582-.802-1.204-1.183-1.86-.372-.64-.71-1.29-1.018-1.946.303-.657.646-1.313 1.013-1.954.38-.66.773-1.286 1.18-1.868.728-.064 1.466-.098 2.21-.098zm-3.635.254c-.24.377-.48.763-.704 1.16-.225.39-.435.782-.635 1.174-.265-.656-.49-1.31-.676-1.947.64-.15 1.315-.283 2.015-.386zm7.26 0c.695.103 1.365.23 2.006.387-.18.632-.405 1.282-.66 1.933-.2-.39-.41-.783-.64-1.174-.225-.392-.465-.774-.705-1.146zm3.063.675c.484.15.944.317 1.375.498 1.732.74 2.852 1.708 2.852 2.476-.005.768-1.125 1.74-2.857 2.475-.42.18-.88.342-1.355.493-.28-.958-.646-1.956-1.1-2.98.45-1.017.81-2.01 1.085-2.964zm-13.395.004c.278.96.645 1.957 1.1 2.98-.45 1.017-.812 2.01-1.086 2.964-.484-.15-.944-.318-1.37-.5-1.732-.737-2.852-1.706-2.852-2.474 0-.768 1.12-1.742 2.852-2.476.42-.18.88-.342 1.356-.494zm11.678 4.28c.265.657.49 1.312.676 1.948-.64.157-1.316.29-2.016.39.24-.375.48-.762.705-1.158.225-.39.435-.788.636-1.18zm-9.945.02c.2.392.41.783.64 1.175.23.39.465.772.705 1.143-.695-.102-1.365-.23-2.006-.386.18-.63.406-1.282.66-1.933zM17.92 16.32c.112.493.2.968.254 1.423.23 1.868-.054 3.32-.714 3.708-.147.09-.338.128-.563.128-1.012 0-2.514-.807-4.11-2.28.686-.72 1.37-1.536 2.02-2.44 1.107-.118 2.154-.3 3.113-.54zm-11.83.01c.96.234 2.006.415 3.107.532.66.905 1.345 1.727 2.035 2.446-1.595 1.483-3.092 2.295-4.11 2.295-.22-.005-.406-.05-.553-.132-.666-.38-.955-1.834-.73-3.703.054-.46.142-.944.25-1.438zm4.56.64c.44.02.89.034 1.345.034.46 0 .915-.01 1.36-.034-.44.572-.895 1.095-1.345 1.565-.455-.47-.91-.993-1.36-1.565z"/></symbol>
-  <symbol id="si-fastapi" viewBox="0 0 24 24"><path fill="#22c9b5" d="M12 0C5.375 0 0 5.375 0 12c0 6.627 5.375 12 12 12 6.626 0 12-5.373 12-12 0-6.625-5.373-12-12-12zm-.624 21.62v-7.528H7.19L13.203 2.38v7.528h4.029L11.376 21.62z"/></symbol>
-  <symbol id="si-python" viewBox="0 0 24 24"><path fill="#7EB3E8" d="M14.25.18l.9.2.73.26.59.3.45.32.34.34.25.34.16.33.1.3.04.26.02.2-.01.13V8.5l-.05.63-.13.55-.21.46-.26.38-.3.31-.33.25-.35.19-.35.14-.33.1-.3.07-.26.04-.21.02H8.77l-.69.05-.59.14-.5.22-.41.27-.33.32-.27.35-.2.36-.15.37-.1.35-.07.32-.04.27-.02.21v3.06H3.17l-.21-.03-.28-.07-.32-.12-.35-.18-.36-.26-.36-.36-.35-.46-.32-.59-.28-.73-.21-.88-.14-1.05-.05-1.23.06-1.22.16-1.04.24-.87.32-.71.36-.57.4-.44.42-.33.42-.24.4-.16.36-.1.32-.05.24-.01h.16l.06.01h8.16v-.83H6.18l-.01-2.75-.02-.37.05-.34.11-.31.17-.28.25-.26.31-.23.38-.2.44-.18.51-.15.58-.12.64-.1.71-.06.77-.04.84-.02 1.27.05zm-6.3 1.98l-.23.33-.08.41.08.41.23.34.33.22.41.09.41-.09.33-.22.23-.34.08-.41-.08-.41-.23-.33-.33-.22-.41-.09-.41.09zm13.09 3.95l.28.06.32.12.35.18.36.27.36.35.35.47.32.59.28.73.21.88.14 1.04.05 1.23-.06 1.23-.16 1.04-.24.86-.32.71-.36.57-.4.45-.42.33-.42.24-.4.16-.36.09-.32.05-.24.02-.16-.01h-8.22v.82h5.84l.01 2.76.02.36-.05.34-.11.31-.17.29-.25.25-.31.24-.38.2-.44.17-.51.15-.58.13-.64.09-.71.07-.77.04-.84.01-1.27-.04-1.07-.14-.9-.2-.73-.25-.59-.3-.45-.33-.34-.34-.25-.34-.16-.33-.1-.3-.04-.25-.02-.2.01-.13v-5.34l.05-.64.13-.54.21-.46.26-.38.3-.32.33-.24.35-.2.35-.14.33-.1.3-.06.26-.04.21-.02.13-.01h5.84l.69-.05.59-.14.5-.21.41-.28.33-.32.27-.35.2-.36.15-.36.1-.35.07-.32.04-.28.02-.21V6.07h2.09l.14.01zm-6.47 14.25l-.23.33-.08.41.08.41.23.33.33.23.41.08.41-.08.33-.23.23-.33.08-.41-.08-.41-.23-.33-.33-.23-.41-.08-.41.08z"/></symbol>
+  <symbol id="si-react" viewBox="0 0 24 24"><path fill="#61DAFB" d="M14.23 12.004a2.236 2.236 0 0 1-2.235 2.236 2.236 2.236 0 0 1-2.236-2.236 2.236 2.236 0 0 1 2.235-2.236 2.236 2.236 0 0 1 2.236 2.236zm2.648-10.69c-1.346 0-3.107.96-4.888 2.622-1.78-1.653-3.542-2.602-4.887-2.602-.41 0-.783.093-1.106.278-1.375.793-1.683 3.264-.973 6.365C1.98 8.917 0 10.42 0 12.004c0 1.59 1.99 3.097 5.043 4.03-.704 3.113-.39 5.588.988 6.38.32.187.69.275 1.102.275 1.345 0 3.107-.96 4.888-2.624 1.78 1.654 3.542 2.603 4.887 2.603.41 0 .783-.09 1.106-.275 1.374-.792 1.683-3.263.973-6.365C22.02 15.096 24 13.59 24 12.004c0-1.59-1.99-3.097-5.043-4.032.704-3.11.39-5.587-.988-6.38-.318-.184-.688-.277-1.092-.278zm-.005 1.09v.006c.225 0 .406.044.558.127.666.382.955 1.835.73 3.704-.054.46-.142.945-.25 1.44-.96-.236-2.006-.417-3.107-.534-.66-.905-1.345-1.727-2.035-2.447 1.592-1.48 3.087-2.292 4.105-2.295zm-9.77.02c1.012 0 2.514.808 4.11 2.28-.686.72-1.37 1.537-2.02 2.442-1.107.117-2.154.298-3.113.538-.112-.49-.195-.964-.254-1.42-.23-1.868.054-3.32.714-3.707.19-.09.4-.127.563-.132zm4.882 3.05c.455.468.91.992 1.36 1.564-.44-.02-.89-.034-1.345-.034-.46 0-.915.01-1.36.034.44-.572.895-1.096 1.345-1.565zM12 8.1c.74 0 1.477.034 2.202.093.406.582.802 1.203 1.183 1.86.372.64.71 1.29 1.018 1.946-.308.655-.646 1.31-1.013 1.95-.38.66-.773 1.288-1.18 1.87-.728.063-1.466.098-2.21.098-.74 0-1.477-.035-2.202-.093-.406-.582-.802-1.204-1.183-1.86-.372-.64-.71-1.29-1.018-1.946.303-.657.646-1.313 1.013-1.954.38-.66.773-1.286 1.18-1.868.728-.064 1.466-.098 2.21-.098zm-3.635.254c-.24.377-.48.763-.704 1.16-.225.39-.435.782-.635 1.174-.265-.656-.49-1.31-.676-1.947.64-.15 1.315-.283 2.015-.386zm7.26 0c.695.103 1.365.23 2.006.387-.18.632-.405 1.282-.66-1.933-.2-.39-.41-.783-.64-1.174-.225-.392-.465-.774-.705-1.146zm3.063.675c.484.15.944.317 1.375.498 1.732.74 2.852 1.708 2.852 2.476-.005.768-1.125 1.74-2.857 2.475-.42.18-.88.342-1.355.493-.28-.958-.646-1.956-1.1-2.98.45-1.017.81-2.01 1.085-2.964zm-13.395.004c.278.96.645 1.957 1.1 2.98-.45 1.017-.812 2.01-1.086 2.964-.484-.15-.944-.318-1.37-.5-1.732-.737-2.852-1.706-2.852-2.474 0-.768 1.12-1.742 2.852-2.476.42-.18.88-.342 1.356-.494zm11.678 4.28c.265.657.49 1.312.676 1.948-.64.157-1.316.29-2.016.39.24-.375.48-.762.705-1.158.225-.39.435-.788.636-1.18zm-9.945.02c.2.392.41.783.64 1.175.23.39.465.772.705 1.143-.695-.102-1.365-.23-2.006-.386.18-.63.406-1.282.66-1.933zM17.92 16.32c.112.493.2.968.254 1.423.23 1.868-.054 3.32-.714 3.708-.147.09-.338.128-.563.128-1.012 0-2.514-.807-4.11-2.28.686-.72 1.37-1.536 2.02-2.44 1.107-.118 2.154-.3 3.113-.54zm-11.83.01c.96.234 2.006.415 3.107.532.66.905 1.345 1.727 2.035 2.446-1.595 1.483-3.092 2.295-4.11 2.295-.22-.005-.406-.05-.553-.132-.666-.38-.955-1.834-.73-3.703.054-.46.142-.944.25-1.438zm4.56.64c.44.02.89.034 1.345.034.46 0 .915-.01 1.36-.034-.44.572-.895 1.095-1.345 1.565-.455-.47-.91-.993-1.36-1.565z"/></symbol>
   <symbol id="si-mongodb" viewBox="0 0 24 24"><path fill="#5FC873" d="M17.193 9.555c-1.264-5.58-4.252-7.414-4.573-8.115-.28-.394-.53-.954-.735-1.44-.036.495-.055.685-.523 1.184-.723.566-4.438 3.682-4.74 10.02-.282 5.912 4.27 9.435 4.888 9.884l.07.05A73.49 73.49 0 0111.91 24h.481c.114-1.032.284-2.056.51-3.07.417-.296.604-.463.85-.693a11.342 11.342 0 003.639-8.464c.01-.814-.103-1.662-.197-2.218zm-5.336 8.195s0-8.291.275-8.29c.213 0 .49 10.695.49 10.695-.381-.045-.765-1.76-.765-2.405z"/></symbol>
-  <symbol id="si-docker" viewBox="0 0 24 24"><path fill="#4BA8F0" d="M13.983 11.078h2.119a.186.186 0 00.186-.185V9.006a.186.186 0 00-.186-.186h-2.119a.185.185 0 00-.185.185v1.888c0 .102.083.185.185.185m-2.954-5.43h2.118a.186.186 0 00.186-.186V3.574a.186.186 0 00-.186-.185h-2.118a.185.185 0 00-.185.185v1.888c0 .102.082.185.185.185m0 2.716h2.118a.187.187 0 00.186-.186V6.29a.186.186 0 00-.186-.185h-2.118a.185.185 0 00-.185.185v1.887c0 .102.082.185.185.186m-2.93 0h2.12a.186.186 0 00.184-.186V6.29a.185.185 0 00-.185-.185H8.1a.185.185 0 00-.185.185v1.887c0 .102.083.185.185.186m-2.964 0h2.119a.186.186 0 00.185-.186V6.29a.185.185 0 00-.185-.185H5.136a.186.186 0 00-.186.185v1.887c0 .102.084.185.186.186m5.893 2.715h2.118a.186.186 0 00.186-.185V9.006a.186.186 0 00-.186-.186h-2.118a.185.185 0 00-.185.185v1.888c0 .102.082.185.185.185m-2.93 0h2.12a.185.185 0 00.184-.185V9.006a.185.185 0 00-.184-.186h-2.12a.185.185 0 00-.184.185v1.888c0 .102.083.185.185.185m-2.964 0h2.119a.185.185 0 00.185-.185V9.006a.185.185 0 00-.184-.186h-2.12a.186.186 0 00-.186.186v1.887c0 .102.084.185.186.185m-2.92 0h2.12a.185.185 0 00.184-.185V9.006a.185.185 0 00-.184-.186h-2.12a.185.185 0 00-.184.185v1.888c0 .102.082.185.185.185M23.763 9.89c-.065-.051-.672-.51-1.954-.51-.338.001-.676.03-1.01.087-.248-1.7-1.653-2.53-1.716-2.566l-.344-.199-.226.327c-.284.438-.49.922-.612 1.43-.23.97-.09 1.882.403 2.661-.595.332-1.55.413-1.744.42H.751a.751.751 0 00-.75.748 11.376 11.376 0 00.692 4.062c.545 1.428 1.355 2.48 2.41 3.124 1.18.723 3.1 1.137 5.275 1.137.983.003 1.963-.086 2.93-.266a12.248 12.248 0 003.823-1.389c.98-.567 1.86-1.288 2.61-2.136 1.252-1.418 1.998-2.997 2.553-4.4h.221c1.372 0 2.215-.549 2.68-1.009.309-.293.55-.65.707-1.046l.098-.288Z"/></symbol>
   <symbol id="si-alibaba" viewBox="0 0 24 24"><path fill="#FF8A3D" d="M3.996 4.517h5.291L8.01 6.324 4.153 7.506a1.668 1.668 0 0 0-1.165 1.601v5.786a1.668 1.668 0 0 0 1.165 1.6l3.857 1.183 1.277 1.807H3.996A3.996 3.996 0 0 1 0 15.487V8.513a3.996 3.996 0 0 1 3.996-3.996m16.008 0h-5.291l1.277 1.807 3.857 1.182c.715.227 1.17.889 1.165 1.601v5.786a1.668 1.668 0 0 1-1.165 1.6l-3.857 1.183-1.277 1.807h5.291A3.996 3.996 0 0 0 24 15.487V8.513a3.996 3.996 0 0 0-3.996-3.996m-4.007 8.345H8.002v-1.804h7.995Z"/></symbol>
-  <symbol id="si-caddy" viewBox="0 0 24 24"><path fill="#22D172" d="M18 8h-1V6a5 5 0 0 0-10 0v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zM9 6a3 3 0 0 1 6 0v2H9V6zm4 10.72V19h-2v-2.28a2 2 0 1 1 2 0z"/></symbol>
 </defs></svg>
 
 <div id="frame">
   <header>
-    <div class="brand">
-      <img class="mark" src="../../frontend/public/engram-mark.png" alt="Engram" />
-      <div>
-        <div class="wordmark">engram</div>
-        <div class="eyebrow">MEMORY-FIRST PHOTO MENTOR · QWEN</div>
-      </div>
-    </div>
-    <div class="screen-title">
-      <h1>Architecture</h1>
-      <div class="screen-tag">CONTEXT DIAGRAM</div>
-    </div>
+    <img class="mark" src="../../frontend/public/engram-mark.png" alt="" />
+    <span class="title">engram</span>
+    <span class="tag">· one memory layer, many products</span>
   </header>
 
   <div id="diagram">
-    <!-- Row 1 — React SPA -->
-    <div class="ctx-row" id="row-spa">
-      <div class="ctx-card">
-        <div>
-          <h3>React SPA</h3>
-          <p class="ctx-sub">Home · Mentor · Proof Room</p>
-        </div>
-        <div class="ctx-logos">
-          <svg><use href="#si-react"/></svg>
+    <div id="ecs">
+      <div id="ecs-label">
+        <svg><use href="#si-alibaba"/></svg>
+        ALIBABA CLOUD ECS — one Docker image
+      </div>
+
+      <div class="band" id="band-spa">
+        <div class="band-title">
+          <div>
+            <h3>React SPA</h3>
+            <p class="sub">Home · My Work · Mentor · Proof Room</p>
+          </div>
+          <div class="band-logo"><svg><use href="#si-react"/></svg></div>
         </div>
       </div>
-    </div>
 
-    <div class="ctx-arrow"></div>
+      <div class="arrow" aria-hidden="true"></div>
 
-    <!-- Row 2 — FastAPI + agents on Alibaba Cloud ECS -->
-    <div class="ctx-row" id="row-api">
-      <div class="ctx-card">
-        <span class="ecs-label"><svg style="width:14px;height:14px;vertical-align:-2px;margin-right:6px"><use href="#si-alibaba"/></svg>ALIBABA CLOUD · ECS</span>
-        <div>
-          <h3>FastAPI + agents</h3>
-          <p class="ctx-sub">Coach · Mentor · Reflection · engram-mcp</p>
+      <div class="band" id="band-api">
+        <div class="band-title">
+          <div>
+            <h3>FastAPI service</h3>
+            <p class="sub">same-origin API · Python</p>
+          </div>
         </div>
-        <div class="ctx-logos">
-          <svg><use href="#si-fastapi"/></svg>
-          <svg><use href="#si-python"/></svg>
-          <svg><use href="#si-alibaba"/></svg>
-          <svg><use href="#si-caddy"/></svg>
-          <svg><use href="#si-docker"/></svg>
-          <span class="mcp-badge">MCP</span>
+        <div class="pills">
+          <div class="pill">
+            <div><b>Coach</b><span>critiques photos</span></div>
+          </div>
+          <div class="pill">
+            <div><b>Mentor</b><span>chats with receipts</span></div>
+          </div>
+          <div class="pill">
+            <div><b>Reflection</b><span>tracks your journey</span></div>
+          </div>
+          <div class="pill">
+            <span class="mcp-chip">MCP</span>
+            <div><b>engram-mcp</b><span>any agent mounts the memory</span></div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="ctx-arrow"></div>
+      <div class="arrow" aria-hidden="true"></div>
 
-    <!-- Row 3 — MEMORY ENGINE (hero band) -->
-    <div class="ctx-row" id="row-engine">
-      <div class="ctx-card ctx-engine">
+      <div class="band" id="band-engine">
         <h2>MEMORY ENGINE</h2>
-        <p class="engine-tagline">the product</p>
-        <div class="engine-pillars">
+        <p class="tagline">the product</p>
+        <div class="pillars">
           <div class="pillar"><b>Salience</b><span>importance × recency × relevance</span></div>
-          <div class="pillar"><b>Graduation</b><span>skills retire when mastered</span></div>
-          <div class="pillar"><b>Supersession</b><span>facts update, old ones kept</span></div>
+          <div class="pillar"><b>Graduation</b><span>mastered skills retire</span></div>
+          <div class="pillar"><b>Supersession</b><span>stale facts forgotten — audit kept</span></div>
           <div class="pillar"><b>Packing</b><span>best memories fit the budget</span></div>
         </div>
       </div>
     </div>
 
-    <div class="ctx-arrow"></div>
-
-    <!-- Row 4 — Managed services split -->
-    <div class="ctx-row" id="row-services">
-      <div class="ctx-card ctx-qwen">
-        <div>
-          <h3>Qwen Cloud</h3>
-          <p class="ctx-sub">managed LLM API</p>
+    <div id="externals">
+      <div class="ext-col">
+        <div class="ext-arrow">
+          <span class="label">model calls</span>
+          <span class="shaft"></span>
+          <span class="head"></span>
         </div>
-        <div class="ctx-logos">
-          <span class="qbadge">Q</span>
+        <div class="ext-card" id="card-qwen">
+          <div>
+            <h3>Qwen Cloud</h3>
+            <p class="sub">qwen-vl-max · qwen3.7-max · qwen3.6-flash</p>
+          </div>
+          <div class="logo"><span class="qbadge">Q</span></div>
         </div>
       </div>
-      <div class="ctx-card ctx-mongo">
-        <div>
-          <h3>MongoDB Atlas</h3>
-          <p class="ctx-sub">the memory store</p>
+      <div class="ext-col">
+        <div class="ext-arrow">
+          <span class="label">memories</span>
+          <span class="shaft"></span>
+          <span class="head"></span>
         </div>
-        <div class="ctx-logos">
-          <svg><use href="#si-mongodb"/></svg>
+        <div class="ext-card" id="card-mongo">
+          <div>
+            <h3>MongoDB Atlas</h3>
+            <p class="sub">the memory store</p>
+          </div>
+          <div class="logo"><svg><use href="#si-mongodb"/></svg></div>
         </div>
       </div>
     </div>
-
-    <span class="evidence-chip">Open source · Apache-2.0 · 8 ADRs</span>
   </div>
-
-  <footer>
-    <div>
-      <h2>One memory layer, many products.</h2>
-      <p>The coach is the first product on the engine — live field coaching, low-vision support, and print-sales workflows mount the same memory over MCP. github.com/prasadt1/engram · every model call via Qwen Cloud's managed API.</p>
-    </div>
-    <div class="chips">
-      <span class="chip hot">Alibaba ECS</span>
-      <span class="chip hot">Qwen Cloud</span>
-      <span class="chip">MongoDB Atlas</span>
-      <span class="chip">engram-mcp</span>
-      <span class="chip">Apache-2.0</span>
-    </div>
-  </footer>
 </div>
 
 <script>
@@ -255,7 +245,7 @@ document.documentElement.dataset.theme = theme;
 if (theme === 'cream') {
   const cream = document.getElementById('theme-cream');
   if (cream) { cream.media = 'all'; cream.disabled = false; }
-  const mark = document.querySelector('.brand .mark, header img.mark, .mark');
+  const mark = document.querySelector('header .mark');
   if (mark) mark.setAttribute('src', '../../frontend/public/engram-mark-light.png');
 }
 </script>

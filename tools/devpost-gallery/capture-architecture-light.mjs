@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Render architecture.html in cream theme (1920×1080 CSS, 2× DPI) →
- * docs/devpost-public/annotated-05-architecture-light.png AND
- * docs/media/devpost-inline-architecture.png (committed inline image).
+ * Cream context diagram — 4:3 canvas (1440×1080 CSS @ 2× = 2880×2160).
+ * Writes docs/devpost-public/annotated-05-architecture-light.png AND
+ * docs/media/devpost-inline-architecture.png.
  * Usage: node capture-architecture-light.mjs
  */
 import { copyFileSync, mkdirSync } from 'node:fs';
@@ -17,7 +17,7 @@ const MEDIA = join(ROOT, 'docs/media');
 
 const browser = await chromium.launch({ channel: 'chrome' });
 const page = await browser.newPage({
-  viewport: { width: 1920, height: 1080 },
+  viewport: { width: 1440, height: 1080 },
   deviceScaleFactor: 2,
 });
 await page.goto('file://' + join(__dirname, 'architecture.html') + '?mode=context&theme=cream');
@@ -34,5 +34,5 @@ copyFileSync(
 );
 
 await browser.close();
-console.log('wrote annotated-05-architecture-light.png');
+console.log('wrote annotated-05-architecture-light.png (2880×2160)');
 console.log('copied → docs/media/devpost-inline-architecture.png');
