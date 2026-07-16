@@ -1,0 +1,349 @@
+<svg width="1600" height="1200" viewBox="0 0 1600 1200" xmlns="http://www.w3.org/2000/svg"
+     font-family="Helvetica, Arial, sans-serif">
+
+  <defs>
+    <marker id="a-amber" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M1 1L9 5L1 9" fill="none" stroke="#f59e0b"
+            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="a-violet" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M1 1L9 5L1 9" fill="none" stroke="#a78bfa"
+            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="a-muted" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M1 1L9 5L1 9" fill="none" stroke="#a89f92"
+            stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="a-green" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M1 1L9 5L1 9" fill="none" stroke="#34d399"
+            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <!-- Canvas -->
+  <rect width="1600" height="1200" fill="#141210"/>
+
+  <!-- HEADER -->
+  <text x="60" y="48" font-size="28" font-weight="bold" fill="#e8e0d6"
+        letter-spacing="0.5">Engram &#xB7; system data-flow</text>
+  <text x="60" y="76" font-size="14" fill="#a89f92"
+    >Forgetting-aware memory coach &#x2014; Coach upload and Mentor chat request paths</text>
+
+  <!-- Legend -->
+  <g transform="translate(1100,28)">
+    <line x1="0" y1="14" x2="44" y2="14" stroke="#f59e0b" stroke-width="3"
+          marker-end="url(#a-amber)"/>
+    <text x="54" y="19" font-size="13" fill="#f59e0b" font-weight="bold">Coach upload</text>
+    <line x1="200" y1="14" x2="244" y2="14" stroke="#a78bfa" stroke-width="3"
+          marker-end="url(#a-violet)"/>
+    <text x="254" y="19" font-size="13" fill="#a78bfa" font-weight="bold">Mentor chat</text>
+    <line x1="0" y1="40" x2="44" y2="40" stroke="#a89f92" stroke-width="1.8"
+          stroke-dasharray="6 4" marker-end="url(#a-muted)"/>
+    <text x="54" y="45" font-size="13" fill="#a89f92">Side path</text>
+    <line x1="200" y1="40" x2="244" y2="40" stroke="#34d399" stroke-width="2.5"
+          marker-end="url(#a-green)"/>
+    <text x="254" y="45" font-size="13" fill="#34d399">MongoDB write</text>
+  </g>
+
+  <!-- =========== ROW 1: SPA, FastAPI/agents, Qwen Cloud =========== -->
+
+  <!-- SPA -->
+  <rect x="60" y="140" width="310" height="200" rx="10"
+        fill="#1c1a17" stroke="#3d3832" stroke-width="1.5"/>
+  <text x="82" y="170" font-size="17" font-weight="bold" fill="#e8e0d6">React 19 SPA</text>
+  <line x1="82" y1="180" x2="348" y2="180" stroke="#3d3832" stroke-width="1"/>
+  <text x="82" y="202" font-size="13" fill="#a89f92">Home &#xB7; My Work</text>
+  <text x="82" y="222" font-size="13" fill="#a89f92">Mentor (scoped chat)</text>
+  <text x="82" y="242" font-size="13" fill="#a89f92">Proof Room (glass box)</text>
+  <text x="82" y="262" font-size="13" fill="#a89f92">Photo upload &#xB7; split view</text>
+  <text x="82" y="290" font-size="12" fill="#f59e0b" font-weight="bold"
+    >Memory Receipt on every reply</text>
+  <text x="82" y="316" font-size="12" fill="#6b6157">Judge mode: /?judge=1</text>
+
+  <!-- FastAPI + Agents -->
+  <rect x="470" y="140" width="480" height="200" rx="10"
+        fill="#1c1a17" stroke="#3d3832" stroke-width="1.5"/>
+  <text x="492" y="170" font-size="17" font-weight="bold" fill="#e8e0d6"
+    >FastAPI + Agents</text>
+  <text x="492" y="190" font-size="12" fill="#6b6157"
+    >Alibaba Cloud ECS &#xB7; Docker &#xB7; Caddy reverse proxy</text>
+  <line x1="492" y1="200" x2="928" y2="200" stroke="#3d3832" stroke-width="1"/>
+
+  <!-- Coach sub-box -->
+  <rect x="492" y="212" width="132" height="48" rx="6"
+        fill="#1c1a17" stroke="#f59e0b" stroke-width="1.2"/>
+  <text x="512" y="234" font-size="13" font-weight="bold" fill="#f59e0b">Coach</text>
+  <text x="512" y="250" font-size="11" fill="#a89f92">/analyze-photo</text>
+
+  <!-- Mentor sub-box -->
+  <rect x="638" y="212" width="132" height="48" rx="6"
+        fill="#1c1a17" stroke="#a78bfa" stroke-width="1.2"/>
+  <text x="658" y="234" font-size="13" font-weight="bold" fill="#a78bfa">Mentor</text>
+  <text x="658" y="250" font-size="11" fill="#a89f92">/agent/chat</text>
+
+  <!-- Reflection sub-box -->
+  <rect x="784" y="212" width="144" height="48" rx="6"
+        fill="#1c1a17" stroke="#a89f92" stroke-width="1"/>
+  <text x="804" y="234" font-size="13" font-weight="bold" fill="#a89f92">Reflection</text>
+  <text x="804" y="250" font-size="11" fill="#6b6157">/journey</text>
+
+  <text x="492" y="290" font-size="12" fill="#a89f92"
+    >save-before-analyze &#xB7; 20 MB cap &#xB7; sessionId routing</text>
+  <text x="492" y="310" font-size="12" fill="#a89f92"
+    >fail-fast Mongo ping &#xB7; friendly 502/503 error mapping</text>
+
+  <!-- Qwen Cloud -->
+  <rect x="1080" y="140" width="460" height="260" rx="10"
+        fill="#1c1a17" stroke="#5b7fa6" stroke-width="2"/>
+  <text x="1102" y="170" font-size="17" font-weight="bold" fill="#e8e0d6">Qwen Cloud</text>
+  <text x="1102" y="190" font-size="12" fill="#6b6157"
+    >DashScope &#xB7; OpenAI-compatible &#xB7; dashscope-intl</text>
+  <line x1="1102" y1="200" x2="1518" y2="200" stroke="#3d3832" stroke-width="1"/>
+
+  <!-- qwen-vl-max (Coach model) -->
+  <rect x="1102" y="216" width="420" height="32" rx="16"
+        fill="#1c1a17" stroke="#f59e0b" stroke-width="1.2"/>
+  <text x="1122" y="238" font-size="13.5" fill="#f59e0b" font-weight="bold"
+    >qwen-vl-max</text>
+  <text x="1240" y="238" font-size="12" fill="#a89f92"
+    >vision critique + genre tagging</text>
+
+  <!-- qwen3.7-max (optional reasoning) -->
+  <rect x="1102" y="260" width="420" height="32" rx="16"
+        fill="#1c1a17" stroke="#5b7fa6" stroke-width="1"/>
+  <text x="1122" y="282" font-size="13.5" fill="#e8e0d6">qwen3.7-max</text>
+  <text x="1240" y="282" font-size="12" fill="#a89f92"
+    >reasoning &#xB7; JSON shape repair</text>
+
+  <!-- qwen3.6-flash (Mentor model) -->
+  <rect x="1102" y="304" width="420" height="32" rx="16"
+        fill="#1c1a17" stroke="#a78bfa" stroke-width="1.2"/>
+  <text x="1122" y="326" font-size="13.5" fill="#a78bfa" font-weight="bold"
+    >qwen3.6-flash</text>
+  <text x="1260" y="326" font-size="12" fill="#a89f92"
+    >chat &#xB7; summaries &#xB7; cheap ops</text>
+
+  <text x="1102" y="378" font-size="12" fill="#6b6157"
+    >qwen_client &#x2014; retries, JSON repair, cost log</text>
+
+  <!-- =========== ROW 2: MCP, MEMORY ENGINE (hero), MongoDB =========== -->
+
+  <!-- MEMORY ENGINE (HERO) -->
+  <rect x="380" y="450" width="570" height="270" rx="12"
+        fill="#1f1c18" stroke="#f59e0b" stroke-width="2.5"/>
+  <text x="404" y="484" font-size="20" font-weight="bold" fill="#f59e0b"
+    >&#x2605;  MEMORY ENGINE</text>
+  <text x="404" y="508" font-size="13" fill="#a89f92"
+    >The product &#x2014; forgetting-aware context builder</text>
+  <line x1="404" y1="518" x2="926" y2="518" stroke="#3d3832" stroke-width="1"/>
+
+  <text x="404" y="542" font-size="13" fill="#e8e0d6">recall_scored</text>
+  <text x="530" y="542" font-size="12" fill="#a89f92"
+    >salience = importance &#xD7; recency &#xD7; query-relevance</text>
+
+  <text x="404" y="566" font-size="13" fill="#e8e0d6">graduation</text>
+  <text x="530" y="566" font-size="12" fill="#a89f92"
+    >3 consecutive above-bar &#x2192; skill clears; coaching retires</text>
+
+  <text x="404" y="590" font-size="13" fill="#e8e0d6">supersession</text>
+  <text x="530" y="590" font-size="12" fill="#a89f92"
+    >contradicted facts &#x2192; superseded_by; retired, never deleted</text>
+
+  <text x="404" y="614" font-size="13" fill="#e8e0d6">packing</text>
+  <text x="530" y="614" font-size="12" fill="#a89f92"
+    >token-budget fit; remainder reported, not hidden</text>
+
+  <!-- Memory Receipt badge -->
+  <rect x="404" y="630" width="530" height="30" rx="6"
+        fill="#2a2418" stroke="#f59e0b" stroke-width="1"/>
+  <text x="418" y="650" font-size="12.5" font-weight="bold" fill="#f59e0b"
+    >Memory Receipt: recalled &#xB7; retired &#xB7; dropped-by-budget</text>
+
+  <!-- Graduation / supersession callout -->
+  <rect x="404" y="672" width="310" height="26" rx="5"
+        fill="none" stroke="#f59e0b" stroke-width="0.8" stroke-dasharray="3 2"/>
+  <text x="416" y="690" font-size="11" fill="#f59e0b"
+    >&#x2191; graduation + supersession &#x2014; the differentiator</text>
+
+  <!-- MCP -->
+  <rect x="60" y="510" width="250" height="140" rx="10"
+        fill="#1c1a17" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="8 4"/>
+  <text x="82" y="542" font-size="16" font-weight="bold" fill="#f59e0b"
+    >engram-mcp</text>
+  <text x="82" y="562" font-size="12" fill="#a89f92">Custom MCP server</text>
+  <line x1="82" y1="572" x2="286" y2="572" stroke="#3d3832" stroke-width="0.8"/>
+  <text x="82" y="592" font-size="12" fill="#a89f92"
+    >recall &#xB7; consolidate &#xB7; forget</text>
+  <text x="82" y="612" font-size="12" fill="#a89f92">get_memory_stats</text>
+  <text x="82" y="632" font-size="12" fill="#6b6157">stdio transport</text>
+
+  <!-- MongoDB Atlas -->
+  <rect x="1080" y="480" width="460" height="230" rx="10"
+        fill="#1c1a17" stroke="#34d399" stroke-width="2"/>
+  <text x="1102" y="510" font-size="17" font-weight="bold" fill="#e8e0d6"
+    >MongoDB Atlas</text>
+  <text x="1102" y="530" font-size="12" fill="#6b6157"
+    >The persistent memory &#xB7; multi-cloud</text>
+  <line x1="1102" y1="542" x2="1518" y2="542" stroke="#3d3832" stroke-width="1"/>
+
+  <rect x="1102" y="554" width="196" height="28" rx="14"
+        fill="#1c1a17" stroke="#34d399" stroke-width="1"/>
+  <text x="1120" y="574" font-size="12" fill="#34d399">portfolio_entries</text>
+
+  <rect x="1312" y="554" width="196" height="28" rx="14"
+        fill="#1c1a17" stroke="#34d399" stroke-width="1"/>
+  <text x="1330" y="574" font-size="12" fill="#34d399">memory_items</text>
+
+  <rect x="1102" y="594" width="196" height="28" rx="14"
+        fill="#1c1a17" stroke="#34d399" stroke-width="1"/>
+  <text x="1120" y="614" font-size="12" fill="#34d399">skills</text>
+
+  <rect x="1312" y="594" width="196" height="28" rx="14"
+        fill="#1c1a17" stroke="#34d399" stroke-width="1"/>
+  <text x="1330" y="614" font-size="12" fill="#34d399">chat_turns</text>
+
+  <text x="1102" y="650" font-size="12" fill="#a89f92"
+    >salience metadata &#xB7; supersession links</text>
+  <text x="1102" y="670" font-size="12" fill="#a89f92"
+    >graduation state &#xB7; evidence arrays</text>
+  <text x="1102" y="694" font-size="12" fill="#6b6157"
+    >kept multi-cloud; backend on Alibaba ECS</text>
+
+  <!-- =========== ROW 3: ECS /media, /eval evidence rail =========== -->
+
+  <!-- ECS /media -->
+  <rect x="60" y="770" width="250" height="110" rx="10"
+        fill="#1c1a17" stroke="#3d3832" stroke-width="1.5"/>
+  <text x="82" y="800" font-size="16" font-weight="bold" fill="#e8e0d6"
+    >ECS /media</text>
+  <text x="82" y="822" font-size="12" fill="#a89f92">Photo storage endpoint</text>
+  <text x="82" y="842" font-size="12" fill="#a89f92"
+    >Alibaba OSS (signed URLs)</text>
+  <text x="82" y="862" font-size="12" fill="#6b6157">local-disk dev backend</text>
+
+  <!-- /eval FAMA (dashed evidence rail) -->
+  <rect x="1080" y="790" width="460" height="170" rx="10"
+        fill="#1c1a17" stroke="#f59e0b" stroke-width="1.8" stroke-dasharray="8 5"/>
+  <text x="1102" y="822" font-size="16" font-weight="bold" fill="#f59e0b"
+    >/eval &#x2014; evidence rail</text>
+  <text x="1102" y="844" font-size="12" fill="#a89f92"
+    >26 frozen traces &#xB7; adversarial + chains + multi-hop</text>
+  <line x1="1102" y1="856" x2="1518" y2="856" stroke="#3d3832" stroke-width="0.8"/>
+  <text x="1102" y="878" font-size="14" font-weight="bold" fill="#e8e0d6"
+    >FAMA 1.00</text>
+  <text x="1230" y="878" font-size="13" fill="#a89f92"
+    >with forgetting  vs  0.64 without</text>
+  <text x="1102" y="900" font-size="14" font-weight="bold" fill="#e8e0d6"
+    >1.72&#xD7; fewer tokens</text>
+  <text x="1280" y="900" font-size="13" fill="#a89f92">recall unchanged</text>
+  <text x="1102" y="928" font-size="12" fill="#6b6157"
+    >deterministic &#xB7; &#x3BB; disclosed &#xB7; traces frozen pre-results</text>
+
+  <!-- =========== ARROWS: COACH PATH (amber) =========== -->
+  <!-- SPA -> FastAPI -> Memory Engine -> qwen-vl-max -> writes -> SPA -->
+
+  <!-- SPA to FastAPI: upload photo -->
+  <line x1="370" y1="210" x2="468" y2="210"
+        stroke="#f59e0b" stroke-width="2.5" marker-end="url(#a-amber)"/>
+  <text x="386" y="202" font-size="11" fill="#f59e0b" font-weight="bold"
+    >upload photo</text>
+
+  <!-- FastAPI (Coach) to Memory Engine -->
+  <line x1="558" y1="340" x2="558" y2="448"
+        stroke="#f59e0b" stroke-width="2.5" marker-end="url(#a-amber)"/>
+  <text x="466" y="400" font-size="11" fill="#f59e0b" font-weight="bold"
+    >recall + pack</text>
+
+  <!-- Memory Engine to Qwen Cloud (qwen-vl-max), L-shape -->
+  <path d="M950,510 L1000,510 L1000,232 L1078,232"
+        stroke="#f59e0b" stroke-width="2.5" fill="none"
+        marker-end="url(#a-amber)"/>
+  <text x="1008" y="390" font-size="11" fill="#f59e0b" font-weight="bold"
+    >qwen-vl-max</text>
+  <text x="1008" y="406" font-size="10" fill="#a89f92"
+    >&#x2190; scores &#xB7; what I learned</text>
+
+  <!-- Memory Engine to MongoDB (writes), green -->
+  <line x1="950" y1="600" x2="1078" y2="590"
+        stroke="#34d399" stroke-width="2.5" marker-end="url(#a-green)"/>
+  <text x="960" y="582" font-size="11" fill="#34d399" font-weight="bold"
+    >writes portfolio_entries</text>
+  <text x="960" y="628" font-size="11" fill="#34d399" font-weight="bold"
+    >memory_items &#xB7; skills</text>
+
+  <!-- Coach return to SPA (dashed amber, wraps left side) -->
+  <path d="M378,710 L36,710 L36,260 L58,260"
+        stroke="#f59e0b" stroke-width="1.8" fill="none"
+        stroke-dasharray="6 4" marker-end="url(#a-amber)"/>
+  <text x="26" y="510" font-size="11" fill="#f59e0b" font-weight="bold"
+        transform="rotate(-90,26,510)">SPA refresh</text>
+
+  <!-- =========== ARROWS: MENTOR PATH (violet) =========== -->
+  <!-- SPA -> FastAPI -> Memory Engine -> qwen3.6-flash -> SSE -> SPA -->
+
+  <!-- SPA to FastAPI: chat message -->
+  <line x1="370" y1="260" x2="468" y2="260"
+        stroke="#a78bfa" stroke-width="2.5" marker-end="url(#a-violet)"/>
+  <text x="386" y="278" font-size="11" fill="#a78bfa" font-weight="bold"
+    >chat message</text>
+
+  <!-- FastAPI (Mentor) to Memory Engine -->
+  <line x1="704" y1="340" x2="704" y2="448"
+        stroke="#a78bfa" stroke-width="2.5" marker-end="url(#a-violet)"/>
+  <text x="714" y="400" font-size="11" fill="#a78bfa" font-weight="bold"
+    >scoped recall</text>
+
+  <!-- Memory Engine to Qwen Cloud (qwen3.6-flash), L-shape -->
+  <path d="M950,570 L1050,570 L1050,320 L1078,320"
+        stroke="#a78bfa" stroke-width="2.5" fill="none"
+        marker-end="url(#a-violet)"/>
+  <text x="1058" y="456" font-size="11" fill="#a78bfa" font-weight="bold"
+    >qwen3.6-flash</text>
+
+  <!-- SSE return to SPA (violet, wraps over top) -->
+  <path d="M1080,148 L1080,100 L200,100 L200,138"
+        stroke="#a78bfa" stroke-width="2" fill="none"
+        marker-end="url(#a-violet)"/>
+  <text x="480" y="94" font-size="12" fill="#a78bfa" font-weight="bold"
+    >SSE stream &#xB7; Memory Receipt</text>
+
+  <!-- =========== ARROWS: SIDE PATHS (dashed, muted) =========== -->
+
+  <!-- Reflection to SPA (Home / Journey) -->
+  <path d="M856,212 L856,122 L215,122 L215,138"
+        stroke="#a89f92" stroke-width="1.5" fill="none"
+        stroke-dasharray="5 4" marker-end="url(#a-muted)"/>
+  <text x="430" y="118" font-size="11" fill="#6b6157"
+    >Reflection &#x2192; Home / Journey</text>
+
+  <!-- MCP to Memory Engine (stdio) -->
+  <line x1="310" y1="575" x2="378" y2="575"
+        stroke="#a89f92" stroke-width="1.5"
+        stroke-dasharray="5 4" marker-end="url(#a-muted)"/>
+  <text x="322" y="564" font-size="11" fill="#6b6157">stdio &#x2194;</text>
+
+  <!-- /eval to Memory Engine (measures FAMA) -->
+  <path d="M1078,860 L970,860 L970,722"
+        stroke="#a89f92" stroke-width="1.5" fill="none"
+        stroke-dasharray="5 4" marker-end="url(#a-muted)"/>
+  <text x="978" y="810" font-size="11" fill="#6b6157">measures</text>
+  <text x="978" y="826" font-size="11" fill="#6b6157">FAMA</text>
+
+  <!-- FastAPI to ECS /media (photo storage) -->
+  <path d="M470,310 L340,310 L340,810 L310,810"
+        stroke="#a89f92" stroke-width="1.5" fill="none"
+        stroke-dasharray="5 4" marker-end="url(#a-muted)"/>
+  <text x="330" y="556" font-size="11" fill="#6b6157"
+        transform="rotate(-90,330,556)">photo &#x2192; /media</text>
+
+  <!-- FOOTER -->
+  <text x="60" y="1020" font-size="12" fill="#6b6157"
+    >github.com/prasadt1/engram &#xB7; Apache-2.0 &#xB7; built on the author's open-source Iris foundation</text>
+  <text x="60" y="1042" font-size="12" fill="#6b6157"
+    >Every model call via Qwen Cloud's managed DashScope API</text>
+
+</svg>
