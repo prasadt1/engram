@@ -10,6 +10,15 @@ editing history.
 Format: lightweight — Context, Decision, Alternatives considered,
 Consequences. No ceremony beyond that.
 
+## System diagrams
+
+| View | Link |
+|------|------|
+| Context (article / gallery) | Cream inline: [`../media/devpost-inline-architecture.png`](../media/devpost-inline-architecture.png) |
+| Full data-flow (zoomable) | [`system-flow.html`](system-flow.html) · raw [`system-flow.svg`](system-flow.svg) |
+
+Legacy posters [`../architecture.svg`](../architecture.svg) and [`../architecture-dark.svg`](../architecture-dark.svg) are **superseded** by the context PNG + `system-flow.svg`.
+
 ## Index
 
 | # | Decision | Status |
@@ -23,4 +32,4 @@ Consequences. No ceremony beyond that.
 | [0007](0007-https-via-caddy.md) | HTTPS via Caddy + a real subdomain, not bare-IP HTTP | Accepted |
 | [0008](0008-stream-chat-via-sse.md) | Stream mentor chat replies token-by-token over SSE | Accepted |
 
-See also [`../architecture.svg`](../architecture.svg) for the system diagram these decisions produced.
+See also the [system diagrams](#system-diagrams) above for the diagrams these decisions produced.
