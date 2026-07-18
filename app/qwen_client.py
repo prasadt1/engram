@@ -4,6 +4,12 @@ Every model call in Engram goes through this module so that: (1) model
 IDs are never hardcoded at call sites, (2) a bad response gets one
 JSON-repair retry before failing, and (3) token/latency are logged
 per call for the benchmark and the cost story in the submission.
+
+Alibaba Cloud proof-of-deployment: all calls target Alibaba's managed
+DashScope endpoint (https://dashscope-intl.aliyuncs.com/compatible-mode/v1,
+configured in app/config.py) — qwen-vl-max, qwen3.7-max, qwen3.6-flash.
+Full deployment evidence (ECS instance, console captures, usage stats):
+docs/ALIBABA_CLOUD_PROOF.md
 """
 
 from __future__ import annotations
