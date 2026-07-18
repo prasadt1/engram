@@ -177,7 +177,7 @@
   <text x="82" y="562" font-size="12" fill="#a89f92">Custom MCP server</text>
   <line x1="82" y1="572" x2="286" y2="572" stroke="#3d3832" stroke-width="0.8"/>
   <text x="82" y="592" font-size="12" fill="#a89f92"
-    >recall &#xB7; consolidate &#xB7; forget</text>
+    >recall &#xB7; forget</text>
   <text x="82" y="612" font-size="12" fill="#a89f92">get_memory_stats</text>
   <text x="82" y="632" font-size="12" fill="#6b6157">stdio transport</text>
 
@@ -220,9 +220,9 @@
         fill="#1c1a17" stroke="#3d3832" stroke-width="1.5"/>
   <text x="82" y="800" font-size="16" font-weight="bold" fill="#e8e0d6"
     >ECS /media</text>
-  <text x="82" y="822" font-size="12" fill="#a89f92">Photo storage endpoint</text>
-  <text x="82" y="842" font-size="12" fill="#a89f92"
-    >Alibaba OSS (signed URLs)</text>
+  <text x="82" y="822" font-size="12" fill="#a89f92">Photo storage endpoint (prod)</text>
+  <text x="82" y="842" font-size="12" fill="#6b6157"
+    >Alibaba OSS backend &#x2014; one env flip</text>
   <text x="82" y="862" font-size="12" fill="#6b6157">local-disk dev backend</text>
 
   <!-- /eval FAMA (dashed evidence rail) -->
