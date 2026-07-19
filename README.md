@@ -1,4 +1,4 @@
-![Engram — Home with mentor-read hero and genre memory threads](docs/media/devpost-inline-home-threads.png)
+![Engram — Memory that coaches](docs/media/engram-hero-cover.jpg)
 
 # Engram — Memory that coaches
 
@@ -121,6 +121,8 @@ Engram runs one loop:
 | **Proof Room** | Canon→Sony animated supersession story, live MongoDB counts, FAMA heatmap; MCP toggle round-trips `engram-mcp` |
 | **Coach Assist** (`?judge=1`) | Same engine, three learners side by side (Jordan / Alex / Sam) — per-user isolation for schools & workshops |
 | **engram-mcp** | MCP tools: `recall` · `forget` · `get_memory_stats` — any Qwen agent can mount the engine |
+
+![Home — mentor-read hero and genre memory threads](docs/media/devpost-inline-home-threads.png)
 
 ![Memory Proof Room](docs/media/devpost-inline-proof-room.png)
 
