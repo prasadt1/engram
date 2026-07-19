@@ -40,16 +40,19 @@ Themed composite (Engram dark chrome): **full-bleed** ECS console + SSH `docker 
 
 ## 4. Qwen Cloud / DashScope usage (Model Studio)
 
-Every product model call is billed through DashScope. Captured from **Model Studio → Usage and Billing → Model Usage → Overview** (filter: last 1 week · Online Inference · API-KEY = All):
+Every product model call is billed through DashScope. Captured **July 19, 2026** from **Model Studio → Usage and Billing → Model Usage → Overview** (filter: last 20 days · Online Inference · API-KEY = All):
 
-| Metric (≈1 week) | Value |
+| Metric (20 days) | Value |
 |------------------|--------|
-| Models called | **3** |
-| Successful calls | **203** |
-| Total tokens | **407K** |
-| Top models | `qwen3.6-flash` (136) · `qwen-vl-max` (55) · `qwen3.7-max` (12) |
+| Models called | **4** |
+| Successful calls | **1,188** |
+| Total tokens | **2.395M** |
+| Shipped models | `qwen3.6-flash` (863) · `qwen3.7-max` (174) · `qwen-vl-max` (145) |
+| Build-period benchmark | `qwen-vl-plus` (6) — tested as a faster repair option, rejected after 5/6 outputs were unparseable |
 
 ![Qwen Cloud DashScope Model Usage overview](qwen-dashscope-usage.png)
+
+The official **Top 10 Models by Successful Calls** table is visible in the capture; the themed strip below repeats the same names and counts for readability.
 
 **Where to re-check in the console:**
 
