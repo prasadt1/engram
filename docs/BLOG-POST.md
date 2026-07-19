@@ -15,7 +15,7 @@ Put the dev.to URL in the Devpost "Blog/social post" bonus field.
 
 **Cover image:** https://raw.githubusercontent.com/prasadt1/engram/main/docs/media/devpost-inline-architecture.png
 
-[Full-scale data-flow diagram →](https://github.com/prasadt1/engram/tree/main/docs/architecture)
+[Full-scale data-flow diagram →](https://raw.githubusercontent.com/prasadt1/engram/main/docs/architecture/system-flow.svg?v=2)
 
 **Tags:** ai · machinelearning · showdev · qwen
 

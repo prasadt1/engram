@@ -30,6 +30,9 @@ docs/superpowers/
 docs/reviews/
 docs/DEVPOST-DRAFT.md
 docs/demo-video-script.md
+
+# Demo video picture-lock renders (sources stay on Desktop / docs/)
+tools/demo-video/out/
 docs/mcp-transcript.md
 docs/devpost-public/
 docs/devpost-screenshots/
@@ -41,3 +44,9 @@ gpt-5.5 Engram approach review - findings.md
 
 # Logo explorations — shipped icons live in frontend/public/
 assets/logo-options/
+
+# Demo-video raw source media (kept local; renders already ignored above)
+docs/engram iphone video and images/
+
+# Superpowers plugin scratch (brainstorm servers, visual-companion mockups)
+.superpowers/
